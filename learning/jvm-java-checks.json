@@ -1,6 +1,6 @@
 {
   "jdk": "openjdk version \"21.0.8\" 2025-07-15 LTS\nOpenJDK Runtime Environment Microsoft-11933203 (build 21.0.8+9-LTS)\nOpenJDK 64-Bit Server VM Microsoft-11933203 (build 21.0.8+9-LTS, mixed mode, sharing)\n",
-  "examples": 17,
+  "examples": 21,
   "lessons": 16,
   "results": [
     {
@@ -154,8 +154,42 @@
       "lesson": 16,
       "compiled_release": 21,
       "output": [
-        "pid=1086",
+        "pid=1260",
         "done"
+      ],
+      "passed": true
+    }
+  ],
+  "walkthroughs": [
+    {
+      "example": "Walkthrough04",
+      "output": [
+        "42"
+      ],
+      "passed": true
+    },
+    {
+      "example": "Walkthrough05",
+      "output": [
+        "7",
+        "36",
+        "26"
+      ],
+      "passed": true
+    },
+    {
+      "example": "Walkthrough07",
+      "output": [
+        "3"
+      ],
+      "passed": true
+    },
+    {
+      "example": "Walkthrough10",
+      "output": [
+        "42",
+        "0",
+        "false"
       ],
       "passed": true
     }

@@ -13,7 +13,7 @@
     {
       "width": 390,
       "lesson": 1,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "JVM은 왜 존재하는가: 운영체제와 Java 사이의 약속"
@@ -21,7 +21,7 @@
     {
       "width": 390,
       "lesson": 2,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "Java 코드가 실행되는 과정: 소스에서 CPU까지"
@@ -29,7 +29,7 @@
     {
       "width": 390,
       "lesson": 3,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "JVM 메모리 영역: 공유 창고와 스레드별 작업대"
@@ -37,7 +37,7 @@
     {
       "width": 390,
       "lesson": 4,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "스택과 스택 프레임: 메서드 호출을 한 칸씩 추적하기"
@@ -45,7 +45,7 @@
     {
       "width": 390,
       "lesson": 5,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "피연산자 스택과 바이트코드: 덧셈 한 줄을 해부하기"
@@ -53,7 +53,7 @@
     {
       "width": 390,
       "lesson": 6,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "javap로 바이트코드 읽기: 객체·배열·호출·예외 실습"
@@ -61,7 +61,7 @@
     {
       "width": 390,
       "lesson": 7,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "클래스 파일과 상수 풀: JVM이 읽는 설계도"
@@ -69,7 +69,7 @@
     {
       "width": 390,
       "lesson": 8,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "클래스 로딩: 이름이 같아도 다른 타입인 이유"
@@ -77,7 +77,7 @@
     {
       "width": 390,
       "lesson": 9,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "링킹과 초기화: static이 실행되는 정확한 시점"
@@ -85,7 +85,7 @@
     {
       "width": 390,
       "lesson": 10,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "객체와 메모리: 참조·할당·TLAB·압축 포인터·탈출 분석"
@@ -93,7 +93,7 @@
     {
       "width": 390,
       "lesson": 11,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "GC의 기본 원리: 도달 가능성과 메모리 회수"
@@ -101,7 +101,7 @@
     {
       "width": 390,
       "lesson": 12,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "세대별 GC: 짧게 사는 객체를 싸게 정리하는 방법"
@@ -109,7 +109,7 @@
     {
       "width": 390,
       "lesson": 13,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "G1 GC 내부 동작: Region부터 Mixed와 Full GC까지"
@@ -117,7 +117,7 @@
     {
       "width": 390,
       "lesson": 14,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "인터프리터와 JIT: 워밍업·인라이닝·역최적화"
@@ -125,7 +125,7 @@
     {
       "width": 390,
       "lesson": 15,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "스레드·모니터·Safepoint: 대기와 정지를 구분하기"
@@ -133,7 +133,7 @@
     {
       "width": 390,
       "lesson": 16,
-      "questions": 9,
+      "questions": 10,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "JVM 장애 분석 도구: CPU·Heap·Native·종료 원인을 구분하기"
@@ -149,7 +149,7 @@
     {
       "width": 1440,
       "lesson": 1,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "JVM은 왜 존재하는가: 운영체제와 Java 사이의 약속"
@@ -157,7 +157,7 @@
     {
       "width": 1440,
       "lesson": 2,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "Java 코드가 실행되는 과정: 소스에서 CPU까지"
@@ -165,7 +165,7 @@
     {
       "width": 1440,
       "lesson": 3,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "JVM 메모리 영역: 공유 창고와 스레드별 작업대"
@@ -173,7 +173,7 @@
     {
       "width": 1440,
       "lesson": 4,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "스택과 스택 프레임: 메서드 호출을 한 칸씩 추적하기"
@@ -181,7 +181,7 @@
     {
       "width": 1440,
       "lesson": 5,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "피연산자 스택과 바이트코드: 덧셈 한 줄을 해부하기"
@@ -189,7 +189,7 @@
     {
       "width": 1440,
       "lesson": 6,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "javap로 바이트코드 읽기: 객체·배열·호출·예외 실습"
@@ -197,7 +197,7 @@
     {
       "width": 1440,
       "lesson": 7,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "클래스 파일과 상수 풀: JVM이 읽는 설계도"
@@ -205,7 +205,7 @@
     {
       "width": 1440,
       "lesson": 8,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "클래스 로딩: 이름이 같아도 다른 타입인 이유"
@@ -213,7 +213,7 @@
     {
       "width": 1440,
       "lesson": 9,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "링킹과 초기화: static이 실행되는 정확한 시점"
@@ -221,7 +221,7 @@
     {
       "width": 1440,
       "lesson": 10,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "객체와 메모리: 참조·할당·TLAB·압축 포인터·탈출 분석"
@@ -229,7 +229,7 @@
     {
       "width": 1440,
       "lesson": 11,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "GC의 기본 원리: 도달 가능성과 메모리 회수"
@@ -237,7 +237,7 @@
     {
       "width": 1440,
       "lesson": 12,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "세대별 GC: 짧게 사는 객체를 싸게 정리하는 방법"
@@ -245,7 +245,7 @@
     {
       "width": 1440,
       "lesson": 13,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "G1 GC 내부 동작: Region부터 Mixed와 Full GC까지"
@@ -253,7 +253,7 @@
     {
       "width": 1440,
       "lesson": 14,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "인터프리터와 JIT: 워밍업·인라이닝·역최적화"
@@ -261,7 +261,7 @@
     {
       "width": 1440,
       "lesson": 15,
-      "questions": 7,
+      "questions": 8,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "스레드·모니터·Safepoint: 대기와 정지를 구분하기"
@@ -269,7 +269,7 @@
     {
       "width": 1440,
       "lesson": 16,
-      "questions": 9,
+      "questions": 10,
       "overflow": false,
       "skin": "rgb(247, 237, 201)",
       "h1": "JVM 장애 분석 도구: CPU·Heap·Native·종료 원인을 구분하기"

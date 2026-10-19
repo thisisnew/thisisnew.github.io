@@ -1,92 +1,92 @@
 {
   "pages": 17,
-  "questions": 114,
+  "questions": 130,
   "errors": [],
   "lessons": [
     {
       "lesson": 0,
-      "text_chars": 4331,
+      "text_chars": 5031,
       "questions": 0
     },
     {
       "lesson": 1,
-      "text_chars": 6804,
-      "questions": 7
+      "text_chars": 10405,
+      "questions": 8
     },
     {
       "lesson": 2,
-      "text_chars": 6136,
-      "questions": 7
+      "text_chars": 9553,
+      "questions": 8
     },
     {
       "lesson": 3,
-      "text_chars": 6494,
-      "questions": 7
+      "text_chars": 9894,
+      "questions": 8
     },
     {
       "lesson": 4,
-      "text_chars": 5959,
-      "questions": 7
+      "text_chars": 9938,
+      "questions": 8
     },
     {
       "lesson": 5,
-      "text_chars": 5596,
-      "questions": 7
+      "text_chars": 9417,
+      "questions": 8
     },
     {
       "lesson": 6,
-      "text_chars": 6053,
-      "questions": 7
+      "text_chars": 9464,
+      "questions": 8
     },
     {
       "lesson": 7,
-      "text_chars": 6054,
-      "questions": 7
+      "text_chars": 9936,
+      "questions": 8
     },
     {
       "lesson": 8,
-      "text_chars": 6535,
-      "questions": 7
+      "text_chars": 9834,
+      "questions": 8
     },
     {
       "lesson": 9,
-      "text_chars": 6296,
-      "questions": 7
+      "text_chars": 9852,
+      "questions": 8
     },
     {
       "lesson": 10,
-      "text_chars": 5809,
-      "questions": 7
+      "text_chars": 9808,
+      "questions": 8
     },
     {
       "lesson": 11,
-      "text_chars": 6529,
-      "questions": 7
+      "text_chars": 9744,
+      "questions": 8
     },
     {
       "lesson": 12,
-      "text_chars": 6241,
-      "questions": 7
+      "text_chars": 9503,
+      "questions": 8
     },
     {
       "lesson": 13,
-      "text_chars": 7028,
-      "questions": 7
+      "text_chars": 10616,
+      "questions": 8
     },
     {
       "lesson": 14,
-      "text_chars": 6545,
-      "questions": 7
+      "text_chars": 10049,
+      "questions": 8
     },
     {
       "lesson": 15,
-      "text_chars": 7535,
-      "questions": 7
+      "text_chars": 11228,
+      "questions": 8
     },
     {
       "lesson": 16,
-      "text_chars": 9230,
-      "questions": 9
+      "text_chars": 13452,
+      "questions": 10
     }
   ],
   "sources": [

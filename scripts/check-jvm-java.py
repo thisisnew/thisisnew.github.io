@@ -13,6 +13,8 @@ version=run([tool('java'),'-version'],ROOT) # version is printed on stderr, reco
 vm=subprocess.run([tool('java'),'-version'],capture_output=True,text=True,check=True).stderr
 expected={2:['init','main','42'],3:['42','true'],4:['42'],5:['42','0','4'],6:['7','empty'],7:['inbound:42','true'],9:['7','loaded without init request','Config init','0','42','8'],10:['42','true','42'],12:['retained slots=128','done'],13:['retained=8','last=-17'],14:['5050','5150'],15:['20000']}
 results=[]
+walkthroughs={4:['42'],5:['7','36','26'],7:['3'],10:['42','0','false']}
+walkthrough_results=[]
 with tempfile.TemporaryDirectory(prefix='jvm-study-') as temp:
     for n in range(1,17):
         src=ROOT/f'examples/jvm/{n:02}';work=Path(temp)/str(n);work.mkdir()
@@ -34,7 +36,19 @@ with tempfile.TemporaryDirectory(prefix='jvm-study-') as temp:
             virtual=run([tool('java'),'VirtualThreads'],work).strip();assert virtual=='completed=100'
             counter=run([tool('javap'),'-c','-v','-p','Lesson15$Counter'],work)
             assert all(x in counter for x in ['ACC_SYNCHRONIZED','monitorenter','monitorexit'])
+        if n in walkthroughs:
+            extra=f'Walkthrough{n:02}'
+            actual=run([tool('java'),extra],work).strip().splitlines()
+            assert actual==walkthroughs[n],(extra,actual)
+            bytecode=run([tool('javap'),'-v','-c','-p',extra],work)
+            if n==4:
+                assert all(x in bytecode for x in ['descriptor: (J)J','locals=5','ladd','lreturn'])
+            if n==5:
+                assert all(x in bytecode for x in ['isub','imul'])
+            if n==7:
+                assert all(x in bytecode for x in ['descriptor: (Ljava/lang/String;[I)J','i2l'])
+            walkthrough_results.append({'example':extra,'output':actual,'passed':True})
         results.append({'lesson':n,'compiled_release':21,'output':out,'passed':True})
-report={'jdk':vm,'examples':17,'lessons':16,'results':results}
+report={'jdk':vm,'examples':21,'lessons':16,'results':results,'walkthroughs':walkthrough_results}
 (ROOT/'learning/jvm-java-checks.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
-print(json.dumps({'lessons':16,'examples':17,'status':'passed'}))
+print(json.dumps({'lessons':16,'examples':21,'status':'passed'}))

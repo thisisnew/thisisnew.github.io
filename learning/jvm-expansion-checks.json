@@ -1,0 +1,125 @@
+{
+  "scope": "All 16 JVM lessons",
+  "metrics": [
+    {
+      "lesson": 1,
+      "before_characters": 7585,
+      "after_characters": 11737,
+      "expanded_existing_answers": 6,
+      "accordion_answers": 8
+    },
+    {
+      "lesson": 2,
+      "before_characters": 6963,
+      "after_characters": 10887,
+      "expanded_existing_answers": 6,
+      "accordion_answers": 8
+    },
+    {
+      "lesson": 3,
+      "before_characters": 7225,
+      "after_characters": 11162,
+      "expanded_existing_answers": 6,
+      "accordion_answers": 8
+    },
+    {
+      "lesson": 4,
+      "before_characters": 6602,
+      "after_characters": 11161,
+      "expanded_existing_answers": 6,
+      "accordion_answers": 8
+    },
+    {
+      "lesson": 5,
+      "before_characters": 6403,
+      "after_characters": 10814,
+      "expanded_existing_answers": 6,
+      "accordion_answers": 8
+    },
+    {
+      "lesson": 6,
+      "before_characters": 6698,
+      "after_characters": 10660,
+      "expanded_existing_answers": 6,
+      "accordion_answers": 8
+    },
+    {
+      "lesson": 7,
+      "before_characters": 6805,
+      "after_characters": 11257,
+      "expanded_existing_answers": 6,
+      "accordion_answers": 8
+    },
+    {
+      "lesson": 8,
+      "before_characters": 7295,
+      "after_characters": 11112,
+      "expanded_existing_answers": 6,
+      "accordion_answers": 8
+    },
+    {
+      "lesson": 9,
+      "before_characters": 6990,
+      "after_characters": 11066,
+      "expanded_existing_answers": 6,
+      "accordion_answers": 8
+    },
+    {
+      "lesson": 10,
+      "before_characters": 6478,
+      "after_characters": 11052,
+      "expanded_existing_answers": 6,
+      "accordion_answers": 8
+    },
+    {
+      "lesson": 11,
+      "before_characters": 7096,
+      "after_characters": 10819,
+      "expanded_existing_answers": 6,
+      "accordion_answers": 8
+    },
+    {
+      "lesson": 12,
+      "before_characters": 6768,
+      "after_characters": 10525,
+      "expanded_existing_answers": 6,
+      "accordion_answers": 8
+    },
+    {
+      "lesson": 13,
+      "before_characters": 7801,
+      "after_characters": 11893,
+      "expanded_existing_answers": 6,
+      "accordion_answers": 8
+    },
+    {
+      "lesson": 14,
+      "before_characters": 7269,
+      "after_characters": 11273,
+      "expanded_existing_answers": 6,
+      "accordion_answers": 8
+    },
+    {
+      "lesson": 15,
+      "before_characters": 8090,
+      "after_characters": 12306,
+      "expanded_existing_answers": 6,
+      "accordion_answers": 8
+    },
+    {
+      "lesson": 16,
+      "before_characters": 10232,
+      "after_characters": 15071,
+      "expanded_existing_answers": 8,
+      "accordion_answers": 10
+    }
+  ],
+  "before_characters": 116300,
+  "after_characters": 182795,
+  "growth_percent": 57.2,
+  "expanded_existing_answers": 98,
+  "accordion_answers": 130,
+  "java_examples": 21,
+  "browser_viewports_checked": 34,
+  "pixel_skin_unchanged": true
+}

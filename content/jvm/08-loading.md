@@ -1,5 +1,16 @@
 {"n":8,"title":"클래스 로딩: 이름이 같아도 다른 타입인 이유","desc":"Bootstrap·Platform·Application 로더, 위임, defining loader, 클래스 정체성과 로딩 오류를 이해한다"}
 
+## 시작 전에: 이 편에서 쓰는 말
+
+처음 읽는다면 아래 용어의 뜻만 확인한 뒤 본문으로 넘어가세요. 먼저 예제의 결과를 예상하고, 실행 과정을 따라간 다음, 면접 답변을 펼쳐 자신의 설명과 비교하면 좋습니다.
+
+| 용어 | 이 글에서의 뜻 |
+|---|---|
+| 바이너리 이름 | JVM에서 클래스를 식별할 때 사용하는 이름 |
+| 정의 로더 | 클래스를 실제로 정의한 로더 |
+| 위임 | 다른 로더에게 클래스 탐색을 맡기는 동작 |
+| 언로딩 | 조건을 충족한 클래스 정의를 런타임에서 제거하는 일 |
+
 ## 1. 클래스 이름만으로는 부족하다
 
 두 회사에 모두 “김검수”라는 직원이 있어도 사번 체계와 소속이 다르면 다른 사람입니다. JVM의 클래스도 이름만 같다고 같은 타입이 아닙니다. 런타임 클래스의 정체성에는 **이진 이름과 정의한 클래스 로더(defining loader)**가 함께 들어갑니다.
@@ -94,14 +105,46 @@ java -Xlog:class+load=info Lesson08
 
 <details class="question"><summary>심화 Q. 클래스를 초기화하지 않고 로드하면 아무 부수 효과도 없나요?</summary><div class="answer"><p>그 클래스의 static 초기화를 요청하지 않는 것과 전체 로딩 과정이 무부수 효과라는 것은 다릅니다. 사용자 로더 자체의 코드가 파일·네트워크를 읽거나 다른 작업을 수행할 수 있습니다.</p><p>또한 타입 메타데이터와 의존 관계를 준비하는 JVM 작업도 있습니다. initialize=false는 '모든 작업을 하지 않는다'는 플래그가 아니라 초기화 요청 여부의 제어입니다.</p></div></details>
 
+## 차근차근 이해하기: 클래스 로더는 이름을 타입으로 만드는 경계다
+
+클래스 이름을 사람 이름에, 정의 로더를 발급 기관에 비유해 봅시다. 이름이 같다고 같은 사람이라고 판단할 수 없듯이, 바이너리 이름이 같은 클래스라도 정의 로더가 다르면 별개의 타입일 수 있습니다. 반대로 두 로더가 모두 부모에게 위임해서 부모가 정의한 하나의 클래스를 받았다면 서로 다른 요청 경로를 거쳐도 같은 타입을 얻을 수 있습니다.
+
+기존 예제의 두 로더는 같은 바이트를 직접 정의해서 차이를 드러냅니다. 일반적인 부모 우선 위임 흐름과 일부러 조건을 달리한 실습입니다. 따라서 “로더 객체를 두 개 만들면 언제나 클래스도 두 개 생긴다”로 일반화하면 안 됩니다. **최종적으로 누가 정의했는지**가 중요합니다.
+
+### 같은 바이트인데 다른 타입이 되는 실험의 순서
+
+| 단계 | 로더 A | 로더 B | 결과 |
+|---|---|---|---|
+| 입력 | Token의 class 바이트 | 같은 class 바이트 | 파일 내용은 동일 |
+| 정의 | A가 직접 정의 | B가 직접 정의 | 정의 로더가 다름 |
+| Class 이름 비교 | 같은 바이너리 이름 | 같은 바이너리 이름 | 이름 비교 true |
+| Class 객체 비교 | A가 정의한 타입 | B가 정의한 타입 | 타입 비교 false |
+| 대입 가능성 검사 | A 타입 기준 | B 타입 기준 | 예제에서는 false |
+
+타입이 분리되는 것은 플러그인 격리에 유용할 수 있지만, 플러그인과 호스트가 서로 객체를 주고받을 때는 경계가 됩니다. 공통 인터페이스를 각 플러그인이 따로 정의하면 같은 이름의 인터페이스도 서로 다른 타입이 되어 통신이 어긋날 수 있습니다. 공유 API는 적절한 공통 상위 로더에서 정의하고 각 구현체가 이를 사용하도록 설계하는 이유입니다.
+
+### 찾을 수 없음과 사용할 수 없음을 구분하기
+
+직접 이름을 주고 클래스를 찾는 API에서 찾기에 실패하면 ClassNotFoundException을 볼 수 있습니다. 반면 실행 중 필요한 클래스 정의를 사용할 수 없는 상황에서는 NoClassDefFoundError를 볼 수 있습니다. 파일이 정말 빠졌을 수도 있지만, 그 클래스의 초기화가 앞서 실패해 잘못된 상태가 된 경우도 조사해야 합니다.
+
+그래서 마지막 오류 메시지만 검색하지 말고 프로세스 시작부터 **처음 발생한 실패**를 찾는 것이 중요합니다. 첫 오류가 초기화 중 설정 파일 읽기 실패였는데 나중의 NoClassDefFoundError만 보고 JAR을 추가하면 실제 원인은 남습니다. 클래스 경로·정의 로더·초기화 실패라는 세 질문을 분리해 보세요.
+
+### 재배포 때 메모리가 늘어나는 경로를 추적하기
+
+이전 배포의 클래스 로더를 더 이상 사용하지 않는다고 생각해도, 장수명 스레드의 컨텍스트 로더나 등록된 콜백, static 컬렉션 등이 이전 로더 또는 그 클래스의 객체를 참조할 수 있습니다. 그러면 로더와 관련 클래스의 생존에 영향을 줍니다. 재배포 횟수만큼 메타데이터가 늘어나는 경우에는 “Metaspace가 작다”보다 “이전 배포에 도달하는 경로가 남는가”를 먼저 조사합니다.
+
+다만 객체 하나가 사라졌다고 그 객체의 클래스가 즉시 언로드되는 것은 아닙니다. 클래스 언로딩은 로더의 도달 가능성 및 JVM·수집기의 처리 조건과 연결됩니다. 애플리케이션이 만든 객체 수명과 그 타입 정의의 수명은 별도로 봐야 합니다. 로더 통계와 Heap의 유지 경로를 함께 확인하면 양쪽을 연결할 수 있습니다.
+
+<details class="question"><summary>확인 문제. 클래스 로더 누수라면 Heap dump는 볼 필요가 없나요?</summary><div class="answer"><p><strong>판단:</strong> 볼 가치가 있습니다. 클래스 메타데이터가 Native 쪽 Metaspace를 사용하더라도, 그 수명을 붙잡는 원인은 Heap 객체의 참조 경로일 수 있기 때문입니다.</p><p><strong>조사 예:</strong> 재배포 전후의 로더 수와 클래스 수를 비교하고, 이전 로더 또는 이전 배포의 객체를 붙잡는 장수명 스레드·컬렉션·콜백을 찾습니다. 사용하지 않는 로더라는 판단은 이름이 아니라 현재 배포와의 관계 및 참조 경로로 확인합니다.</p><p><strong>꼬리질문:</strong> Metaspace 한도를 늘리면 해결되나요? 임시 여유는 생길 수 있지만 재배포마다 유지 경로가 추가된다면 같은 문제가 늦게 반복될 뿐입니다. 등록 해제와 종료 처리 등 수명을 끊는 수정이 필요합니다.</p></div></details>
+
 ## 8. 상세 면접 Q&A
 
-<details class="question"><summary>Q1. 같은 이름의 클래스끼리 왜 캐스팅이 실패하나요?</summary><div class="answer"><p>정체성에 defining loader가 포함되기 때문입니다. 이름과 바이트가 같아도 서로 다른 로더가 정의하면 다른 타입일 수 있습니다. getClass().getClassLoader()와 클래스 출처를 함께 확인하면 중복 로딩을 조사할 수 있습니다.</p></div></details>
-<details class="question"><summary>Q2. Bootstrap 로더가 null이면 클래스가 로드되지 않았다는 뜻인가요?</summary><div class="answer"><p>아닙니다. Class.getClassLoader()가 Bootstrap을 null로 표현할 수 있는 API 규칙입니다. String.class가 존재하며 사용 가능한 사실과 모순되지 않습니다. null을 실패 표시로 해석하면 안 됩니다.</p></div></details>
-<details class="question"><summary>Q3. 부모 우선 위임은 JVM의 절대 규칙인가요?</summary><div class="answer"><p>기본 ClassLoader 구현의 중요한 전략이지만 모든 사용자 로더의 유일한 구현 방식은 아닙니다. 컨테이너나 플러그인은 다른 정책을 쓸 수 있습니다. 다만 타입 안정성을 위한 로딩 제약과 접근 규칙을 지켜야 하므로 임의의 중복 정의가 안전하다는 뜻도 아닙니다.</p></div></details>
-<details class="question"><summary>Q4. 로딩을 요청한 로더가 타입의 정체성을 결정하나요?</summary><div class="answer"><p>정체성은 defining loader를 봅니다. 요청한 로더가 부모에게 위임하면 정의한 로더는 부모일 수 있습니다. initiating loader와 defining loader를 구분하면 여러 플러그인이 공통 API 타입을 공유하는 구조를 설명할 수 있습니다.</p></div></details>
-<details class="question"><summary>Q5. class 파일이 있는데 NoClassDefFoundError가 날 수 있나요?</summary><div class="answer"><p>가능합니다. 현재 로더가 그 위치를 찾지 못하거나 의존 클래스가 없거나, 이전 초기화 실패로 클래스가 오류 상태일 수 있습니다. 최상위 메시지만 보지 말고 최초 예외와 원인 체인, 로더·classpath를 확인해야 합니다.</p></div></details>
-<details class="question"><summary>Q6. 클래스 로더 누수는 Heap 문제인가요, Native 문제인가요?</summary><div class="answer"><p>남아 있는 로더와 그 참조 관계는 Heap에서 조사할 수 있고, 그 로더가 유지하는 클래스 메타데이터는 Metaspace 사용 증가로 나타날 수 있습니다. 하나의 참조 유지 문제가 여러 영역에 영향을 주므로 Heap과 Native 지표를 함께 연결해야 합니다.</p></div></details>
+<details class="question"><summary>Q1. 같은 이름의 클래스끼리 왜 캐스팅이 실패하나요?</summary><div class="answer"><p>정체성에 defining loader가 포함되기 때문입니다. 이름과 바이트가 같아도 서로 다른 로더가 정의하면 다른 타입일 수 있습니다. getClass().getClassLoader()와 클래스 출처를 함께 확인하면 중복 로딩을 조사할 수 있습니다.</p><p><strong>구체적으로:</strong> 플러그인 A와 B가 같은 패키지의 DTO를 각각 정의하면 클래스 이름 출력은 같아도 JVM 타입은 다릅니다. 객체를 전달하는 경계에서 ClassCastException 등이 드러날 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 공통 API를 어떤 로더가 정의하도록 할지 설계해야 하며 이름 문자열만 비교해서 호환성을 판단하지 않습니다.</p></div></details>
+<details class="question"><summary>Q2. Bootstrap 로더가 null이면 클래스가 로드되지 않았다는 뜻인가요?</summary><div class="answer"><p>아닙니다. Class.getClassLoader()가 Bootstrap을 null로 표현할 수 있는 API 규칙입니다. String.class가 존재하며 사용 가능한 사실과 모순되지 않습니다. null을 실패 표시로 해석하면 안 됩니다.</p><p><strong>구체적으로:</strong> 핵심 클래스의 getClassLoader 결과가 null인 것은 API의 표현 방식입니다. String이 실제로 존재하고 동작하는 것과 모순되지 않습니다.</p><p><strong>꼬리질문까지:</strong> null을 로딩 실패로 처리하는 진단 코드를 만들지 말고 Bootstrap 정의 여부를 구분해 출력하세요.</p></div></details>
+<details class="question"><summary>Q3. 부모 우선 위임은 JVM의 절대 규칙인가요?</summary><div class="answer"><p>기본 ClassLoader 구현의 중요한 전략이지만 모든 사용자 로더의 유일한 구현 방식은 아닙니다. 컨테이너나 플러그인은 다른 정책을 쓸 수 있습니다. 다만 타입 안정성을 위한 로딩 제약과 접근 규칙을 지켜야 하므로 임의의 중복 정의가 안전하다는 뜻도 아닙니다.</p><p><strong>구체적으로:</strong> 일반적인 ClassLoader 구현의 위임 관행과 JVM의 타입 안전성 규칙은 다른 층위입니다. 특정 시스템은 격리 목적 등으로 다른 탐색 순서를 구현할 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 위임을 바꾸면 중복 타입과 접근 경계 문제가 생길 수 있으므로 공유 API의 정의 위치를 검토해야 합니다.</p></div></details>
+<details class="question"><summary>Q4. 로딩을 요청한 로더가 타입의 정체성을 결정하나요?</summary><div class="answer"><p>정체성은 defining loader를 봅니다. 요청한 로더가 부모에게 위임하면 정의한 로더는 부모일 수 있습니다. initiating loader와 defining loader를 구분하면 여러 플러그인이 공통 API 타입을 공유하는 구조를 설명할 수 있습니다.</p><p><strong>구체적으로:</strong> 자식 로더가 부모에게 요청을 전달하고 부모가 정의한 클래스를 받으면 자식은 요청 경로에 참여했어도 정의 로더는 부모입니다.</p><p><strong>꼬리질문까지:</strong> 이름과 로더를 진단 로그에 남길 때 initiating과 defining 중 무엇을 의미하는지 명확히 하세요.</p></div></details>
+<details class="question"><summary>Q5. class 파일이 있는데 NoClassDefFoundError가 날 수 있나요?</summary><div class="answer"><p>가능합니다. 현재 로더가 그 위치를 찾지 못하거나 의존 클래스가 없거나, 이전 초기화 실패로 클래스가 오류 상태일 수 있습니다. 최상위 메시지만 보지 말고 최초 예외와 원인 체인, 로더·classpath를 확인해야 합니다.</p><p><strong>구체적으로:</strong> 첫 사용에서 static 초기화가 실패했을 수 있습니다. 이후 오류만 보면 파일이 사라진 것처럼 오해하지만 최초 예외는 설정·외부 자원 문제일 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 시간순으로 첫 실패를 찾아야 하며 JAR 추가와 클래스 경로 변경을 무작정 반복하지 않습니다.</p></div></details>
+<details class="question"><summary>Q6. 클래스 로더 누수는 Heap 문제인가요, Native 문제인가요?</summary><div class="answer"><p>남아 있는 로더와 그 참조 관계는 Heap에서 조사할 수 있고, 그 로더가 유지하는 클래스 메타데이터는 Metaspace 사용 증가로 나타날 수 있습니다. 하나의 참조 유지 문제가 여러 영역에 영향을 주므로 Heap과 Native 지표를 함께 연결해야 합니다.</p><p><strong>구체적으로:</strong> Heap의 장수명 객체가 이전 로더를 붙잡으면 Native 메타데이터가 함께 유지될 수 있습니다. 문제가 보이는 영역과 원인을 가진 참조의 위치가 다를 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 재배포마다 로더 수가 늘어나는지 보고 이전 배포로 향하는 참조를 제거하는 것이 핵심입니다.</p></div></details>
 
 ## 9. 공식 근거와 복습
 

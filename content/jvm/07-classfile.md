@@ -1,5 +1,16 @@
 {"n":7,"title":"클래스 파일과 상수 풀: JVM이 읽는 설계도","desc":"ClassFile·descriptor·상수 풀·Code·StackMapTable·런타임 상수 풀의 관계를 연결한다"}
 
+## 시작 전에: 이 편에서 쓰는 말
+
+처음 읽는다면 아래 용어의 뜻만 확인한 뒤 본문으로 넘어가세요. 먼저 예제의 결과를 예상하고, 실행 과정을 따라간 다음, 면접 답변을 펼쳐 자신의 설명과 비교하면 좋습니다.
+
+| 용어 | 이 글에서의 뜻 |
+|---|---|
+| 태그 | 상수 풀 항목 등의 종류를 구별하는 표시 |
+| 심벌 참조 | 이름과 타입 등으로 대상을 표현한 정보 |
+| 속성 | Code·디버그 정보 등 부가 구조 |
+| 검증 | 클래스 파일과 코드가 필요한 규칙을 만족하는지 확인 |
+
 ## 1. class 파일은 명령어만 모은 파일이 아니다
 
 조립 지시서에는 작업 순서뿐 아니라 부품 번호, 부품 규격, 연결 대상도 필요합니다. class 파일에도 클래스 이름, 상위 타입, 필드, 메서드, 상수 풀, 여러 속성이 함께 들어 있습니다. JVM은 바이트코드만 읽는 것이 아니라 이 구조 전체를 해석합니다.
@@ -81,14 +92,75 @@ class 파일 내부에서 일반적인 클래스 이름은 `java/lang/String`처
 
 <details class="question"><summary>심화 Q. class 파일에 제네릭 정보가 남는다면 타입 소거가 없는 것 아닌가요?</summary><div class="answer"><p>실행 descriptor의 소거된 타입과 반사·도구를 위한 Signature 정보의 보존은 양립합니다. 소스 수준의 일부 정보를 속성으로 보관한다고 런타임 객체가 모든 제네릭 타입 인자를 동일한 방식으로 검증한다는 뜻은 아닙니다.</p><p>실제 캐스트 명령이나 브리지 메서드가 생성될 수도 있으므로 선언 정보·실행 타입·컴파일러 보조 코드를 나누어 읽어야 합니다.</p></div></details>
 
+## 차근차근 이해하기: class 파일을 도서관의 책 한 권처럼 읽기
+
+책은 본문뿐 아니라 제목, 목차, 색인, 주석도 갖습니다. class 파일도 실행 명령 외에 클래스 이름, 상속 관계, 필드, 메서드, 여러 속성을 함께 담습니다. 상수 풀은 그 안에서 자주 참조하는 이름과 값 등의 항목을 번호로 연결하는 구조입니다. 단, 각 항목이 전부 같은 종류인 것은 아닙니다. 태그를 보고 문자열인지, 클래스 이름을 가리키는 항목인지, 메서드 참조인지 구분해야 합니다.
+
+### 메서드 호출 하나를 세 갈래 정보로 풀기
+
+메서드를 식별하려면 **소유 타입**, **메서드 이름**, **descriptor**가 필요합니다. `print`라는 이름만 알아서는 어느 클래스의 어떤 인자 타입을 받는 메서드인지 결정할 수 없습니다. 클래스 파일의 메서드 참조는 관련 항목들을 연결해 이 정보를 표현합니다.
+
+| 구성 요소 | 설명용 예 | 확인하는 질문 |
+|---|---|---|
+| 클래스 이름 | `sample/Calculator` | 어느 타입의 구성원인가? |
+| 메서드 이름 | `add` | 어떤 이름인가? |
+| descriptor | `(II)I` | int 두 개를 받고 int를 반환하는가? |
+| 명령의 참조 번호 | `#n` | 위 정보를 어느 상수 풀 항목에서 찾는가? |
+
+슬래시는 여기서 내부 이름 표기의 일부입니다. Java 소스에서 쓰는 `sample.Calculator`와 문맥이 다릅니다. `#n`은 이 파일 안의 색인이지 전역적으로 고정된 메서드 ID가 아닙니다. 다른 빌드에서 번호가 달라져도 최종적으로 참조하는 이름과 타입 관계가 같을 수 있습니다.
+
+### descriptor를 글자 단위로 읽어 보기
+
+`(Ljava/lang/String;[I)J`를 나누면 괄호 안은 인자 목록이고 괄호 뒤는 반환 타입입니다. `Ljava/lang/String;`은 String 참조 타입, `[I`는 int 배열, `J`는 long입니다. 따라서 String과 int 배열을 받아 long을 반환하는 메서드입니다. `L`로 시작하는 참조 타입 표기는 세미콜론까지 읽어야 하고, 배열 앞의 `[`는 차원을 나타냅니다.
+
+이 문자열은 변수 이름을 알려 주지 않습니다. `name`, `values`처럼 소스에 적은 인자 이름과 무관하게 타입을 표현합니다. 또한 제네릭의 모든 소스 정보를 그대로 표현하는 것도 아닙니다. 제네릭 관련 부가 정보는 Signature 같은 속성에서 볼 수 있고, JVM의 실행 타입 식별에는 descriptor가 핵심입니다.
+
+### 형식 검증과 실행 의미 검증을 나누자
+
+파일 맨 앞의 magic과 버전, 각 구조의 길이와 태그를 읽는 것은 파일을 올바른 ClassFile로 해석할 수 있는지에 관한 문제입니다. 반면 어떤 명령 지점에서 스택에 필요한 타입이 있는지 등은 바이트코드 검증의 문제입니다. 유효한 파일 구조라고 해서 모든 명령 조합이 올바른 것은 아닙니다. 문서 파일이 열리더라도 그 안의 계산식이 맞는지는 별도로 확인해야 하는 것과 비슷합니다.
+
+StackMapTable은 이러한 타입 검증에 도움을 주는 특정 지점의 프레임 타입 정보를 담습니다. 실행 중 모든 변수의 값을 시간순으로 기록한 로그가 아닙니다. 따라서 여기에서 “그때 quantity가 42였는가” 같은 장애 시점 값을 찾을 수는 없습니다. 구조 정보와 실행 기록을 혼동하지 않는 것이 중요합니다.
+
+### 추가 실행 실습: Walkthrough07
+
+sum의 descriptor (Ljava/lang/String;[I)J를 확인합니다. label이 계산에 쓰이지 않아도 선언된 인자 타입은 descriptor에 포함됩니다. int 원소가 long 합계에 더해질 때의 변환 명령도 찾아 보세요.
+
+```java
+// file: Walkthrough07.java
+public class Walkthrough07 {
+    static long sum(String label, int[] values) {
+        long total = 0;
+        for (int value : values) total += value;
+        return total;
+    }
+    public static void main(String[] args) {
+        System.out.println(sum("inbound", new int[]{1, 2}));
+    }
+}
+```
+
+```sh
+javac --release 21 -g Walkthrough07.java
+java Walkthrough07
+javap -c -v -p Walkthrough07
+```
+
+예상 출력:
+
+```text
+3
+```
+
+<details class="question"><summary>확인 문제. 라이브러리 메서드 반환 타입을 int에서 long으로 바꾸면 기존 호출자는 그대로 쓸 수 있나요?</summary><div class="answer"><p><strong>판단:</strong> 기존 바이너리 호출자가 기대하는 descriptor와 새 메서드의 descriptor가 달라집니다. Java 소스에서 반환 타입만 다른 오버로딩을 선언할 수 있는지와 별개로, JVM의 메서드 참조에는 반환 타입도 포함됩니다.</p><p><strong>예:</strong> 기존 호출자가 ()I를 참조하고 새 라이브러리에 ()J만 있다면 기대한 메서드를 찾지 못하는 링크 오류로 이어질 수 있습니다. 소스를 다시 컴파일해 보는 것과 기존 class를 새 라이브러리에 연결하는 것은 다른 시험입니다.</p><p><strong>꼬리질문:</strong> 소스 호환이면 바이너리 호환도 자동인가요? 아닙니다. 라이브러리 변경에서는 기존 산출물을 그대로 실행하는 시험과 새로 컴파일하는 시험을 구분해야 합니다. javap의 descriptor 비교가 이 차이를 눈으로 확인하는 출발점입니다.</p></div></details>
+
 ## 8. 상세 면접 Q&A
 
-<details class="question"><summary>Q1. 상수 풀의 상수는 수정 불가능한 값만 뜻하나요?</summary><div class="answer"><p>일반적인 상수 변수의 의미보다 넓습니다. class 형식의 constant_pool에는 런타임에 해석할 클래스·필드·메서드의 심벌 참조도 들어갑니다. static final 필드만 보관하는 장소가 아닙니다.</p></div></details>
-<details class="question"><summary>Q2. 런타임 상수 풀과 String pool은 왜 다른가요?</summary><div class="answer"><p>런타임 상수 풀은 클래스별 상수 표의 실행 표현으로 심벌 참조 등도 담습니다. String pool은 문자열 intern 규칙과 관련됩니다. 문자열 객체는 Heap에서 관리될 수 있고 클래스 메타데이터의 모든 내용과 동일하지 않습니다.</p></div></details>
-<details class="question"><summary>Q3. Java 21의 major version은 얼마인가요?</summary><div class="answer"><p>일반 Java 21 class 파일은 65입니다. Java 17은 61, Java 23은 67입니다. preview 기능을 사용한 파일은 minor version과 실행 옵션 조건도 확인해야 하므로 major만 보고 모든 실행 조건을 판정하지 않습니다.</p></div></details>
-<details class="question"><summary>Q4. 메서드 반환 타입만 바꾸면 JVM에서 무슨 차이가 있나요?</summary><div class="answer"><p>class 파일의 메서드 descriptor에는 반환 타입이 포함됩니다. 컴파일된 호출자가 기대하는 descriptor와 실제 대상이 다르면 바이너리 호환 문제가 생길 수 있습니다. Java 소스의 오버로딩 허용 규칙과 바이너리의 식별 정보를 구분해야 합니다.</p></div></details>
-<details class="question"><summary>Q5. StackMapTable은 스택 트레이스인가요?</summary><div class="answer"><p>아닙니다. 바이트코드 검증용 타입 상태 정보입니다. 장애 시의 메서드 호출 목록을 나타내는 스택 트레이스와 역할이 다릅니다. 이름에 Stack이 들어간다는 이유로 같은 것으로 묶지 마세요.</p></div></details>
-<details class="question"><summary>Q6. javap의 #번호가 바뀌면 프로그램 의미도 바뀌나요?</summary><div class="answer"><p>인덱스 자체는 파일 내부 참조 번호입니다. 컴파일러 버전이나 작은 코드 변경으로 순서가 달라져도 같은 의미일 수 있습니다. 번호 자체를 비교하기보다 참조가 가리키는 이름·타입·상수와 명령의 의미를 봐야 합니다.</p></div></details>
+<details class="question"><summary>Q1. 상수 풀의 상수는 수정 불가능한 값만 뜻하나요?</summary><div class="answer"><p>일반적인 상수 변수의 의미보다 넓습니다. class 형식의 constant_pool에는 런타임에 해석할 클래스·필드·메서드의 심벌 참조도 들어갑니다. static final 필드만 보관하는 장소가 아닙니다.</p><p><strong>구체적으로:</strong> Methodref는 숫자 상수라기보다 실행 시 연결할 메서드에 관한 심벌 정보입니다. Class나 NameAndType처럼 서로 다른 태그의 항목이 연결됩니다.</p><p><strong>꼬리질문까지:</strong> 상수 풀이라는 이름만 보고 static final 필드 값만 모여 있다고 답하지 않습니다.</p></div></details>
+<details class="question"><summary>Q2. 런타임 상수 풀과 String pool은 왜 다른가요?</summary><div class="answer"><p>런타임 상수 풀은 클래스별 상수 표의 실행 표현으로 심벌 참조 등도 담습니다. String pool은 문자열 intern 규칙과 관련됩니다. 문자열 객체는 Heap에서 관리될 수 있고 클래스 메타데이터의 모든 내용과 동일하지 않습니다.</p><p><strong>구체적으로:</strong> 런타임 상수 풀은 클래스·인터페이스별 실행 정보와 연결되고, intern된 문자열의 공유는 String 객체에 관한 별도 의미입니다. 이름이 비슷해도 역할과 대상을 나누어야 합니다.</p><p><strong>꼬리질문까지:</strong> 상수 풀에서 String 관련 항목을 봤다는 사실만으로 모든 문자열 객체의 위치와 수명을 설명할 수는 없습니다.</p></div></details>
+<details class="question"><summary>Q3. Java 21의 major version은 얼마인가요?</summary><div class="answer"><p>일반 Java 21 class 파일은 65입니다. Java 17은 61, Java 23은 67입니다. preview 기능을 사용한 파일은 minor version과 실행 옵션 조건도 확인해야 하므로 major만 보고 모든 실행 조건을 판정하지 않습니다.</p><p><strong>구체적으로:</strong> major 65를 확인하는 것은 Java 21 대상 클래스 파일이라는 중요한 단서입니다. 하지만 외부 라이브러리 버전과 필요한 모듈까지 보장하지는 않습니다.</p><p><strong>꼬리질문까지:</strong> --release로 대상을 맞추더라도 의존 JAR의 class 버전은 별도로 확인해야 합니다.</p></div></details>
+<details class="question"><summary>Q4. 메서드 반환 타입만 바꾸면 JVM에서 무슨 차이가 있나요?</summary><div class="answer"><p>class 파일의 메서드 descriptor에는 반환 타입이 포함됩니다. 컴파일된 호출자가 기대하는 descriptor와 실제 대상이 다르면 바이너리 호환 문제가 생길 수 있습니다. Java 소스의 오버로딩 허용 규칙과 바이너리의 식별 정보를 구분해야 합니다.</p><p><strong>구체적으로:</strong> descriptor는 인자와 반환 타입을 함께 표현하므로 기존 호출자가 참조하는 메서드와 새 선언이 다를 수 있습니다. 기존 바이너리와 새 라이브러리의 조합을 실행해 봐야 합니다.</p><p><strong>꼬리질문까지:</strong> Java 소스의 오버로딩 규칙과 JVM의 메서드 식별 정보를 서로 혼동하지 않습니다.</p></div></details>
+<details class="question"><summary>Q5. StackMapTable은 스택 트레이스인가요?</summary><div class="answer"><p>아닙니다. 바이트코드 검증용 타입 상태 정보입니다. 장애 시의 메서드 호출 목록을 나타내는 스택 트레이스와 역할이 다릅니다. 이름에 Stack이 들어간다는 이유로 같은 것으로 묶지 마세요.</p><p><strong>구체적으로:</strong> StackMapTable은 특정 지점에서의 지역변수·스택 타입 상태를 검증하는 데 쓰이는 정보입니다. 예외가 났을 때 호출 목록을 보여 주는 stack trace와 목적이 다릅니다.</p><p><strong>꼬리질문까지:</strong> 이름에 Stack이 들어가도 현재 실행값이나 호출 이력을 저장했다는 뜻은 아닙니다.</p></div></details>
+<details class="question"><summary>Q6. javap의 #번호가 바뀌면 프로그램 의미도 바뀌나요?</summary><div class="answer"><p>인덱스 자체는 파일 내부 참조 번호입니다. 컴파일러 버전이나 작은 코드 변경으로 순서가 달라져도 같은 의미일 수 있습니다. 번호 자체를 비교하기보다 참조가 가리키는 이름·타입·상수와 명령의 의미를 봐야 합니다.</p><p><strong>구체적으로:</strong> 컴파일러가 항목을 배치하는 순서가 달라지면 번호가 바뀔 수 있습니다. 중요한 것은 명령이 참조한 항목을 따라갔을 때 최종 이름과 타입·값이 무엇인지입니다.</p><p><strong>꼬리질문까지:</strong> 바이너리 차이를 검토할 때 번호 변화와 실제 의미 변화를 분리해 읽으세요.</p></div></details>
 
 ## 9. 공식 문서와 복습
 

@@ -1,7 +1,33 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="javac·class·로딩·링킹·초기화·인터프리터·JIT를 실행 예제로 연결한다"><title>JVM 02 · Java 코드가 실행되는 과정: 소스에서 CPU까지 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/jvm-study-02.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"></head><body><main><a href="/">← 전체 글</a> · <a href="/posts/jvm-study-00.html">JVM 학습 지도</a><header><p class="meta">JVM QUEST · 02 / 16 · JAVA 21 · 2026-10-19</p><h1>Java 코드가 실행되는 과정: 소스에서 CPU까지</h1><p class="subtitle">javac·class·로딩·링킹·초기화·인터프리터·JIT를 실행 예제로 연결한다</p><p class="note">기준: Java SE 21 사양과 HotSpot JDK 21. 첨부 자료의 JVMS 23·JDK 17 발췌는 이 기준으로 대조했습니다. 설명 속 장애 상황은 학습용 가상 사례입니다. 예제는 외부 라이브러리 없이 실행할 수 있습니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이 글에서 배울 것</h2><ol><li><a href="#section-1">1. 실행을 두 번의 번역으로 나누기</a></li><li><a href="#section-2">2. 각 단계의 입력과 출력</a></li><li><a href="#section-3">3. main을 부르기 전에도 일이 일어난다</a></li><li><a href="#section-4">4. 직접 실행하는 작은 프로그램</a></li><li><a href="#section-5">5. 링킹과 초기화를 미리 구분하기</a></li><li><a href="#section-6">6. 인터프리터·JIT·CPU의 관계</a></li><li><a href="#section-7">7. 장애 사례: 기동은 성공했는데 첫 요청만 실패</a></li><li><a href="#section-8">더 깊이: 실패가 발생한 단계로 원인을 좁히기</a></li><li><a href="#section-9">8. 상세 면접 Q&amp;A</a></li><li><a href="#section-10">9. 공식 문서와 복습 실험</a></li></ol></aside><article><h2 id="section-1">1. 실행을 두 번의 번역으로 나누기</h2>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="javac·class·로딩·링킹·초기화·인터프리터·JIT를 실행 예제로 연결한다"><title>JVM 02 · Java 코드가 실행되는 과정: 소스에서 CPU까지 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/jvm-study-02.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"></head><body><main><a href="/">← 전체 글</a> · <a href="/posts/jvm-study-00.html">JVM 학습 지도</a><header><p class="meta">JVM QUEST · 02 / 16 · JAVA 21 · 2026-10-19</p><h1>Java 코드가 실행되는 과정: 소스에서 CPU까지</h1><p class="subtitle">javac·class·로딩·링킹·초기화·인터프리터·JIT를 실행 예제로 연결한다</p><p class="note">기준: Java SE 21 사양과 HotSpot JDK 21. 첨부 자료의 JVMS 23·JDK 17 발췌는 이 기준으로 대조했습니다. 설명 속 장애 상황은 학습용 가상 사례입니다. 예제는 외부 라이브러리 없이 실행할 수 있습니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이 글에서 배울 것</h2><ol><li><a href="#section-1">시작 전에: 이 편에서 쓰는 말</a></li><li><a href="#section-2">1. 실행을 두 번의 번역으로 나누기</a></li><li><a href="#section-3">2. 각 단계의 입력과 출력</a></li><li><a href="#section-4">3. main을 부르기 전에도 일이 일어난다</a></li><li><a href="#section-5">4. 직접 실행하는 작은 프로그램</a></li><li><a href="#section-6">5. 링킹과 초기화를 미리 구분하기</a></li><li><a href="#section-7">6. 인터프리터·JIT·CPU의 관계</a></li><li><a href="#section-8">7. 장애 사례: 기동은 성공했는데 첫 요청만 실패</a></li><li><a href="#section-9">더 깊이: 실패가 발생한 단계로 원인을 좁히기</a></li><li><a href="#section-10">차근차근 이해하기: 실행 한 번에 여러 종류의 일이 섞여 있다</a></li><li><a href="#section-11">8. 상세 면접 Q&amp;A</a></li><li><a href="#section-12">9. 공식 문서와 복습 실험</a></li></ol></aside><article><h2 id="section-1">시작 전에: 이 편에서 쓰는 말</h2>
+<p>처음 읽는다면 아래 용어의 뜻만 확인한 뒤 본문으로 넘어가세요. 먼저 예제의 결과를 예상하고, 실행 과정을 따라간 다음, 면접 답변을 펼쳐 자신의 설명과 비교하면 좋습니다.</p>
+<table>
+<thead>
+<tr>
+<th>용어</th>
+<th>이 글에서의 뜻</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>로딩</td>
+<td>클래스의 바이너리 표현을 찾아 정의하는 과정</td>
+</tr>
+<tr>
+<td>링킹</td>
+<td>검증·준비·해석으로 실행에 연결하는 과정</td>
+</tr>
+<tr>
+<td>초기화</td>
+<td>규칙에 따라 클래스의 초기 상태를 완성하는 과정</td>
+</tr>
+<tr>
+<td>워밍업</td>
+<td>초기 실행과 안정 상태를 구분해 관찰하는 구간</td>
+</tr>
+</tbody></table>
+<h2 id="section-2">1. 실행을 두 번의 번역으로 나누기</h2>
 <p>레시피를 공통 조리 지시서로 바꾸는 작업과, 실제 주방에서 그 지시를 수행하는 작업을 구분해 봅시다. <code>javac</code>는 Java 소스를 JVM의 class 형식으로 컴파일합니다. HotSpot은 실행 중 바이트코드를 해석하거나 자주 실행되는 부분을 해당 CPU의 기계 코드로 컴파일합니다. 앞의 컴파일과 뒤의 JIT 컴파일은 입력과 출력이 다릅니다.</p>
 <p>Java 코드가 “바이트코드로 바뀌고 그 뒤 기계어가 된다”는 문장은 큰 흐름으로 유용합니다. 하지만 모든 메서드가 반드시 JIT를 거치는 직선 파이프라인은 아닙니다. 적게 실행되는 메서드는 해석 실행으로 끝날 수 있고, 최적화된 메서드도 가정이 깨지면 해석 실행 등으로 돌아갈 수 있습니다.</p>
-<h2 id="section-2">2. 각 단계의 입력과 출력</h2>
+<h2 id="section-3">2. 각 단계의 입력과 출력</h2>
 <table>
 <thead>
 <tr>
@@ -47,10 +73,10 @@
 </tr>
 </tbody></table>
 <p>해석 실행도 결국 CPU가 수행합니다. CPU가 바이트코드 형식을 직접 이해한다는 뜻이 아니라, CPU 위에서 동작하는 인터프리터 코드가 바이트코드의 의미를 구현합니다. JIT는 자주 쓰이는 경로의 반복 해석 비용을 줄일 수 있습니다. <a href="https://docs.oracle.com/en/java/javase/21/vm/java-virtual-machine-technology-overview.html">공식 근거: HotSpot 개요</a></p>
-<h2 id="section-3">3. main을 부르기 전에도 일이 일어난다</h2>
+<h2 id="section-4">3. main을 부르기 전에도 일이 일어난다</h2>
 <p><code>java Lesson02</code>는 파일을 더블클릭해 소스 전체를 한 줄씩 읽는 것과 다릅니다. 런처와 JVM은 초기 클래스가 무엇인지 정하고 실행에 필요한 클래스를 로드·링크·초기화합니다. 일반적인 진입점 <code>public static void main(String[] args)</code>를 호출하기 전에 초기 클래스의 초기화가 수행됩니다.</p>
 <p>프로그램의 모든 클래스가 이때 한꺼번에 초기화되는 것은 아닙니다. 나중에 특정 기능이 처음 사용될 때 로딩이나 초기화가 발생할 수 있습니다. 그렇기 때문에 “애플리케이션 기동 성공”과 “모든 기능의 클래스 의존성 검증 완료”는 같은 뜻이 아닙니다. 사용하지 않던 API를 처음 호출할 때 의존성 오류가 드러나는 이유입니다. <a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.2">공식 근거: JVMS §5.2, §5.5</a></p>
-<h2 id="section-4">4. 직접 실행하는 작은 프로그램</h2>
+<h2 id="section-5">4. 직접 실행하는 작은 프로그램</h2>
 <pre><code class="language-java">// file: Lesson02.java
 public class Lesson02 {
     static {
@@ -72,17 +98,17 @@ java -Xlog:class+load=info,class+init=info Lesson02
 </code></pre>
 <p>일반 실행의 논리적 출력은 <code>init</code>, <code>main</code>, <code>42</code> 순서입니다. 로그 옵션을 켜면 JVM이 사용하는 표준 클래스 로그가 함께 많이 나옵니다. class 로드 로그가 나온 사실과 그 클래스의 static 블록이 실행된 사실을 혼동하지 마세요. 두 종류 로그를 나누어 관찰합니다.</p>
 <p><code>javap</code>의 <code>add</code> 메서드에는 보통 <code>iload_0</code>, <code>iload_1</code>, <code>iadd</code>, <code>ireturn</code>이 보입니다. 지역변수 슬롯의 두 값을 피연산자 스택으로 올려 계산하고 반환하는 과정입니다. <code>javac</code>가 결과 전체를 OS 실행 파일로 만든 것이 아니라 메서드별 JVM 명령으로 만든 사실을 확인할 수 있습니다.</p>
-<h2 id="section-5">5. 링킹과 초기화를 미리 구분하기</h2>
+<h2 id="section-6">5. 링킹과 초기화를 미리 구분하기</h2>
 <p>**검증(Verification)**은 class 파일과 바이트코드의 규칙을 확인합니다. 예를 들어 정수가 필요한 연산에 잘못된 타입의 값이 올라가도록 만들어진 바이트코드는 정상적인 실행 코드로 받아들일 수 없습니다. 단, 검증이 SQL의 업무 정합성까지 확인하지는 않습니다.</p>
 <p>**준비(Preparation)**는 static 필드 등을 위한 저장 공간과 기본 상태를 준비합니다. Java 코드에 쓴 임의의 계산식 전체를 이 단계에서 실행하지 않습니다. **해석(Resolution)**은 클래스·필드·메서드를 가리키는 심벌 참조를 구체적인 런타임 요소로 연결합니다. 해석은 지연될 수 있어 모든 해석이 초기화 전에 완결되는 것은 아닙니다.</p>
 <p>**초기화(Initialization)**는 <code>&lt;clinit&gt;</code> 등 규칙에 따라 static 초기화 코드를 실행합니다. 생성자 <code>&lt;init&gt;</code>와 다른 작업입니다. 이 네 개념은 09편에서 상수 변수와 실패 사례로 더 깊이 살펴봅니다.</p>
-<h2 id="section-6">6. 인터프리터·JIT·CPU의 관계</h2>
+<h2 id="section-7">6. 인터프리터·JIT·CPU의 관계</h2>
 <p>HotSpot은 실행하며 호출 빈도와 분기, 실제로 들어오는 타입 같은 정보를 수집할 수 있습니다. 이 정보는 “이 호출에는 보통 이 구현체가 온다”와 같은 최적화의 재료입니다. JIT는 호출을 인라이닝하거나 중복 검사를 제거하는 등의 작업을 할 수 있습니다. 반면 컴파일 자체도 CPU와 메모리를 사용합니다.</p>
 <p>따라서 처음 호출이 늦다는 사실만으로 GC를 원인이라고 할 수 없습니다. 클래스 준비, static 초기화, JIT 워밍업 외에도 커넥션 생성, DNS, 캐시 적재가 섞여 있습니다. 실행 경로별 시간을 측정하고 클래스 로그·JFR·외부 호출 시간을 함께 보아야 합니다. 코드가 자주 쓰이는 정도에 따라 최적화 결과가 달라질 수 있다는 설명이지, “정확히 몇 회 호출되면 항상 C2가 실행된다”는 보장은 아닙니다.</p>
-<h2 id="section-7">7. 장애 사례: 기동은 성공했는데 첫 요청만 실패</h2>
+<h2 id="section-8">7. 장애 사례: 기동은 성공했는데 첫 요청만 실패</h2>
 <p>입고 시스템에서 평소 쓰지 않던 엑셀 내보내기 기능을 처음 누르자 <code>NoClassDefFoundError</code>가 났다고 가정합니다. main과 서버 기동에 필요한 클래스는 존재해도, 해당 요청 경로에서 처음 필요한 라이브러리가 빠졌을 수 있습니다. 또는 이전 클래스 초기화 실패가 원인일 수 있습니다.</p>
 <p>전체 예외 체인에서 첫 실패를 확인하고, 실제 패키징 결과와 런타임 classpath를 비교합니다. 기능별 smoke test가 기동 확인과 다른 이유도 여기에 있습니다. JIT 옵션을 변경하는 것은 누락된 클래스를 복구하지 못합니다. 실패 단계를 찾으면 조사 범위를 훨씬 빨리 좁힐 수 있습니다.</p>
-<h2 id="section-8">더 깊이: 실패가 발생한 단계로 원인을 좁히기</h2>
+<h2 id="section-9">더 깊이: 실패가 발생한 단계로 원인을 좁히기</h2>
 <p>컴파일 시 &#39;cannot find symbol&#39;이 나면 javac가 소스의 이름·타입을 찾지 못한 상황입니다. 반면 실행 중 ClassNotFoundException은 특정 로더의 클래스 탐색과 연결되고, NoSuchMethodError는 이미 컴파일된 코드가 기대한 메서드와 런타임 클래스가 맞지 않을 때 나타날 수 있습니다. 마지막으로 NullPointerException은 연결이 끝난 코드가 실제 실행값 null을 잘못 사용한 상황일 수 있습니다.</p>
 <table>
 <thead>
@@ -121,15 +147,56 @@ java -Xlog:class+load=info,class+init=info Lesson02
 <p>JVM의 시작 절차가 익숙해지면 스택 트레이스도 &#39;가장 눈에 띄는 이름&#39;이 아니라 &#39;어느 단계가 어떤 입력에서 실패했는가&#39;로 읽을 수 있습니다. 이것이 실행 구조를 공부하는 실무상의 이점입니다.</p>
 <details class="question"><summary>심화 Q. 컴파일 성공과 통합 테스트 성공이 왜 다른 보장인가요?</summary><div class="answer"><p>컴파일은 소스와 컴파일 시점 타입 정보에 근거합니다. 실제 실행 이미지의 라이브러리, 환경 변수, 외부 서비스, 클래스 초기화의 부수 효과까지 모두 실행해 검증하지 않습니다. 따라서 배포 산출물을 대상으로 대표 기능을 호출하는 검사가 별도로 필요합니다.</p><p>예를 들어 main은 정상 동작하지만 특정 보고서 기능에서만 누락 JAR을 처음 사용할 수 있습니다. 경로별 실행 검증은 기동 성공과 다른 증거를 제공합니다.</p></div></details>
 
-<h2 id="section-9">8. 상세 면접 Q&amp;A</h2>
-<details class="question"><summary>Q1. javac와 JIT 컴파일러는 무엇이 다른가요?</summary><div class="answer"><p>javac는 Java 소스를 class 파일로 만듭니다. JIT는 실행 중 JVM 코드와 프로파일을 활용해 CPU별 기계 코드를 생성합니다. javac는 실행 전 타입과 문법을 확인하고, JIT는 실제 실행 정보를 활용할 수 있다는 차이가 있습니다.</p><p>둘 다 컴파일러이지만 목적과 시점이 다릅니다. 바이트코드는 기계 코드와 같지 않으며 javac 성공이 모든 런타임 의존성의 성공을 보장하지 않습니다.</p></div></details>
-<details class="question"><summary>Q2. 인터프리터를 사용하면 CPU는 무엇을 실행하나요?</summary><div class="answer"><p>CPU는 인터프리터 구현의 기계 코드를 실행합니다. 그 코드가 바이트코드 명령을 읽고 필요한 동작을 수행합니다. 바이트코드가 CPU에 직접 입력되는 것으로 설명하면 추상 실행 기계와 실제 하드웨어를 혼동하게 됩니다.</p></div></details>
-<details class="question"><summary>Q3. static 블록은 main보다 먼저 실행되나요?</summary><div class="answer"><p>일반적인 클래스 main 진입에서는 초기 클래스 초기화가 main 호출 전에 수행되므로 예제의 init이 먼저 출력됩니다. 그렇다고 모든 클래스의 static 블록이 기동 시 실행되는 것은 아닙니다. 각 클래스의 초기화 트리거를 따로 봐야 합니다.</p></div></details>
-<details class="question"><summary>Q4. 링킹은 반드시 시작 시 한 번에 끝나나요?</summary><div class="answer"><p>검증·준비와 심벌 해석의 시점을 구분해야 합니다. JVM은 명세의 제약을 지키면서 심벌 참조를 지연 해석할 수 있습니다. 클래스가 초기화되었다는 사실만으로 모든 참조가 이미 해석되었다고 결론 내릴 수 없습니다.</p></div></details>
-<details class="question"><summary>Q5. 모든 메서드를 처음부터 JIT하면 더 빠르지 않나요?</summary><div class="answer"><p>컴파일 자체의 비용과 생성 코드의 메모리 비용이 있습니다. 실행하지 않는 기능까지 컴파일하면 기동 시간이 늘 수 있고, 실행 프로파일 없이 최적화하면 활용 가능한 정보도 적습니다. HotSpot은 빈번한 경로에 비용을 집중하는 적응형 전략을 사용합니다.</p></div></details>
-<details class="question"><summary>Q6. 배포 직후 느린 현상을 어떻게 검증하나요?</summary><div class="answer"><p>응답 지연을 클래스 로딩, 컴파일, GC, DB·네트워크 대기로 나누어 관측합니다. JFR와 JVM 로그를 요청 시간대에 맞추고 충분히 예열된 상태와 비교합니다. 단순히 몇 번 호출한 평균만 비교하면 외부 캐시와 커넥션 상태가 결과를 오염시킬 수 있습니다.</p></div></details>
+<h2 id="section-10">차근차근 이해하기: 실행 한 번에 여러 종류의 일이 섞여 있다</h2>
+<p>“컴파일했다”는 말은 <strong>누가 무엇을 무엇으로 바꿨는지</strong>까지 붙여야 명확해집니다. javac는 Java 소스를 클래스 파일로 바꿉니다. HotSpot의 JIT 컴파일러는 실행 중 선택된 메서드 등의 바이트코드를 기계 코드로 바꿉니다. 두 작업은 시점도 입력도 다릅니다. 소스 코드를 삭제해도 이미 생성한 클래스 파일은 실행할 수 있고, JIT가 동작한다고 서버에서 javac가 다시 소스를 읽는 것은 아닙니다.</p>
+<p>실행 예제의 static 블록과 main을 택배 센터에 비유해 봅시다. 클래스를 찾는 일은 센터의 설계도를 가져오는 일, 검증은 설계도의 규칙을 확인하는 일, 초기화는 센터에 필요한 초기 준비를 수행하는 일입니다. main은 그 뒤의 업무 시작점입니다. 초기 준비에서 외부 서버를 호출하거나 큰 파일을 읽으면 첫 업무를 시작하기도 전에 시간이 들 수 있습니다.</p>
+<h3>출력 세 줄을 실행 사건으로 해석하기</h3>
+<table>
+<thead>
+<tr>
+<th>관찰</th>
+<th>내부에서 설명할 수 있는 일</th>
+<th>이 관찰만으로 단정할 수 없는 일</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>init</code> 출력</td>
+<td>예제 클래스의 static 초기화 코드가 실행됨</td>
+<td>모든 의존 클래스가 이미 초기화되었다는 주장</td>
+</tr>
+<tr>
+<td><code>main</code> 출력</td>
+<td>main의 해당 출력 위치까지 진행됨</td>
+<td>모든 메서드가 JIT되었다는 주장</td>
+</tr>
+<tr>
+<td><code>42</code> 출력</td>
+<td>계산 결과가 정상 전달됨</td>
+<td>계산이 인터프리터로만 또는 JIT로만 실행되었다는 주장</td>
+</tr>
+</tbody></table>
+<p>로그가 보이는 순서와 JVM 전체 내부 사건의 목록은 다릅니다. 우리 코드가 출력하지 않은 로딩과 검증, 표준 라이브러리 실행도 있을 수 있습니다. 로그 한 줄은 <strong>그 지점에 도달했다는 증거</strong>이지, 관찰하지 않은 모든 단계가 끝났다는 증거가 아닙니다.</p>
+<h3>기동 시간과 요청 시간을 따로 재는 이유</h3>
+<p>새 프로세스의 첫 실행에는 JVM 시작, 클래스 로딩, 초기화, 캐시 구성, 연결 수립 등이 포함될 수 있습니다. 같은 프로세스 안에서 두 번째 요청은 이미 준비된 상태를 사용할 수 있습니다. 반대로 프로그램을 매번 새로 실행해 시간을 재면 매번 시작 비용을 다시 측정하게 됩니다. 두 번째 프로세스가 빨라졌다고 곧바로 “이전 JVM의 JIT 결과를 이어받았다”고 결론 내리면 안 됩니다. OS의 파일 캐시 같은 다른 요인도 있습니다.</p>
+<p>예제에서 실행 경로를 관찰하려면 다음 명령을 각각 별도로 실행합니다.</p>
+<pre><code class="language-sh">java -Xlog:class+load=info Lesson02
+java -Xint Lesson02
+java -XX:+PrintCompilation Lesson02
+</code></pre>
+<p>첫 명령은 클래스 로딩 기록을 늘립니다. 두 번째는 HotSpot에서 인터프리터 모드로 실행해 보는 비교입니다. 세 번째는 JIT 컴파일 기록을 관찰하는 용도입니다. 출력량과 시간은 JVM 빌드 및 실행 조건에 따라 달라질 수 있고, 짧은 예제는 관심 메서드가 충분히 뜨거워지기 전에 끝날 수 있습니다. 따라서 관심 메서드가 로그에 없다는 사실만으로 JIT 전체가 비활성화되었다고 판단하지 않습니다.</p>
+<h3>실패 지점을 기준으로 질문을 바꾸자</h3>
+<p>컴파일 오류가 나면 먼저 소스의 문법·타입·컴파일 클래스 경로를 봅니다. 클래스 버전 오류라면 생성 대상과 실행 JVM을 비교합니다. 메서드를 찾지 못한다면 컴파일 시와 실행 시 의존성 버전을 비교합니다. static 초기화 중 예외라면 초기화 코드의 원래 예외와 입력 환경을 봅니다. 프로그램은 시작했지만 느리다면 실행 경로와 시간 분포를 관찰합니다. 같은 “안 된다”라도 조사할 증거는 달라집니다.</p>
+<details class="question"><summary>확인 문제. 첫 요청만 2초이고 이후에는 20ms라면 JIT 때문이라고 답해도 될까요?</summary><div class="answer"><p><strong>판단:</strong> 가능한 가설 중 하나입니다. 첫 요청에만 실행되는 클래스 초기화, DNS 조회, DB 연결 생성, 파일 읽기도 같은 모양의 지연을 만들 수 있습니다.</p><p><strong>확인 방법:</strong> 프로세스 시작부터 첫 요청까지의 시간축에 클래스 로딩·컴파일 기록과 요청별 외부 호출 시간을 함께 놓습니다. 늦은 구간이 어디에 있는지 확인하고 같은 조건에서 여러 번 비교합니다. 단순히 프로세스를 오래 켜 두는 것과 실제 요청 경로를 반복 실행하는 것은 서로 다릅니다.</p><p><strong>꼬리질문:</strong> 워밍업 요청을 보내면 되나요? 도움이 될 수 있지만 대표적인 코드 경로가 실행되어야 합니다. 가벼운 상태 확인 URL만 호출했다면 실제 업무 메서드는 여전히 처음 실행될 수 있습니다.</p></div></details>
 
-<h2 id="section-10">9. 공식 문서와 복습 실험</h2>
+<h2 id="section-11">8. 상세 면접 Q&amp;A</h2>
+<details class="question"><summary>Q1. javac와 JIT 컴파일러는 무엇이 다른가요?</summary><div class="answer"><p>javac는 Java 소스를 class 파일로 만듭니다. JIT는 실행 중 JVM 코드와 프로파일을 활용해 CPU별 기계 코드를 생성합니다. javac는 실행 전 타입과 문법을 확인하고, JIT는 실제 실행 정보를 활용할 수 있다는 차이가 있습니다.</p><p>둘 다 컴파일러이지만 목적과 시점이 다릅니다. 바이트코드는 기계 코드와 같지 않으며 javac 성공이 모든 런타임 의존성의 성공을 보장하지 않습니다.</p><p><strong>구체적으로:</strong> 소스를 수정하면 javac로 산출물을 다시 만들어야 하지만, JIT는 실행 중 프로파일을 이용해 해당 프로세스의 코드를 최적화합니다. 서버에 소스 파일이 없어도 JIT는 동작할 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 컴파일 성공은 실행 의존성과 입력까지 검증했다는 뜻이 아니므로 실제 배포 조합의 실행 시험이 필요합니다.</p></div></details>
+<details class="question"><summary>Q2. 인터프리터를 사용하면 CPU는 무엇을 실행하나요?</summary><div class="answer"><p>CPU는 인터프리터 구현의 기계 코드를 실행합니다. 그 코드가 바이트코드 명령을 읽고 필요한 동작을 수행합니다. 바이트코드가 CPU에 직접 입력되는 것으로 설명하면 추상 실행 기계와 실제 하드웨어를 혼동하게 됩니다.</p><p><strong>구체적으로:</strong> 인터프리터 역시 CPU가 실행할 수 있는 프로그램입니다. CPU가 Java 문장을 직접 읽는 것이 아니라 인터프리터의 기계 코드가 바이트코드 명령의 의미를 수행합니다.</p><p><strong>꼬리질문까지:</strong> 인터프리터 모드와 JIT 모드의 차이는 CPU를 쓰는지 여부가 아니라 바이트코드의 의미를 수행하는 경로에 있습니다.</p></div></details>
+<details class="question"><summary>Q3. static 블록은 main보다 먼저 실행되나요?</summary><div class="answer"><p>일반적인 클래스 main 진입에서는 초기 클래스 초기화가 main 호출 전에 수행되므로 예제의 init이 먼저 출력됩니다. 그렇다고 모든 클래스의 static 블록이 기동 시 실행되는 것은 아닙니다. 각 클래스의 초기화 트리거를 따로 봐야 합니다.</p><p><strong>구체적으로:</strong> main을 선언한 클래스가 초기화되어야 하는 상황에서는 그 초기화가 먼저 진행됩니다. 그러나 프로그램 안의 모든 클래스 static 블록이 main 이전에 한꺼번에 실행되는 것은 아닙니다.</p><p><strong>꼬리질문까지:</strong> 사용하지 않는 클래스의 블록까지 출력될 것이라고 예상하지 말고 각 클래스의 초기화 트리거를 따로 추적하세요.</p></div></details>
+<details class="question"><summary>Q4. 링킹은 반드시 시작 시 한 번에 끝나나요?</summary><div class="answer"><p>검증·준비와 심벌 해석의 시점을 구분해야 합니다. JVM은 명세의 제약을 지키면서 심벌 참조를 지연 해석할 수 있습니다. 클래스가 초기화되었다는 사실만으로 모든 참조가 이미 해석되었다고 결론 내릴 수 없습니다.</p><p><strong>구체적으로:</strong> 심벌 참조를 실제 대상으로 연결하는 resolution은 구현에 따라 지연될 수 있습니다. 시작이 성공했더라도 뒤늦게 실행한 경로에서 의존성 불일치가 드러날 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 기동 시험에 더해 대표 업무 경로를 실행해야 하는 이유를 로딩·링킹·초기화의 구분으로 설명할 수 있습니다.</p></div></details>
+<details class="question"><summary>Q5. 모든 메서드를 처음부터 JIT하면 더 빠르지 않나요?</summary><div class="answer"><p>컴파일 자체의 비용과 생성 코드의 메모리 비용이 있습니다. 실행하지 않는 기능까지 컴파일하면 기동 시간이 늘 수 있고, 실행 프로파일 없이 최적화하면 활용 가능한 정보도 적습니다. HotSpot은 빈번한 경로에 비용을 집중하는 적응형 전략을 사용합니다.</p><p><strong>구체적으로:</strong> 드물게 실행되거나 전혀 사용하지 않는 메서드까지 컴파일하면 시작 CPU와 메모리 비용이 들고, 실행 프로파일이 없는 상태에서는 최적화 정보도 부족합니다.</p><p><strong>꼬리질문까지:</strong> 짧은 명령행 작업과 장수명 서버는 비용을 회수할 시간이 다르므로 같은 전략이 항상 유리하다고 볼 수 없습니다.</p></div></details>
+<details class="question"><summary>Q6. 배포 직후 느린 현상을 어떻게 검증하나요?</summary><div class="answer"><p>응답 지연을 클래스 로딩, 컴파일, GC, DB·네트워크 대기로 나누어 관측합니다. JFR와 JVM 로그를 요청 시간대에 맞추고 충분히 예열된 상태와 비교합니다. 단순히 몇 번 호출한 평균만 비교하면 외부 캐시와 커넥션 상태가 결과를 오염시킬 수 있습니다.</p><p><strong>구체적으로:</strong> 첫 요청의 외부 호출과 클래스 초기화 시간을 함께 측정해야 합니다. JIT 활동이 있다는 사실과 그것이 요청 지연의 주요 원인이라는 주장은 구분합니다.</p><p><strong>꼬리질문까지:</strong> 가벼운 상태 확인 요청만으로 실제 업무 코드의 워밍업이 끝났다고 판단하지 않습니다.</p></div></details>
+
+<h2 id="section-12">9. 공식 문서와 복습 실험</h2>
 <ul>
 <li><a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.2">JVMS 21 §5.2 시작</a>.</li>
 <li><a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.4">JVMS 21 §5.4 링킹</a>.</li>

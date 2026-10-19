@@ -1,7 +1,33 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="load·store·add·return의 의미, 슬롯과 스택 변화, 분기·타입·예외를 직접 추적한다"><title>JVM 05 · 피연산자 스택과 바이트코드: 덧셈 한 줄을 해부하기 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/jvm-study-05.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"></head><body><main><a href="/">← 전체 글</a> · <a href="/posts/jvm-study-00.html">JVM 학습 지도</a><header><p class="meta">JVM QUEST · 05 / 16 · JAVA 21 · 2026-10-19</p><h1>피연산자 스택과 바이트코드: 덧셈 한 줄을 해부하기</h1><p class="subtitle">load·store·add·return의 의미, 슬롯과 스택 변화, 분기·타입·예외를 직접 추적한다</p><p class="note">기준: Java SE 21 사양과 HotSpot JDK 21. 첨부 자료의 JVMS 23·JDK 17 발췌는 이 기준으로 대조했습니다. 설명 속 장애 상황은 학습용 가상 사례입니다. 예제는 외부 라이브러리 없이 실행할 수 있습니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이 글에서 배울 것</h2><ol><li><a href="#section-1">1. 저장 서랍과 계산 쟁반</a></li><li><a href="#section-2">2. 실행할 코드와 예상 결과</a></li><li><a href="#section-3">3. 한 명령씩 상태를 바꾸기</a></li><li><a href="#section-4">4. 타입을 명령에 담는 이유</a></li><li><a href="#section-5">5. 분기는 스택 상태도 맞아야 한다</a></li><li><a href="#section-6">6. 정수 연산에서 자주 놓치는 의미</a></li><li><a href="#section-7">7. 실무 연결: 바이트코드 네 줄도 원자적이지 않다</a></li><li><a href="#section-8">더 깊이: 상수·형변환·증가 명령의 예외적인 모습</a></li><li><a href="#section-9">8. 상세 면접 Q&amp;A</a></li><li><a href="#section-10">9. 공식 근거와 다음 실습</a></li></ol></aside><article><h2 id="section-1">1. 저장 서랍과 계산 쟁반</h2>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="load·store·add·return의 의미, 슬롯과 스택 변화, 분기·타입·예외를 직접 추적한다"><title>JVM 05 · 피연산자 스택과 바이트코드: 덧셈 한 줄을 해부하기 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/jvm-study-05.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"></head><body><main><a href="/">← 전체 글</a> · <a href="/posts/jvm-study-00.html">JVM 학습 지도</a><header><p class="meta">JVM QUEST · 05 / 16 · JAVA 21 · 2026-10-19</p><h1>피연산자 스택과 바이트코드: 덧셈 한 줄을 해부하기</h1><p class="subtitle">load·store·add·return의 의미, 슬롯과 스택 변화, 분기·타입·예외를 직접 추적한다</p><p class="note">기준: Java SE 21 사양과 HotSpot JDK 21. 첨부 자료의 JVMS 23·JDK 17 발췌는 이 기준으로 대조했습니다. 설명 속 장애 상황은 학습용 가상 사례입니다. 예제는 외부 라이브러리 없이 실행할 수 있습니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이 글에서 배울 것</h2><ol><li><a href="#section-1">시작 전에: 이 편에서 쓰는 말</a></li><li><a href="#section-2">1. 저장 서랍과 계산 쟁반</a></li><li><a href="#section-3">2. 실행할 코드와 예상 결과</a></li><li><a href="#section-4">3. 한 명령씩 상태를 바꾸기</a></li><li><a href="#section-5">4. 타입을 명령에 담는 이유</a></li><li><a href="#section-6">5. 분기는 스택 상태도 맞아야 한다</a></li><li><a href="#section-7">6. 정수 연산에서 자주 놓치는 의미</a></li><li><a href="#section-8">7. 실무 연결: 바이트코드 네 줄도 원자적이지 않다</a></li><li><a href="#section-9">더 깊이: 상수·형변환·증가 명령의 예외적인 모습</a></li><li><a href="#section-10">차근차근 이해하기: 스택은 계산 결과를 전달하는 규칙이다</a></li><li><a href="#section-11">8. 상세 면접 Q&amp;A</a></li><li><a href="#section-12">9. 공식 근거와 다음 실습</a></li></ol></aside><article><h2 id="section-1">시작 전에: 이 편에서 쓰는 말</h2>
+<p>처음 읽는다면 아래 용어의 뜻만 확인한 뒤 본문으로 넘어가세요. 먼저 예제의 결과를 예상하고, 실행 과정을 따라간 다음, 면접 답변을 펼쳐 자신의 설명과 비교하면 좋습니다.</p>
+<table>
+<thead>
+<tr>
+<th>용어</th>
+<th>이 글에서의 뜻</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>피연산자</td>
+<td>연산이 사용할 값</td>
+</tr>
+<tr>
+<td>load</td>
+<td>지역변수 값을 피연산자 스택에 적재</td>
+</tr>
+<tr>
+<td>store</td>
+<td>스택에서 꺼낸 값을 지역변수에 기록</td>
+</tr>
+<tr>
+<td>분기</td>
+<td>조건 등에 따라 다음 명령 위치를 바꾸는 일</td>
+</tr>
+</tbody></table>
+<h2 id="section-2">1. 저장 서랍과 계산 쟁반</h2>
 <p>지역변수 배열을 이름표가 붙은 서랍, 피연산자 스택을 잠시 재료를 올리는 쟁반이라고 생각해 봅시다. 서랍의 0번에 숫자 20이 있어도 바로 덧셈이 되는 것은 아닙니다. JVM의 덧셈 명령은 쟁반 위의 두 숫자를 꺼내 더합니다. 서랍에서 값을 올리는 명령이 load이고, 쟁반의 값을 서랍에 넣는 명령이 store입니다.</p>
 <p>서랍에서 올린다고 원래 값이 사라지는 것은 아닙니다. <code>iload_0</code>는 지역변수 0번의 int 값을 피연산자 스택으로 복사합니다. 반대로 <code>istore_2</code>는 스택의 int 값을 꺼내 2번 슬롯에 저장합니다. 이때 스택에서는 값이 제거됩니다. LIFO는 마지막에 올린 것을 먼저 꺼낸다는 뜻입니다. <a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.6.2">근거: JVMS §2.6.1~2</a></p>
-<h2 id="section-2">2. 실행할 코드와 예상 결과</h2>
+<h2 id="section-3">2. 실행할 코드와 예상 결과</h2>
 <pre><code class="language-java">// file: Lesson05.java
 public class Lesson05 {
     static int add(int a, int b) {
@@ -31,7 +57,7 @@ javap -c -v -p Lesson05
 4: iload_2
 5: ireturn
 </code></pre>
-<h2 id="section-3">3. 한 명령씩 상태를 바꾸기</h2>
+<h2 id="section-4">3. 한 명령씩 상태를 바꾸기</h2>
 <p>아래 스택 표기는 왼쪽이 바닥, 오른쪽이 꼭대기입니다. JVM은 이 숫자를 문자열로 보관하는 것이 아니라 타입에 맞는 실행값으로 다룹니다.</p>
 <table>
 <thead>
@@ -86,33 +112,108 @@ javap -c -v -p Lesson05
 </tr>
 </tbody></table>
 <p><code>iadd</code>가 두 개를 꺼내 하나를 넣으므로 깊이는 2에서 1로 줄어듭니다. result 지역변수를 없애 <code>return a + b</code>로 바꾸면 store와 다시 load하는 단계가 사라지는지 확인하세요. 바이트코드가 짧아졌다고 실제 최적화된 기계 코드도 반드시 더 빠르다고 결론 내릴 수는 없습니다.</p>
-<h2 id="section-4">4. 타입을 명령에 담는 이유</h2>
+<h2 id="section-5">4. 타입을 명령에 담는 이유</h2>
 <p><code>i</code>는 int 계열 계산, <code>l</code>은 long, <code>f</code>는 float, <code>d</code>는 double, <code>a</code>는 참조를 다루는 여러 명령에 쓰입니다. <code>iadd</code>와 <code>ladd</code>는 다른 명령입니다. 정수 둘을 올려 놓고 임의로 double 덧셈을 수행하게 해서는 안 됩니다. 바이트코드 검증은 이런 타입·스택 규칙을 확인합니다.</p>
 <p>byte·short·char·boolean의 많은 계산은 JVM에서 int 계산 타입을 활용합니다. 따라서 Java 소스 타입과 JVM 명령 이름이 항상 일대일 대응하지 않습니다. <code>boolean[]</code> 접근 명령 등은 별도 규칙이 있습니다. 또한 long·double은 피연산자 스택 깊이 계산에 2단위로 기여합니다. 값 두 개가 아니라 하나의 값을 쪼개서는 안 되는 category 2 값입니다.</p>
-<h2 id="section-5">5. 분기는 스택 상태도 맞아야 한다</h2>
+<h2 id="section-6">5. 분기는 스택 상태도 맞아야 한다</h2>
 <p><code>adjust</code>의 조건은 비교와 분기 명령으로 표현됩니다. 실행할 다음 명령의 위치가 조건에 따라 달라집니다. 바이트코드의 <code>0:</code>, <code>1:</code> 숫자는 소스 줄 번호가 아니라 코드 배열 안의 명령 시작 오프셋입니다. 명령 길이가 달라지면 숫자가 1씩만 증가하지 않습니다.</p>
 <p>분기 경로가 다시 합쳐질 때는 유효한 타입과 스택 상태가 필요합니다. 한 경로는 int 하나를 남기고 다른 경로는 객체 참조 둘을 남기는 식으로 만들어진 코드는 그대로 정상 실행할 수 없습니다. <code>StackMapTable</code>은 이런 검증에 쓰이는 타입 상태 정보를 제공합니다. 실제 객체 값을 저장하는 Heap이나 런타임 호출 스택 자체는 아닙니다. <a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.10">근거: JVMS §4.10</a></p>
-<h2 id="section-6">6. 정수 연산에서 자주 놓치는 의미</h2>
+<h2 id="section-7">6. 정수 연산에서 자주 놓치는 의미</h2>
 <p><code>iadd</code>의 정수 덧셈은 오버플로 시 자동으로 예외를 던지는 연산이 아닙니다. 예를 들어 최대 int에 1을 더한 결과는 int 범위에서 돌아갑니다. 재고 수량이나 금액 계산에서 오버플로를 감지하려면 <code>Math.addExact</code> 같은 명시적 방법이나 더 적절한 타입·검증을 사용해야 합니다.</p>
 <p>정수 나눗셈에서 0으로 나누면 예외가 발생하지만 부동소수점 연산은 Infinity나 NaN 등 규칙이 다릅니다. “JVM의 산술 명령은 전부 똑같이 예외 처리한다”라고 묶지 마세요. 바이트코드 공부는 명령 이름을 외우기보다 타입별 의미와 예외 조건을 읽는 연습입니다.</p>
-<h2 id="section-7">7. 실무 연결: 바이트코드 네 줄도 원자적이지 않다</h2>
+<h2 id="section-8">7. 실무 연결: 바이트코드 네 줄도 원자적이지 않다</h2>
 <p><code>count++</code>는 읽기·더하기·쓰기의 의미를 갖습니다. 하나의 Java 문장이라는 사실은 여러 스레드 사이에서 원자적이라는 보장이 아닙니다. 지역 int의 증가는 <code>iinc</code>로 표현될 수 있지만, 공유 객체 필드 증가와 상황이 다릅니다. “바이트코드 한 명령이면 전부 스레드 안전하다”도 옳지 않습니다.</p>
 <p>공유 재고 수량의 정합성은 JVM 내부 연산만으로 해결되지 않을 수 있습니다. 한 프로세스라면 락이나 Atomic 계열이 필요할 수 있고, 여러 서버와 DB를 함께 다룬다면 DB의 원자 갱신·트랜잭션·멱등성 등을 별도로 설계해야 합니다. 명령 단위의 실행 모델과 업무 트랜잭션의 원자성을 구분하세요.</p>
-<h2 id="section-8">더 깊이: 상수·형변환·증가 명령의 예외적인 모습</h2>
+<h2 id="section-9">더 깊이: 상수·형변환·증가 명령의 예외적인 모습</h2>
 <p>정수를 올리는 데 항상 상수 풀을 쓰지는 않습니다. 작은 상수에는 iconst 계열, 한 바이트·두 바이트 즉시값에는 bipush·sipush, 상수 풀 값에는 ldc 계열이 사용될 수 있습니다. <code>push</code>라는 이름이 없더라도 값을 스택에 올리는 명령이 있다는 점을 기억하세요. 어떤 명령이 선택되는지는 값과 타입, 컴파일 결과를 봅니다.</p>
 <p>지역 int의 <code>i++</code>는 iinc로 표현될 수 있습니다. 이 명령은 일반적인 &#39;피연산자 두 개를 꺼내 계산&#39; 패턴과 다르게 지역변수 슬롯을 직접 증가시킵니다. 따라서 모든 산술이 무조건 load 두 번·연산·store 패턴이라는 단정도 피해야 합니다. 필드의 증가와 같은 코드로 취급하면 안 됩니다.</p>
 <p>형변환에서는 i2l·l2i·i2b 같은 명령을 볼 수 있습니다. long을 int로 줄일 때 상위 비트가 사라질 수 있고, int를 byte로 좁히는 의미도 별도로 정의됩니다. &#39;JVM 검증이 있으니 수치 손실은 자동 방지된다&#39;는 뜻이 아닙니다. 검증은 유효한 연산인지 보며, 업무에서 허용할 수치 범위는 개발자가 정합니다.</p>
 <details class="question"><summary>심화 Q. byte 두 개를 더했는데 왜 iadd가 보이나요?</summary><div class="answer"><p>Java의 수치 승격과 JVM 계산 타입 규칙 때문입니다. 작은 정수형을 다루는 많은 계산은 int 형태로 실행됩니다. 다시 byte에 저장하려면 좁히기 변환이 필요할 수 있습니다.</p><p>따라서 소스 변수의 선언 타입만으로 바이트코드 접두사를 기계적으로 예측하지 말고 표현식의 계산 타입과 저장 타입을 나누어 봅니다.</p></div></details>
 
-<h2 id="section-9">8. 상세 면접 Q&amp;A</h2>
-<details class="question"><summary>Q1. load는 지역변수의 값을 스택으로 옮기나요?</summary><div class="answer"><p>값을 복사해 올립니다. load 뒤에도 지역변수의 원래 값은 남습니다. store는 스택에서 값을 꺼내 슬롯에 저장합니다. 이 차이를 놓치면 같은 인자를 여러 번 사용하는 메서드를 추적할 수 없습니다.</p></div></details>
-<details class="question"><summary>Q2. 피연산자 스택이 CPU 스택과 같은가요?</summary><div class="answer"><p>사양의 논리적인 계산 구조입니다. HotSpot이 JIT로 최적화한 결과에서는 값이 레지스터에 놓이고 중간 계산이 제거될 수 있습니다. 바이트코드의 push/pop이 실제 CPU 메모리 명령에 항상 하나씩 대응한다고 말하지 않습니다.</p></div></details>
-<details class="question"><summary>Q3. ireturn과 return은 무엇이 다른가요?</summary><div class="answer"><p>ireturn은 int 계열의 결과를 호출자에게 반환하고, return은 void 메서드의 정상 완료에 쓰입니다. 참조 반환은 areturn, long은 lreturn 등 타입별 명령이 있습니다. 반환은 현재 호출을 끝내는 동작도 포함합니다.</p></div></details>
-<details class="question"><summary>Q4. 스택 깊이 2는 메모리 2바이트인가요?</summary><div class="answer"><p>아닙니다. 명세의 깊이 단위입니다. int나 참조는 1단위, long과 double은 2단위로 계산합니다. 실제 프레임에 필요한 메모리는 JVM 구현과 실행 형태를 함께 봐야 합니다.</p></div></details>
-<details class="question"><summary>Q5. 지역변수 result를 없애면 반드시 빨라지나요?</summary><div class="answer"><p>javac 결과의 store/load가 줄 수 있지만 JIT가 두 코드를 같은 기계 코드로 최적화할 수 있습니다. 바이트코드 길이만으로 성능을 판단하지 말고 대표 부하에서 측정해야 합니다. 가독성을 희생할 이유로 단순 명령 개수를 사용하지 않습니다.</p></div></details>
-<details class="question"><summary>Q6. count++가 한 문장인데 왜 동시성 문제가 있나요?</summary><div class="answer"><p>공유 필드의 증가에는 기존 값 읽기와 새 값 쓰기의 복합 동작이 있습니다. 서로 다른 스레드가 같은 기존 값을 읽으면 갱신이 유실될 수 있습니다. 원자성 보장은 언어 문장 길이·바이트코드 개수가 아니라 동기화 규칙과 사용하는 연산의 계약으로 판단합니다.</p></div></details>
+<h2 id="section-10">차근차근 이해하기: 스택은 계산 결과를 전달하는 규칙이다</h2>
+<p>스택의 “마지막에 넣은 것을 먼저 꺼낸다”는 성질만 외우면 뺄셈에서 막히기 쉽습니다. 명령이 피연산자 두 개를 꺼낼 때 <strong>먼저 꺼낸 값을 왼쪽 항으로 삼는 것은 아닙니다</strong>. <code>isub</code>는 먼저 올라간 value1에서 나중에 올라간 value2를 뺍니다. 덧셈은 순서를 바꿔도 같은 결과라서 이 오해가 드러나지 않습니다.</p>
+<h3>덧셈을 뺄셈으로 바꾸어 검산하기</h3>
+<p>다음은 메서드 본문을 바꾸는 짧은 연습입니다. 독립 실행 파일이 아니라 기존 Lesson05 클래스 안에 추가할 수 있는 메서드입니다.</p>
+<pre><code class="language-java">static int subtract(int left, int right) {
+    return left - right;
+}
+</code></pre>
+<p><code>subtract(10, 3)</code>의 개념적 실행을 추적해 봅시다. 스택 표기에서 오른쪽이 꼭대기입니다.</p>
+<table>
+<thead>
+<tr>
+<th>명령</th>
+<th>실행 전 스택</th>
+<th>실행 후 스택</th>
+<th>뜻</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>iload_0</td>
+<td><code>[]</code></td>
+<td><code>[10]</code></td>
+<td>지역 0의 값을 복사해 올림</td>
+</tr>
+<tr>
+<td>iload_1</td>
+<td><code>[10]</code></td>
+<td><code>[10, 3]</code></td>
+<td>지역 1의 값을 복사해 올림</td>
+</tr>
+<tr>
+<td>isub</td>
+<td><code>[10, 3]</code></td>
+<td><code>[7]</code></td>
+<td>10에서 3을 뺌</td>
+</tr>
+<tr>
+<td>ireturn</td>
+<td><code>[7]</code></td>
+<td>현재 호출 종료</td>
+<td>호출자에게 7을 반환</td>
+</tr>
+</tbody></table>
+<p>이 과정에서 지역 0의 10과 지역 1의 3은 load 때문에 사라지지 않습니다. 스택에 복사된 계산값과 지역변수의 값을 구분해야 합니다. 다른 계산을 위해 같은 지역변수를 다시 읽을 수 있습니다. 반대로 store는 스택에서 값을 꺼내 지정한 지역 슬롯에 기록합니다.</p>
+<h3>괄호가 있으면 중간값은 어디서 기다릴까</h3>
+<p><code>(a + b) * c</code>에서 먼저 계산한 <code>a + b</code>의 결과는 다음 곱셈이 사용할 값입니다. 개념적으로 a, b를 올려 더하면 합 하나가 남고, c를 올려 곱하면 최종 결과가 남습니다. 임시 결과를 반드시 Java 소스의 이름 있는 변수에 저장해야 하는 것은 아닙니다. 컴파일러는 피연산자 스택을 이용해 표현식의 중간 결과를 연결합니다.</p>
+<p><code>a + b * c</code>는 의미가 다릅니다. a를 준비한 상태에서 b와 c의 곱을 먼저 구해야 하므로 특정 지점의 최대 스택 깊이가 달라질 수 있습니다. javap로 두 메서드를 비교하되, 여기서 보이는 깊이는 바이트코드 실행 모델의 필요량입니다. CPU 레지스터 수나 전체 JVM Stack 크기를 뜻하지 않습니다.</p>
+<h3>분기는 계산의 결과뿐 아니라 타입 상태도 합쳐야 한다</h3>
+<p><code>if</code>의 두 경로가 같은 반환 지점으로 합쳐질 때에는 그 위치에서 요구하는 스택과 지역변수 타입 조건이 맞아야 합니다. 한 경로에서는 int가 필요한 위치에 참조를 넣고 다른 경로에서는 int를 넣는 식의 잘못된 바이트코드는 검증에서 문제가 됩니다. Java 컴파일러가 보통 올바른 형태를 만들지만, JVM은 클래스 파일이 반드시 javac에서 나왔다는 전제로만 신뢰하지 않습니다.</p>
+<p>이것은 계산 쟁반을 전달하면서 “이 칸에는 정수 하나가 있다”는 약속을 지키는 것과 비슷합니다. 검증이 그 약속을 확인해도 실행 중 배열 인덱스가 범위 안인지, 나누는 정수가 0인지까지 모든 입력에 대해 미리 결정하는 것은 아닙니다. 정적 구조 검증과 실행 중 검사는 서로 역할이 다릅니다.</p>
+<h3>추가 실행 실습: Walkthrough05</h3>
+<p>뺄셈의 피연산자 순서와 괄호에 따른 계산 순서를 비교합니다. grouped와 precedence의 명령 순서를 손으로 추적한 뒤 출력과 대조하세요.</p>
+<pre><code class="language-java">// file: Walkthrough05.java
+public class Walkthrough05 {
+    static int subtract(int left, int right) { return left - right; }
+    static int grouped(int a, int b, int c) { return (a + b) * c; }
+    static int precedence(int a, int b, int c) { return a + b * c; }
+    public static void main(String[] args) {
+        System.out.println(subtract(10, 3));
+        System.out.println(grouped(2, 4, 6));
+        System.out.println(precedence(2, 4, 6));
+    }
+}
+</code></pre>
+<pre><code class="language-sh">javac --release 21 -g Walkthrough05.java
+java Walkthrough05
+javap -c -v -p Walkthrough05
+</code></pre>
+<p>예상 출력:</p>
+<pre><code class="language-text">7
+36
+26
+</code></pre>
+<details class="question"><summary>확인 문제. int 덧셈이 범위를 넘으면 반드시 예외가 발생하나요?</summary><div class="answer"><p><strong>판단:</strong> 일반적인 int 덧셈은 오버플로를 이유로 자동 예외를 던지지 않습니다. 32비트 정수 연산 결과에 맞게 값이 돌아갑니다. 따라서 재고 합계나 금액 계산에서 범위 검사를 의도했다면 그 의도를 코드로 표현해야 합니다.</p><p><strong>비교:</strong> 정수 나눗셈의 0 나누기는 ArithmeticException을 발생시킵니다. “정수 연산이 잘못되면 전부 같은 방식으로 실패한다”는 규칙은 없습니다. 명령과 Java API의 계약을 구분해야 합니다.</p><p><strong>꼬리질문:</strong> long으로 바꾸면 영원히 안전한가요? 표현 범위가 넓어질 뿐 유한하다는 점은 같습니다. 입력 범위와 최대 누적량을 먼저 계산하고 필요한 자료형 및 검증 방법을 선택해야 합니다.</p></div></details>
 
-<h2 id="section-10">9. 공식 근거와 다음 실습</h2>
+<h2 id="section-11">8. 상세 면접 Q&amp;A</h2>
+<details class="question"><summary>Q1. load는 지역변수의 값을 스택으로 옮기나요?</summary><div class="answer"><p>값을 복사해 올립니다. load 뒤에도 지역변수의 원래 값은 남습니다. store는 스택에서 값을 꺼내 슬롯에 저장합니다. 이 차이를 놓치면 같은 인자를 여러 번 사용하는 메서드를 추적할 수 없습니다.</p><p><strong>구체적으로:</strong> iload_0 뒤에도 지역 0의 값은 남습니다. 스택에 적재된 값을 iadd가 소비해도 원래 지역변수를 다시 읽을 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 반대로 istore는 스택 값을 꺼내 지역 슬롯을 갱신합니다. 각 명령 전후에 지역변수와 스택을 따로 그려 보세요.</p></div></details>
+<details class="question"><summary>Q2. 피연산자 스택이 CPU 스택과 같은가요?</summary><div class="answer"><p>사양의 논리적인 계산 구조입니다. HotSpot이 JIT로 최적화한 결과에서는 값이 레지스터에 놓이고 중간 계산이 제거될 수 있습니다. 바이트코드의 push/pop이 실제 CPU 메모리 명령에 항상 하나씩 대응한다고 말하지 않습니다.</p><p><strong>구체적으로:</strong> 피연산자 스택은 JVM 명령의 입력과 출력을 규정하는 모델입니다. JIT는 같은 의미를 레지스터 연산으로 구현할 수 있어 실제 기계 코드에 동일한 push·pop이 남을 필요는 없습니다.</p><p><strong>꼬리질문까지:</strong> 바이트코드가 스택 기반이라는 말과 CPU가 모든 계산을 메모리 스택으로 한다는 말을 구분해야 합니다.</p></div></details>
+<details class="question"><summary>Q3. ireturn과 return은 무엇이 다른가요?</summary><div class="answer"><p>ireturn은 int 계열의 결과를 호출자에게 반환하고, return은 void 메서드의 정상 완료에 쓰입니다. 참조 반환은 areturn, long은 lreturn 등 타입별 명령이 있습니다. 반환은 현재 호출을 끝내는 동작도 포함합니다.</p><p><strong>구체적으로:</strong> int 결과를 돌려주는 메서드는 계산 결과를 호출자에게 전달해야 하고, void 메서드는 정상 완료만 알립니다. 객체 참조 반환에는 areturn 등 다른 타입의 명령이 사용됩니다.</p><p><strong>꼬리질문까지:</strong> 반환 명령이 메서드 descriptor의 반환 타입과 맞아야 한다는 점까지 연결해 설명하세요.</p></div></details>
+<details class="question"><summary>Q4. 스택 깊이 2는 메모리 2바이트인가요?</summary><div class="answer"><p>아닙니다. 명세의 깊이 단위입니다. int나 참조는 1단위, long과 double은 2단위로 계산합니다. 실제 프레임에 필요한 메모리는 JVM 구현과 실행 형태를 함께 봐야 합니다.</p><p><strong>구체적으로:</strong> 깊이는 JVM 실행 모델의 단위이며 long·double은 피연산자 스택 깊이에 두 단위로 기여합니다. 이를 실제 바이트 수로 바로 환산할 수 없습니다.</p><p><strong>꼬리질문까지:</strong> max_stack은 한 메서드 안의 최대 필요 깊이입니다. 스레드 전체의 -Xss와 구분합니다.</p></div></details>
+<details class="question"><summary>Q5. 지역변수 result를 없애면 반드시 빨라지나요?</summary><div class="answer"><p>javac 결과의 store/load가 줄 수 있지만 JIT가 두 코드를 같은 기계 코드로 최적화할 수 있습니다. 바이트코드 길이만으로 성능을 판단하지 말고 대표 부하에서 측정해야 합니다. 가독성을 희생할 이유로 단순 명령 개수를 사용하지 않습니다.</p><p><strong>구체적으로:</strong> 명시적 지역변수를 지워 바이트코드가 짧아져도 JIT가 원래의 불필요한 저장과 읽기를 제거했을 수 있습니다. 반대로 디버깅하기 좋은 이름이 유지보수에는 도움이 됩니다.</p><p><strong>꼬리질문까지:</strong> 가독성 개선과 성능 개선은 별도 목표로 두고, 성능 주장은 실제 측정으로 확인합니다.</p></div></details>
+<details class="question"><summary>Q6. count++가 한 문장인데 왜 동시성 문제가 있나요?</summary><div class="answer"><p>공유 필드의 증가에는 기존 값 읽기와 새 값 쓰기의 복합 동작이 있습니다. 서로 다른 스레드가 같은 기존 값을 읽으면 갱신이 유실될 수 있습니다. 원자성 보장은 언어 문장 길이·바이트코드 개수가 아니라 동기화 규칙과 사용하는 연산의 계약으로 판단합니다.</p><p><strong>구체적으로:</strong> 필드의 값을 읽고 1을 더해 저장하는 사이에 다른 스레드가 같은 값을 읽을 수 있습니다. 두 갱신이 같은 새 값을 저장하면 증가 하나가 사라집니다.</p><p><strong>꼬리질문까지:</strong> volatile도 이 복합 동작 전체를 원자적으로 묶지 않습니다. 보호할 연산의 경계를 정해야 합니다.</p></div></details>
+
+<h2 id="section-12">9. 공식 근거와 다음 실습</h2>
 <ul>
 <li><a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.11">JVMS §2.11 명령 집합</a>.</li>
 <li><a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.iadd">JVMS iadd</a>.</li>
