@@ -18,7 +18,7 @@ TITLES=[
 '암호화와 복구: 데이터·로그·키를 끝까지 보호하기']
 CSS='''body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.95}main{max-width:960px;margin:auto;padding:36px 24px 100px}h1{font-size:clamp(30px,5vw,48px);line-height:1.4}h2{margin-top:64px;line-height:1.5}p,li{font-size:17px}a{color:inherit}pre{padding:18px;line-height:1.65;overflow:auto}table{border-collapse:collapse;width:100%}td,th{padding:12px;border:1px solid #a69c80;vertical-align:top}details{border:2px solid #a69c80;margin:16px 0;padding:16px}summary{font-weight:700;cursor:pointer}details p{margin-bottom:0}.meta{font-size:13px}.lesson-nav{display:flex;flex-wrap:wrap;gap:18px;margin-top:50px}.callout{border:2px solid #a69c80;padding:18px;margin:24px 0}.series-grid{display:grid;gap:18px}.series-card{border:2px solid #a69c80;padding:20px}.series-card h2{margin:0;font-size:22px}'''
 def shell(title,body):
- return '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+html.escape(title)+' | thisisnew</title><meta name="description" content="'+html.escape(title)+' — 비유·내부 원리·SQL 실습·장애 분석·면접 답변으로 배우는 MySQL 8.0"><style>'+CSS+'</style><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/study-reading.css"></head><body><main><a href="/">thisisnew / Engineering Notes</a>'+body+'</main><script src="/assets/study-tools.js"></script></body></html>'
+ return '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+html.escape(title)+' | thisisnew</title><meta name="description" content="'+html.escape(title)+' — 비유·내부 원리·SQL 실습·장애 분석·면접 답변으로 배우는 MySQL 8.0"><style>'+CSS+'</style><link rel="stylesheet" href="/assets/pixel-quest.css"><script src="/assets/series-category.js" defer></script><link rel="stylesheet" href="/assets/study-reading.css"></head><body><main><a href="/">thisisnew / Engineering Notes</a>'+body+'</main><script src="/assets/study-tools.js"></script></body></html>'
 rows=[];cards=[]
 for n,title in enumerate(TITLES,1):
  body=(ROOT/f'tools/mysql-source/{n:02}.html').read_text()
@@ -38,7 +38,7 @@ status='<h2>검증 범위와 재현 조건</h2><p>모든 글은 독립적으로 
 p=ROOT/'index.html';s=p.read_text()
 start='<!-- MYSQL-SERIES-START -->';end='<!-- MYSQL-SERIES-END -->'
 if start in s:s=s[:s.index(start)]+s[s.index(end)+len(end):]
-links=[f'<a class="post" data-category="backend" href="posts/mysql-study-{n:02}.html"><div class="number">M{n:02}</div><div><div class="tags">BACKEND · MYSQL DEEP STUDY · {n:02}/12</div><h3>{html.escape(t)}</h3><p>쉬운 비유부터 내부 원리·SQL 실습·상세 면접 답변까지</p><div class="date">2026.10.19 · MySQL 8.0 심화 학습</div></div><div class="arrow">↗</div></a>' for n,t in enumerate(TITLES,1)]
+links=[f'<a class="post" data-category="mysql" data-order="{n}" href="posts/mysql-study-{n:02}.html"><div class="number">M{n:02}</div><div><div class="tags">BACKEND · MYSQL DEEP STUDY · {n:02}/12</div><h3>{html.escape(t)}</h3><p>쉬운 비유부터 내부 원리·SQL 실습·상세 면접 답변까지</p><div class="date">2026.10.19 · MySQL 8.0 심화 학습</div></div><div class="arrow">↗</div></a>' for n,t in enumerate(TITLES,1)]
 assert '<div id="articles">' in s
 s=s.replace('<div id="articles">','<div id="articles">'+start+''.join(links)+end,1)
 p.write_text(s)

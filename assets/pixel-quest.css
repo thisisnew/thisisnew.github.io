@@ -73,3 +73,22 @@ body:not(:has(.layout)) .meta{color:#8d5657!important}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}/* Keep long archive text inside its grid cell; preserve the pixel palette. */
 .post > div{min-width:0;overflow-wrap:anywhere}
 body:not(:has(.layout)) main strong{color:var(--fg)!important}
+
+/* Subtle subject colors; text and reading surfaces stay consistent. */
+[data-category="kafka"],[data-filter="kafka"],[data-category-link="kafka"],body[data-series="kafka"]{--series-ink:#685084;--series-tint:#eee6f7;--series-edge:#b39acb}
+[data-category="mysql"],[data-filter="mysql"],[data-category-link="mysql"],body[data-series="mysql"]{--series-ink:#30667e;--series-tint:#e2f0f5;--series-edge:#8fbccc}
+[data-category="jvm"],[data-filter="jvm"],[data-category-link="jvm"],body[data-series="jvm"]{--series-ink:#8b5334;--series-tint:#f9e9da;--series-edge:#d7ad88}
+.post[data-category]{border-left:8px solid var(--series-edge)!important}
+.post[data-category] .number,.post[data-category] .tags{color:var(--series-ink)!important}
+.post[data-category] .number{letter-spacing:0!important}
+.chip[data-filter]:not([data-filter="all"]){border-bottom-color:var(--series-edge)!important}
+.chip.selected:not([data-filter="all"]),.sidebar nav a.active:not([data-category-link="all"]){background:var(--series-tint)!important;color:var(--series-ink)!important}
+.category-count{font-size:12px;opacity:.8;margin-left:5px}
+.chips{display:flex;flex-wrap:wrap;gap:12px!important}
+#category-description{font-size:14px;line-height:1.7}
+.sidebar nav a[data-category-link]:not([data-category-link="all"]){border-left:5px solid var(--series-edge)!important}
+body[data-series]:not(:has(.layout)) h1{border-bottom:8px solid var(--series-edge)!important;background:var(--series-tint)!important}
+body[data-series]:not(:has(.layout)) h2{border-left-color:var(--series-edge)!important;background:var(--series-tint)!important;color:var(--series-ink)!important}
+body[data-series]:not(:has(.layout)) .toc a,body[data-series]:not(:has(.layout)) .meta{color:var(--series-ink)!important}
+body[data-series] .series-home{display:table;margin-bottom:22px;padding:7px 12px;background:var(--series-tint)!important;color:var(--series-ink)!important;border:2px solid var(--series-edge);border-radius:3px;font-size:14px}
+.post[hidden]{display:none!important}

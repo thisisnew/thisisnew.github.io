@@ -84,7 +84,9 @@ jobs:
           npm install --no-save playwright@1.51.1
           npx playwright install --with-deps chromium
       - name: Verify desktop mobile search and expandable answers
-        run: node tools/check_mysql_browser.cjs
+        run: |
+          node tools/check_mysql_browser.cjs
+          node tools/check_categories.cjs
       - name: Upload MySQL verification evidence
         if: always()
         uses: actions/upload-artifact@v4
