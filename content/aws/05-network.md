@@ -1,0 +1,69 @@
+{"n":5,"title":"VPC와 네트워크: 요청 한 건이 DNS에서 DB까지 가는 길","desc":"라우팅·보안 그룹·NACL·NAT·로드 밸런서·CDN·PrivateLink·하이브리드 연결을 연결하기"}
+
+## 1. 주소, 길, 출입 허가는 서로 다르다
+
+택배를 보내려면 주소를 알아야 하고, 그 주소까지 길이 있어야 하며, 도착한 건물에서 출입을 허용해야 합니다. DNS는 이름을 주소 정보로 바꾸는 역할, 라우팅은 어느 길로 보낼지 정하는 역할, 방화벽과 권한은 통과와 행동을 허용하는 역할입니다. 주소가 맞아도 경로가 없으면 도착하지 않고, 경로가 있어도 차단 규칙이 있으면 통신하지 못합니다. “보안 그룹을 열었는데 왜 안 되죠?”는 이 세 층을 섞었을 때 자주 나오는 질문입니다.
+
+## 2. VPC·서브넷·라우트 테이블의 처리 순서
+
+VPC는 리전 안의 논리적 네트워크이고 서브넷은 한 AZ에 속하는 IP 범위입니다. 패킷의 목적지에 맞는 라우트 중 더 구체적인 prefix가 우선되는 방식으로 다음 경로를 정합니다. `10.0.0.0/16`과 `0.0.0.0/0`이 있다면 10.0으로 향하는 트래픽에는 더 구체적인 경로가 적용됩니다. 기본 경로를 NAT로 지정해도 더 구체적인 VPC endpoint 경로가 있으면 해당 서비스 트래픽은 그쪽을 사용할 수 있습니다.
+
+public subnet은 인터넷 게이트웨이로 가는 경로가 있는 서브넷이라는 뜻입니다. 그 안의 모든 서버가 자동으로 인터넷에서 접근 가능하다는 뜻은 아닙니다. IPv4 인스턴스의 공인 주소, 보안 그룹, NACL, 애플리케이션 리스닝 포트가 함께 맞아야 합니다. private subnet의 서버가 외부 업데이트를 받도록 public NAT gateway를 사용할 수 있지만, NAT는 외부에서 임의의 새 연결을 받아 주는 공개 입구가 아닙니다.
+
+기존 AZ별 NAT 설계에서는 같은 AZ의 NAT를 사용하도록 구성해 특정 AZ 의존과 교차 AZ 경로를 고려합니다. NAT 제품과 배치 옵션은 발전할 수 있으므로 실제로 선택한 게이트웨이 유형의 장애 범위와 과금 조건을 확인해야 합니다. “NAT가 있으니 자동으로 모든 AZ 장애에 안전하다”는 일반화는 피합니다.
+
+## 3. 보안 그룹과 NACL: 상태를 기억하는가
+
+보안 그룹은 네트워크 인터페이스에 적용되는 허용 규칙이며 연결 상태를 추적합니다. 허용된 연결의 응답 트래픽은 상태에 따라 처리됩니다. NACL은 서브넷 경계에서 번호 순서로 평가하는 허용·거부 규칙이며 상태를 추적하지 않습니다. 따라서 왕복 경로와 임시 포트 범위를 모두 고려해야 합니다. 보안 그룹을 여러 개 연결했을 때는 허용 규칙들이 합쳐지는 성격이지, 각 그룹의 교집합으로 더 좁혀지는 방식이 아닙니다.
+
+DB에는 인터넷 전체 대신 애플리케이션 보안 그룹에서 필요한 DB 포트만 허용하는 식으로 경계를 좁힐 수 있습니다. 하지만 네트워크 연결 가능성과 DB 로그인 권한은 다릅니다. private subnet은 데이터 암호화나 사용자 인증을 대신하지 않습니다.
+
+## 4. ALB·NLB·API Gateway의 책임
+
+| 구성 요소 | 주로 보는 정보 | 대표 역할 |
+|---|---|---|
+| ALB | HTTP 요청의 host·path 등 | 웹 요청 라우팅과 건강한 대상 분산 |
+| NLB | TCP/UDP/TLS 연결 등 | 네트워크 계층 부하 분산·고정 IP 요구 검토 |
+| Gateway Load Balancer | 네트워크 가상 어플라이언스 처리 | 검사 장비의 확장과 트래픽 전달 |
+| API Gateway | API 요청과 관리 정책 | API 공개·인증 연동·제한·통합 |
+
+LB가 한 번 연결한 TCP 세션을 장애 후 다른 서버의 메모리 상태까지 복원해 주지는 않습니다. health check도 지정한 경로가 정상인지 확인할 뿐, 모든 업무가 정상이라는 증명은 아닙니다. `/health`가 항상 200인데 DB 쓰기는 모두 실패할 수 있습니다. 반대로 깊은 DB 검사를 모든 서버 health check에 넣으면 공통 DB 장애 때 모든 서버가 동시에 제외되는 문제가 생길 수 있어 liveness와 readiness의 목적을 구분합니다.
+
+## 5. Route 53·CloudFront·Global Accelerator
+
+Route 53은 DNS와 라우팅 정책·상태 확인 기능을 제공합니다. DNS 응답이 바뀌어도 재귀 resolver와 클라이언트의 캐시·TTL 때문에 모든 사용자가 같은 순간에 새 대상으로 이동하지는 않습니다. 따라서 DNS failover를 연결 상태를 즉시 옮기는 기능으로 설명하면 안 됩니다.
+
+CloudFront는 엣지에서 콘텐츠를 캐시하고 오리진으로 요청을 전달합니다. 캐시 키에 어떤 헤더·쿠키·query string을 포함하는지가 중요합니다. 사용자별 응답을 구분하지 않고 공유 캐시하면 정보 노출이 생길 수 있고, 모든 값을 키에 포함하면 적중률이 낮아집니다. TTL이 길수록 원본 변경 반영은 늦어질 수 있습니다. S3의 강한 일관성과 CDN 캐시의 오래된 응답은 서로 다른 계층의 현상입니다.
+
+Global Accelerator는 AWS 글로벌 네트워크와 고정 anycast IP를 활용해 지원 엔드포인트로 트래픽을 전달하는 서비스입니다. 콘텐츠를 캐시하는 CDN과 같은 기능이 아닙니다. HTTP 정적 콘텐츠 캐시가 목적이면 CloudFront, TCP/UDP 애플리케이션의 글로벌 경로·고정 IP 요구라면 Global Accelerator를 검토하는 식으로 출발합니다.
+
+## 6. 사설 연결과 하이브리드 연결
+
+Gateway endpoint는 S3/DynamoDB 접근 경로에 사용되고, interface endpoint는 PrivateLink를 통해 지원 서비스에 사설 IP로 접근하는 방식입니다. endpoint policy는 IAM이나 리소스 정책을 대체하는 만능 허용장이 아닙니다. DNS 설정과 대상 서비스의 권한도 함께 확인합니다. PrivateLink는 서비스 제공자와 소비자를 연결하는 방식이지 두 VPC의 모든 네트워크를 서로 연결하는 일반 라우터가 아닙니다.
+
+VPC peering은 VPC 간 연결이지만 전이 라우팅을 자동 제공하지 않습니다. 연결 수가 많아지면 Transit Gateway의 허브 구조를 검토합니다. CIDR이 겹치면 이후 연결과 이전이 어려워질 수 있어 처음 주소 계획이 중요합니다. Cloud Map은 서비스 발견, Verified Access는 사용자·장치 신뢰 등을 이용한 애플리케이션 접근 통제라는 목적을 갖습니다.
+
+Site-to-Site VPN은 인터넷 위 암호화 터널, Direct Connect는 전용 연결을 통한 하이브리드 경로입니다. Direct Connect라는 이유만으로 종단 간 모든 데이터가 기본 암호화된다고 가정하지 않습니다. 요구에 따라 VPN·TLS·지원되는 MACsec 등의 암호화 설계를 확인해야 합니다. 전용 회선도 하나면 단일 장애점이므로 다른 장소와 장비를 포함한 중복 경로가 필요합니다. 원문의 Private 5G·통합 사설 무선 소개는 전용 무선망이라는 별도 목적이며 일반 VPC 기능과 구분합니다. Private 5G는 공식 종료 목록에 2025-05-20 지원 종료로 표시되므로 현재 신규 구성의 선택지로 소개하지 않습니다. [종료 목록](https://docs.aws.amazon.com/general/latest/gr/full_shutdown_services.html)
+
+## 7. 원문 보정: App Mesh는 현재 신규 설계 기준이 아니다
+
+첨부 원문에는 App Mesh가 서비스 메시 예로 등장하지만 공식 공지는 2026-09-30 지원 종료를 명시합니다. 따라서 2026-10-20 기준 신규 운영 설계의 현행 추천으로 소개하지 않습니다. 서비스 간 통신 정책과 관찰성이라는 개념은 유효하지만 ECS Service Connect 등 현재 지원되는 대안을 자신의 환경에 맞춰 검토해야 합니다.
+
+## 8. 가상 장애와 확인 순서
+
+private subnet의 EC2에서 S3 요청이 timeout이라고 해 봅시다. 먼저 DNS가 어떤 주소를 반환하는지, route table이 그 목적지에 어떤 경로를 선택하는지, NAT/endpoint가 준비되어 있는지, 보안 그룹·NACL이 왕복 통신을 허용하는지 확인합니다. HTTP 403을 받았다면 네트워크 왕복 자체는 이루어졌을 가능성이 높으므로 IAM·버킷 정책·endpoint policy·KMS로 조사 초점을 옮깁니다. timeout과 AccessDenied를 같은 “접속 오류”로 뭉뚱그리지 않는 것이 진단의 핵심입니다.
+
+## 9. 상세 면접 Q&A
+
+<details><summary>Q. public subnet에 있으면 위험하고 private이면 안전한가요?</summary><p>공개 경로의 유무와 안전성은 동일하지 않습니다. public subnet의 ALB는 필요한 공개 입구일 수 있고, private subnet의 앱도 유출된 자격 증명이나 과도한 outbound 권한 때문에 공격받을 수 있습니다. 노출면을 줄이고 인증·인가·암호화·패치·관찰성을 함께 설계해야 합니다.</p></details>
+<details><summary>Q. CloudFront를 쓰는데 새 사진이 안 보이면 S3 일관성 문제인가요?</summary><p>먼저 캐시 키와 TTL·버전 URL·무효화를 확인합니다. S3에 새 객체가 정상 저장되어도 CloudFront는 아직 유효한 이전 캐시를 반환할 수 있습니다. 원본 직접 조회와 CDN 조회를 비교하면 계층을 구분할 수 있습니다.</p></details>
+<details><summary>Q. 보안 그룹과 NACL을 모두 설정해야 하나요?</summary><p>둘은 적용 범위와 상태 추적 방식이 다릅니다. 기본적인 워크로드 접근 제어는 보안 그룹으로 세밀하게 구성하고, NACL은 서브넷 수준의 추가 제어가 필요한지 판단합니다. 무조건 규칙을 늘리면 안전해진다기보다 반환 트래픽 차단과 운영 복잡성이 증가할 수 있습니다.</p></details>
+<details><summary>Q. Direct Connect 한 회선이면 안정적인가요?</summary><p>공용 인터넷과 다른 경로 특성을 제공하지만 회선·장비·접속 위치가 고장 날 수 있습니다. 요구하는 가용성에 맞춰 이중 회선·위치 분리·VPN 백업과 라우팅을 설계하고 실제 전환을 테스트해야 합니다. 정상 연결 속도만 측정해서는 복원력을 증명할 수 없습니다.</p></details>
+
+## 공식 문서
+
+- [VPC 라우트 테이블](https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Route_Tables.html)
+- [보안 그룹과 NACL 비교](https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Security.html)
+- [CloudFront 캐시 이해](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Expiration.html)
+- [PrivateLink](https://docs.aws.amazon.com/vpc/latest/privatelink/what-is-privatelink.html)
+- [App Mesh 지원 종료 공지](https://docs.aws.amazon.com/app-mesh/latest/userguide/what-is-app-mesh.html)

@@ -1,0 +1,67 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="객체·블록·파일, 일관성·내구성·백업, 수명주기·아카이브·FSx·하이브리드 저장"><title>AWS 04 · 스토리지: S3·EBS·EFS를 데이터 접근 방식부터 이해하기 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/aws-study-04.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/aws-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="aws"><main><a href="/">← 전체 글</a> · <a href="/posts/aws-study-00.html">AWS 학습 지도</a><header><p class="meta">AWS QUEST · 04 / 22 · CORE · 2026-10-20</p><h1>스토리지: S3·EBS·EFS를 데이터 접근 방식부터 이해하기</h1><p class="subtitle">객체·블록·파일, 일관성·내구성·백업, 수명주기·아카이브·FSx·하이브리드 저장</p><p class="note">첨부 공부팩 04_스토리지_S3_EBS_EFS_Backup.pdf (7쪽)의 주제를 재구성한 해설입니다. 공식 문서 확인일: 2026-10-20. 장애 사례와 수치는 학습용 가정이며 AWS 실계정 실험 결과가 아닙니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. 같은 파일도 사용하는 방식이 다르다</a></li><li><a href="#section-2">2. S3: 저장 성공, 읽기, 복제는 다른 약속이다</a></li><li><a href="#section-3">3. 스토리지 클래스는 복구 시간을 먼저 물어야 한다</a></li><li><a href="#section-4">4. EBS: 용량과 성능을 분리해서 보기</a></li><li><a href="#section-5">5. EFS와 FSx: 파일 프로토콜과 애플리케이션 호환성</a></li><li><a href="#section-6">6. Backup과 Disaster Recovery는 복구 목표에서 만난다</a></li><li><a href="#section-7">7. 설계 연습: 데이터 네 가지를 분류하기</a></li><li><a href="#section-8">8. 상세 면접 Q&amp;A</a></li><li><a href="#section-9">공식 문서</a></li></ol></aside><article><h2 id="section-1">1. 같은 파일도 사용하는 방식이 다르다</h2>
+<p>택배 보관소에서 송장 번호로 상자 전체를 받아 오는 방식은 객체 스토리지에 가깝습니다. 빈 창고 바닥을 받아 사용자가 선반과 통로를 만드는 방식은 블록 스토리지에 가깝습니다. 여러 사람이 같은 폴더와 파일 이름을 보며 작업하는 공유 사무실은 파일 스토리지에 가깝습니다. 사진 파일 하나를 저장하더라도 프로그램이 HTTP API를 쓰는지, 로컬 디스크를 요구하는지, 공유 파일 경로와 잠금을 요구하는지에 따라 선택이 달라집니다.</p>
+<table>
+<thead>
+<tr>
+<th>방식</th>
+<th>대표 서비스</th>
+<th>접근 단위</th>
+<th>적합한 예</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>객체</td>
+<td>S3</td>
+<td>key로 식별하는 객체와 메타데이터</td>
+<td>검수 이미지·로그·백업·데이터 레이크</td>
+</tr>
+<tr>
+<td>블록</td>
+<td>EBS</td>
+<td>블록 장치를 OS가 파일시스템 등으로 사용</td>
+<td>EC2의 디스크·DB 저장 장치</td>
+</tr>
+<tr>
+<td>파일</td>
+<td>EFS, FSx</td>
+<td>디렉터리·파일·프로토콜</td>
+<td>공유 업로드 폴더·기존 NFS/SMB 앱</td>
+</tr>
+</tbody></table>
+<p>비유의 한계도 있습니다. S3는 일반 목적 버킷에서 폴더처럼 보이는 prefix를 제공하지만 일반적인 POSIX 파일시스템과 동일한 수정·잠금 계약이 아닙니다. 마운트 도구가 있다고 모든 로컬 파일 동작이 같은 의미가 되지는 않습니다.</p>
+<h2 id="section-2">2. S3: 저장 성공, 읽기, 복제는 다른 약속이다</h2>
+<p>S3 일반 목적 버킷에는 key로 객체를 저장합니다. PUT이 성공한 뒤 해당 객체를 GET하거나 목록을 조회하는 동작에는 강한 일관성 보장이 있습니다. 예전 설명처럼 “방금 올렸으니 한동안 안 보일 수 있다”를 기본 모델로 외우면 안 됩니다. 다만 <strong>여러 객체를 한 번에 바꾸는 관계형 트랜잭션</strong>이나 다른 리전으로의 복제 완료까지 같은 보장이 되는 것은 아닙니다.</p>
+<p>일관성은 지금 어떤 값을 읽는가, 내구성은 데이터가 사라지지 않도록 얼마나 보호하는가, 가용성은 지금 접근할 수 있는가라는 서로 다른 질문입니다. 저장 데이터가 남아 있어도 권한 오류나 서비스 장애 때문에 접근하지 못할 수 있습니다. 강하게 일관된 삭제도 잘못된 삭제라면 업무에는 재앙입니다. 그래서 Versioning·Object Lock·백업·접근 제어를 별도로 설계합니다.</p>
+<p>Versioning은 같은 key의 이전 버전을 보존하는 데 도움이 됩니다. 일반적인 삭제는 delete marker를 만들 수 있지만, 버전 자체를 영구 삭제하는 권한까지 열려 있으면 모든 실수를 막지는 못합니다. Object Lock은 보존 정책에 따른 변경·삭제 제한을 제공하며 모드와 권한의 차이를 확인해야 합니다. 복제는 오류나 삭제 정책까지 전파할 수 있으므로 백업과 동일한 의미가 아닙니다.</p>
+<h2 id="section-3">3. 스토리지 클래스는 복구 시간을 먼저 물어야 한다</h2>
+<p>자주 읽는 원본에는 Standard, 접근이 드문 데이터에는 IA 계열, 접근 패턴을 예측하기 어려운 데이터에는 Intelligent-Tiering을 검토합니다. Glacier라는 이름만 보고 모두 몇 시간 기다린다고 외우면 틀립니다. Instant Retrieval은 즉시 접근용이고 Flexible Retrieval·Deep Archive는 복원 절차와 대기 시간을 고려하는 아카이브 선택지입니다. 저장료 외에 요청료·검색료·최소 보관 기간·객체 크기 조건을 확인해야 합니다.</p>
+<p>One Zone 계열은 다중 AZ 저장 클래스와 장애 범위가 다릅니다. 재생성 가능한 썸네일과 유일한 원본 검수 사진은 같은 기준으로 고르지 않습니다. S3 Express One Zone은 directory bucket과 낮은 지연이라는 특성이 있지만 한 AZ라는 범위를 감수해야 합니다. 이 편의 기본 설명은 일반 목적 버킷이며 다른 버킷 유형의 모든 제한을 동일하게 적용하지 않습니다.</p>
+<p>Lifecycle은 시간이 지난 데이터를 다른 클래스로 이동하거나 만료시키는 규칙입니다. “보관 비용을 줄이자”는 규칙이 법적 보존·고객 조회·백업 요구와 충돌하지 않는지 확인합니다. 미완료 multipart upload 조각도 과금 대상이 될 수 있어 정리 정책을 고려합니다.</p>
+<h2 id="section-4">4. EBS: 용량과 성능을 분리해서 보기</h2>
+<p>EBS 볼륨은 AZ 범위의 블록 스토리지입니다. 인스턴스에 연결한 뒤 OS가 파일시스템이나 DB 저장 공간으로 사용합니다. 인스턴스를 종료할 때 볼륨이 남는지는 delete-on-termination 등의 설정과 볼륨 역할에 따라 달라집니다. “EC2 디스크는 전부 영구적이다”와 “전부 사라진다”는 둘 다 틀린 일반화입니다.</p>
+<p>IOPS는 초당 I/O 횟수이고 처리량은 초당 전송 바이트입니다. 16KiB 요청을 초당 10,000번 처리하면 대략 156MiB/s입니다. 작은 랜덤 읽기와 큰 순차 읽기는 같은 처리량이어도 필요한 IOPS가 다릅니다. 볼륨 성능뿐 아니라 인스턴스 EBS 대역폭과 큐 깊이도 병목이 될 수 있습니다. gp3와 io 계열 등을 비교할 때 데이터 크기만 보지 말고 지연 요구·지속 부하를 함께 봅니다.</p>
+<p>스냅샷은 특정 시점의 블록 데이터 복구 수단입니다. 애플리케이션 일관성을 확보하려면 버퍼·트랜잭션·여러 볼륨의 정합성을 고려해야 합니다. 실행 중 스냅샷이 성공했다고 업무 트랜잭션까지 항상 원하는 시점으로 맞춰진다고 가정하지 않습니다. 볼륨 축소는 단순한 크기 설정 변경과 다르므로 더 작은 새 볼륨으로 데이터를 이전하는 절차 등이 필요할 수 있습니다.</p>
+<h2 id="section-5">5. EFS와 FSx: 파일 프로토콜과 애플리케이션 호환성</h2>
+<p>EFS는 NFS 기반 공유 파일 접근에 적합합니다. 여러 컴퓨팅 인스턴스가 같은 파일 경로를 사용할 수 있지만 애플리케이션의 동시 쓰기와 파일 잠금 문제를 자동 해결하지는 않습니다. EFS의 Regional과 One Zone 선택지는 장애 범위가 다르므로 “EFS는 전부 다중 AZ”로 단정하지 않습니다. mount target·보안 그룹·DNS·POSIX 권한을 함께 맞춰야 실제 파일을 읽을 수 있습니다.</p>
+<p>FSx for Windows File Server는 SMB와 Windows 통합, FSx for Lustre는 HPC 등 병렬 파일 처리, FSx for NetApp ONTAP은 ONTAP 기능과 관련 프로토콜, FSx for OpenZFS는 ZFS 기반 기능과 NFS 워크로드라는 관점으로 구분합니다. 기존 프로그램이 SMB와 디렉터리 서비스에 의존한다면 S3 API로 바꾸는 비용을 먼저 계산해야 합니다.</p>
+<p>Amazon File Cache는 S3나 NFS 원본의 데이터를 AWS에서 파일 형태로 빠르게 처리하도록 제공하는 임시 고성능 캐시입니다. 원본 데이터 저장소를 대체하는 유일한 영구 보관소로 취급하지 않습니다. 변경 데이터를 원본 저장소로 내보내는 절차와 AZ 범위를 확인해야 합니다. <a href="https://docs.aws.amazon.com/fsx/latest/FileCacheGuide/what-is.html">File Cache 동작과 범위</a> Storage Gateway는 온프레미스 애플리케이션이 파일·볼륨·테이프 인터페이스를 통해 클라우드 저장소를 활용하도록 연결하는 계층입니다. DataSync는 데이터를 이동하는 도구라는 점에서 지속적인 저장 인터페이스와 역할이 다릅니다.</p>
+<h2 id="section-6">6. Backup과 Disaster Recovery는 복구 목표에서 만난다</h2>
+<p>AWS Backup은 여러 지원 리소스의 백업 정책·보존·복구 지점을 관리하는 데 사용합니다. AWS Elastic Disaster Recovery는 서버 기반 워크로드의 복제와 복구 실행이라는 목적을 가집니다. 제품을 켜는 것만으로 원하는 RTO/RPO가 충족되는 것은 아닙니다. 복구 후 네트워크·키·접속 권한·애플리케이션 검증까지 완료하는 시간을 재야 합니다.</p>
+<p>가상 사고: 운영자가 원본 사진 버킷에 잘못된 만료 정책을 적용했습니다. 복제 버킷에도 관련 삭제가 전파되는 구성이라면 단순 복제만으로는 충분하지 않습니다. 별도 권한 경계의 백업, 적절한 보존 잠금, 삭제 작업에 대한 통제와 복구 훈련을 설계합니다. 암호화 키를 잃으면 백업 파일이 남아도 읽을 수 없다는 점도 확인합니다.</p>
+<h2 id="section-7">7. 설계 연습: 데이터 네 가지를 분류하기</h2>
+<p>원본 사진은 재생성 불가, 썸네일은 재생성 가능, 분석 임시 파일은 작업 종료 후 불필요, DB 파일은 낮은 지연의 블록 접근이 필요하다고 가정합니다. 각각에 보관 기간·읽기 빈도·복구 시간·허용 손실을 써 보세요. 원본과 썸네일을 같은 class·보존 정책으로 묶으면 비용이나 보호 수준 중 하나가 어긋납니다. 선택 이유를 저장 방식부터 설명할 수 있으면 제품 목록을 외운 것보다 깊게 이해한 것입니다.</p>
+<h2 id="section-8">8. 상세 면접 Q&amp;A</h2>
+<details class="question"><summary>Q. S3가 강한 일관성을 제공하면 DB 대신 쓰면 되나요?</summary><div class="answer"><p>단일 객체와 목록의 일관성은 관계형 조인·제약조건·여러 행의 트랜잭션과 다릅니다. 사진 저장에는 적합하지만 주문 수량과 재고를 함께 변경하는 업무를 동일한 방식으로 처리할 수 있다는 뜻은 아닙니다. 접근 패턴과 원자성 범위를 기준으로 선택합니다.</p></div></details>
+<details class="question"><summary>Q. EBS를 여러 서버가 공유하면 EFS와 같나요?</summary><div class="answer"><p>일부 EBS 구성은 Multi-Attach를 지원하지만 일반 파일시스템을 여러 서버에서 마음대로 동시에 쓰면 정합성이 깨질 수 있습니다. 지원 볼륨·인스턴스·AZ 조건과 클러스터 파일시스템 등 애플리케이션 조정이 필요합니다. 공유 파일 서비스를 원한다면 EFS/FSx의 프로토콜과 성능을 먼저 검토합니다.</p></div></details>
+<details class="question"><summary>Q. 백업 성공 지표만 보면 충분한가요?</summary><div class="answer"><p>아닙니다. 복구가 가능한 권한과 키가 있는지, 실제 데이터가 일관적인지, 복원과 업무 검증이 목표 시간 안에 끝나는지 확인해야 합니다. 백업 성공은 복구 가능성을 위한 필요조건 중 하나입니다. 다른 계정·리전에서 복구하는 훈련은 숨어 있는 의존성을 드러냅니다.</p></div></details>
+<details class="question"><summary>Q. 가장 저렴한 아카이브를 선택하면 비용이 최소인가요?</summary><div class="answer"><p>저장 단가만 낮을 수 있습니다. 자주 복원하거나 최소 보관 기간 전에 삭제하면 검색·요청·조기 삭제 비용 등이 커질 수 있습니다. 고객이 기다릴 수 있는 시간과 실제 접근 기록으로 전체 비용을 계산해야 합니다.</p></div></details>
+
+<h2 id="section-9">공식 문서</h2>
+<ul>
+<li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html">S3 개념과 일관성</a></li>
+<li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html">S3 스토리지 클래스</a></li>
+<li><a href="https://docs.aws.amazon.com/ebs/latest/userguide/ebs-volume-types.html">EBS 볼륨 유형</a></li>
+<li><a href="https://docs.aws.amazon.com/efs/latest/ug/whatisefs.html">EFS 개요</a></li>
+<li><a href="https://docs.aws.amazon.com/aws-backup/latest/devguide/whatisbackup.html">AWS Backup</a></li>
+</ul>
+</article><nav aria-label="연재 이동"><a href="/posts/aws-study-03.html">← 컴퓨팅 선택: EC2·Auto Scaling·Lambda·컨테이너의 동작과 책임</a><a href="/posts/aws-study-05.html">VPC와 네트워크: 요청 한 건이 DNS에서 DB까지 가는 길 →</a></nav><footer>AWS SAA 학습 연재 · <a href="/learning/aws/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

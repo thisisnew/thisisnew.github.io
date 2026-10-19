@@ -1,0 +1,70 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="PERF 1~2: 벤치마크·트레이드오프·CPU·메모리·동시성·자동 확장·가속기"><title>AWS 19 · 성능 심화 1: 아키텍처와 컴퓨팅을 측정으로 선택하기 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/aws-study-19.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/aws-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="aws"><main><a href="/">← 전체 글</a> · <a href="/posts/aws-study-00.html">AWS 학습 지도</a><header><p class="meta">AWS QUEST · 19 / 22 · DEEP DIVE · 2026-10-20</p><h1>성능 심화 1: 아키텍처와 컴퓨팅을 측정으로 선택하기</h1><p class="subtitle">PERF 1~2: 벤치마크·트레이드오프·CPU·메모리·동시성·자동 확장·가속기</p><p class="note">첨부 공부팩 D06_성능효율_아키텍처선택_컴퓨팅.pdf (30쪽)의 주제를 재구성한 해설입니다. 공식 문서 확인일: 2026-10-20. 장애 사례와 수치는 학습용 가정이며 AWS 실계정 실험 결과가 아닙니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. 더 큰 트럭이 항상 더 빠른 배송을 만들지 않는다</a></li><li><a href="#section-2">2. 먼저 성능 요구를 문장과 숫자로</a></li><li><a href="#section-3">3. PERF 1: 후보·근거·비용·실험</a></li><li><a href="#section-4">4. CPU가 낮아도 느릴 수 있는 이유</a></li><li><a href="#section-5">5. PERF 2: 자원 종류·크기·수량</a></li><li><a href="#section-6">6. 병렬화의 한계와 동시성 예산</a></li><li><a href="#section-7">7. Lambda와 자동 확장의 성능·비용 연결</a></li><li><a href="#section-8">8. 가상 사례와 벤치마크 계획</a></li><li><a href="#section-9">9. 상세 면접 Q&amp;A</a></li><li><a href="#section-10">공식 문서</a></li></ol></aside><article><h2 id="section-1">1. 더 큰 트럭이 항상 더 빠른 배송을 만들지 않는다</h2>
+<p>도로가 막혔다면 트럭 적재량을 늘려도 배송 시간은 줄지 않습니다. 서버도 마찬가지입니다. CPU를 두 배로 늘려도 DB 락이나 외부 API 응답이 전체 시간을 지배하면 효과가 작습니다. 성능 효율은 가장 큰 인스턴스를 고르는 것이 아니라 <strong>요구 성능을 만족하는 자원과 구조를 측정으로 찾는 과정</strong>입니다. PERF 1은 아키텍처 선택, PERF 2는 컴퓨팅 선택과 사용을 다룹니다.</p>
+<h2 id="section-2">2. 먼저 성능 요구를 문장과 숫자로</h2>
+<p>“빠르게” 대신 정상 부하와 피크 부하에서 처리량·p95/p99·오류율·대기 시간 목표를 정합니다. 이미지 업로드 접수와 10분짜리 배치 완료 시간은 다른 지표입니다. 요청 크기·읽기/쓰기 비율·동시 사용자·데이터 분포·캐시 적중률도 정의합니다. 평균만 보면 일부 고객의 극단적인 지연이 숨을 수 있습니다.</p>
+<p>p99는 관측 요청 중 약 99%가 그 값 이하라는 의미이지 최대 지연이 아닙니다. 표본 수가 적으면 안정적 판단이 어렵고, 테스트 클라이언트가 느려 요청을 충분히 못 보내면 서버 성능을 과대평가할 수 있습니다. 부하 생성기와 대상 시스템의 자원, 측정 기간, warmup, 오류를 함께 기록합니다.</p>
+<h2 id="section-3">3. PERF 1: 후보·근거·비용·실험</h2>
+<p>원문의 PERF01-BP01~07은 서비스와 기능 학습, 전문가·참조 패턴 활용, 비용 고려, 트레이드오프 평가, 정책·참조 아키텍처, 벤치마크, 데이터 기반 결정을 포함합니다. 새 서비스가 출시되었다고 곧바로 이전하지 않고 현재 병목과 맞는지 작은 실험으로 평가합니다. 좋은 참조 아키텍처도 자신의 요청 크기와 데이터 분포를 대신하지는 않습니다.</p>
+<p>비교 실험에서는 한 번에 바꾸는 변수를 제한합니다. 인스턴스와 Java 버전과 쿼리를 동시에 바꾸면 무엇이 좋아졌는지 알기 어렵습니다. 동일한 데이터와 부하에서 반복 측정하고 p99·오류·자원 사용·비용을 함께 봅니다. 실험 결과에 실제 수행과 예상치를 구분해야 합니다. 이 연재의 수치는 계산 예시이며 AWS 계정에서 벤치마크한 성능 수치가 아닙니다.</p>
+<h2 id="section-4">4. CPU가 낮아도 느릴 수 있는 이유</h2>
+<p>요청 시간은 실행 시간과 대기 시간으로 나뉩니다. CPU가 낮고 스레드가 많이 기다리면 DB·네트워크·락·커넥션 풀을 의심합니다. CPU가 높으면 애플리케이션 연산·직렬화·압축·GC·암호화 등 어디에 쓰이는지 프로파일링합니다. 메모리 부족으로 GC가 잦아졌다면 CPU 사용 증가가 원인이 아니라 결과일 수 있습니다.</p>
+<p>Java에서는 heap만큼의 메모리만 필요하다고 생각하면 안 됩니다. metaspace·thread stack·direct buffer·코드 캐시·네이티브 라이브러리와 OS 공간이 더 필요합니다. 컨테이너 메모리 제한과 JVM 설정이 어긋나면 Java heap OOM이 아니라 컨테이너가 종료될 수 있습니다. CPU 제한·thread pool·GC·배포 warmup도 같이 관찰합니다.</p>
+<table>
+<thead>
+<tr>
+<th>증상</th>
+<th>가능한 원인</th>
+<th>먼저 볼 증거</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CPU 낮고 지연 큼</td>
+<td>외부 대기·락·풀 고갈</td>
+<td>trace·thread dump·pool 대기</td>
+</tr>
+<tr>
+<td>CPU 높고 처리량 정체</td>
+<td>연산·GC·경합</td>
+<td>프로파일·GC 로그</td>
+</tr>
+<tr>
+<td>메모리 지속 증가</td>
+<td>캐시 성장·누수·native 사용</td>
+<td>heap/native 지표·할당 추적</td>
+</tr>
+<tr>
+<td>새 서버만 느림</td>
+<td>초기화·JIT·캐시</td>
+<td>시작 단계별 시간</td>
+</tr>
+<tr>
+<td>인스턴스 확대 효과 작음</td>
+<td>직렬 구간·공통 의존성</td>
+<td>구간별 latency·DB 지표</td>
+</tr>
+</tbody></table>
+<h2 id="section-5">5. PERF 2: 자원 종류·크기·수량</h2>
+<p>PERF02-BP01~06은 실행 모델 선택, 기능 이해, 지표 수집, rightsizing, 동적 확장, 가속기 활용을 묶습니다. EC2·컨테이너·Lambda는 관리 책임과 실행 제약이 다릅니다. 같은 애플리케이션도 배치·API·스트림 소비자는 서로 다른 자원을 사용할 수 있습니다. 범용 서비스 하나로 모든 부하를 처리하는 것이 항상 효율적이지 않습니다.</p>
+<p>CPU 아키텍처를 x86에서 Arm/Graviton으로 바꿀 때 Java bytecode의 이식성만 확인하면 부족합니다. JNI·네이티브 압축 라이브러리·컨테이너 이미지·agent의 아키텍처 지원을 확인하고 부하 테스트로 지연과 비용을 비교합니다. GPU·Inferentia·Trainium 같은 가속기는 맞는 연산과 프레임워크 지원이 있을 때 유효하며 일반 CRUD API를 자동으로 빠르게 만드는 장비가 아닙니다.</p>
+<h2 id="section-6">6. 병렬화의 한계와 동시성 예산</h2>
+<p>작업의 20%가 반드시 직렬이고 80%만 완벽히 병렬화된다면 처리 자원을 무한히 늘려도 이론적 속도 향상 상한은 1/0.2=5배입니다. 이는 Amdahl의 법칙을 단순화한 예시입니다. 실제로는 통신·조정·캐시 경합 비용이 추가됩니다. 스레드를 늘리면 공유 락과 DB 연결 경쟁이 커져 오히려 느려질 수 있습니다.</p>
+<p>초당 1,000요청, 평균 0.1초이면 평균 동시 진행량은 약 100입니다. 외부 지연으로 1초가 되면 약 1,000이 됩니다. 자원 풀은 처리 가능한 downstream 용량과 요청 시간 예산을 기준으로 제한합니다. 무한 동시성은 성능 전략이 아니라 과부하를 뒤로 미루는 경우가 많습니다.</p>
+<h2 id="section-7">7. Lambda와 자동 확장의 성능·비용 연결</h2>
+<p>Lambda는 메모리 설정에 따라 CPU 자원도 달라지는 실행 모델을 제공합니다. 메모리를 늘려 실행 시간이 크게 줄면 GB-second 관점의 비용이 반드시 늘지는 않습니다. 예를 들어 1GB×2초와 2GB×0.8초는 각각 2와 1.6GB-second입니다. 실제 비용에는 요청·추가 기능 등이 있고 성능 개선은 측정해야 합니다.</p>
+<p>확장 정책은 단순 CPU 목표 외에 요청당 처리량·backlog·지연을 고려합니다. scale-out은 준비 시간이 있고 scale-in은 진행 중 작업을 보호해야 합니다. 예측 가능한 일일 피크에는 scheduled scaling, 갑작스러운 burst에는 큐·여유 용량·제한이 필요할 수 있습니다. 확장이 빠르다고 DB와 외부 API도 같은 속도로 확장되는 것은 아닙니다.</p>
+<h2 id="section-8">8. 가상 사례와 벤치마크 계획</h2>
+<p>입고 조회 API의 p99가 3초인데 CPU는 20%였습니다. 큰 인스턴스로 바꿔도 개선이 작았습니다. trace를 보니 요청당 DB 조회가 80번 발생했습니다. N+1 조회를 줄이고 필요한 데이터를 묶어 읽자 대기 구간이 줄었습니다. 이 사례는 가상의 설명이며 실제 개선 폭은 데이터와 쿼리로 검증해야 합니다.</p>
+<p>실험 계획에는 가설, 변경 변수, 부하 모델, warmup, 측정 시간, 성공 기준, 부작용, 되돌림을 적습니다. “더 빠르다” 대신 “같은 오류율에서 p99가 목표 이하이고 요청당 비용이 낮다”로 비교합니다. 평균 부하뿐 아니라 피크·장시간·캐시 cold·의존성 지연 상태를 포함합니다.</p>
+<h2 id="section-9">9. 상세 면접 Q&amp;A</h2>
+<details class="question"><summary>Q. CPU 80%면 서버가 부족한가요?</summary><div class="answer"><p>지속 시간·요청 지연·오류율·처리량·확장 여유를 함께 봐야 합니다. 잘 활용되는 정상 상태일 수도 있고 포화 직전일 수도 있습니다. burstable의 크레딧과 컨테이너 throttling 등 환경 조건도 확인합니다. CPU 비율 하나로 증설을 결정하지 않습니다.</p></div></details>
+<details class="question"><summary>Q. 스레드 풀을 늘리면 처리량이 늘어나나요?</summary><div class="answer"><p>CPU 연산인지 I/O 대기인지와 downstream 용량에 따라 다릅니다. DB 연결이 50개인데 수천 스레드가 기다리면 메모리와 전환 비용만 늘 수 있습니다. 병목을 측정하고 동시성 예산과 큐 한도를 함께 조정합니다.</p></div></details>
+<details class="question"><summary>Q. Graviton이 더 싸면 바로 바꿔도 되나요?</summary><div class="answer"><p>지원 라이브러리·이미지·에이전트와 실제 성능을 검증해야 합니다. 시간당 가격이 낮아도 같은 일을 더 오래 처리하면 요청당 비용 이점이 줄 수 있습니다. 대표 부하와 배포·복구 경로를 시험한 뒤 점진적으로 전환합니다.</p></div></details>
+<details class="question"><summary>Q. 성능 테스트는 정상 부하 한 번이면 충분한가요?</summary><div class="answer"><p>피크·장시간·cold cache·일부 장애·복구 직후가 서로 다른 병목을 드러냅니다. 요구사항과 위험에 맞춰 시나리오를 선택해야 합니다. 한 번의 최고 처리량보다 반복 가능한 결과와 지연·오류·비용의 관계가 중요합니다.</p></div></details>
+
+<h2 id="section-10">공식 문서</h2>
+<ul>
+<li><a href="https://docs.aws.amazon.com/wellarchitected/latest/performance-efficiency-pillar/welcome.html">성능 효율 원칙</a></li>
+<li><a href="https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html">Lambda 메모리 설정</a></li>
+<li><a href="https://docs.aws.amazon.com/ec2/latest/instancetypes/instance-types.html">EC2 인스턴스 유형</a></li>
+</ul>
+</article><nav aria-label="연재 이동"><a href="/posts/aws-study-18.html">← 신뢰성 심화 2: 배포·백업·장애 격리·재해복구를 검증하기</a><a href="/posts/aws-study-20.html">성능 심화 2: 데이터 접근과 네트워크 왕복을 줄이는 설계 →</a></nav><footer>AWS SAA 학습 연재 · <a href="/learning/aws/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

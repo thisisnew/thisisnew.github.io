@@ -1,0 +1,538 @@
+{
+  "checkedOn": "2026-10-20",
+  "method": "Official pages opened with web retrieval; redirects replaced with content-bearing official pages. HTTP status codes not asserted.",
+  "links": [
+    {
+      "url": "https://aws.amazon.com/about-aws/global-infrastructure/",
+      "title": "Global Infrastructure - AWS (https://aws.amazon.com/about-aws/global-infrastructure/)",
+      "lines": 415,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/",
+      "title": "references-details-empty (https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/)",
+      "lines": 503,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://aws.amazon.com/builders-library/static-stability-using-availability-zones/",
+      "title": "Static stability using Availability Zones (https://aws.amazon.com/builders-library/static-stability-using-availability-zones/)",
+      "lines": 336,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/",
+      "title": "Timeouts, retries, and backoff with jitter | AWS Builder Center (https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/)",
+      "lines": 143,
+      "retrieval": "retrieved",
+      "redirect": "https://builder.aws.com/content/3EumjoZascWd1oZiEgL8ORlv3qE/timeouts-retries-and-backoff-with-jitter"
+    },
+    {
+      "url": "https://aws.amazon.com/compliance/shared-responsibility-model/",
+      "title": "Shared Responsibility Model - Amazon Web Services (AWS) (https://aws.amazon.com/compliance/shared-responsibility-model/)",
+      "lines": 311,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://aws.amazon.com/privatelink/pricing/",
+      "title": "AWS PrivateLink Pricing (https://aws.amazon.com/privatelink/pricing/)",
+      "lines": 321,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://aws.amazon.com/snowball/",
+      "title": "AWS Snowball | Secure Edge Computing and Offline Data Transfer | Amazon Web Services (https://aws.amazon.com/snowball/)",
+      "lines": 262,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://aws.amazon.com/vpc/pricing/",
+      "title": "Amazon VPC Pricing (https://aws.amazon.com/vpc/pricing/)",
+      "lines": 575,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/concepts.html",
+      "title": "What is Amazon EC2? - Amazon Elastic Compute Cloud (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/concepts.html)",
+      "lines": 214,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html",
+      "title": "Amazon SQS visibility timeout - Amazon Simple Queue Service (https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html)",
+      "lines": 80,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues-at-least-once-delivery.html",
+      "title": "Amazon SQS at-least-once delivery - Amazon Simple Queue Service (https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues-at-least-once-delivery.html)",
+      "lines": 27,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Expiration.html",
+      "title": "Manage how long content stays in the cache (expiration) - Amazon CloudFront (https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Expiration.html)",
+      "lines": 180,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/controlling-the-cache-key.html",
+      "title": "Control the cache key with a policy - Amazon CloudFront (https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/controlling-the-cache-key.html)",
+      "lines": 48,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/WhatIsCloudWatch.html",
+      "title": "What is Amazon CloudWatch? - Amazon CloudWatch (https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/WhatIsCloudWatch.html)",
+      "lines": 110,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html",
+      "title": "What is Amazon Elastic Container Service? - Amazon Elastic Container Service (https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html)",
+      "lines": 139,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Overview.html",
+      "title": "Amazon Aurora DB clusters - Amazon Aurora (https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Overview.html)",
+      "lines": 39,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZ.html",
+      "title": "Configuring and managing a Multi-AZ deployment for Amazon RDS - Amazon Relational Database Service (https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZ.html)",
+      "lines": 60,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
+      "title": "What is Amazon S3? - Amazon Simple Storage Service (https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html)",
+      "lines": 290,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html",
+      "title": "Understanding and managing Amazon S3 storage classes - Amazon Simple Storage Service (https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html)",
+      "lines": 150,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html",
+      "title": "Security best practices in IAM - AWS Identity and Access Management (https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html)",
+      "lines": 125,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user_externalid.html",
+      "title": "Access to AWS accounts owned by third parties - AWS Identity and Access Management (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user_externalid.html)",
+      "lines": 97,
+      "retrieval": "retrieved",
+      "redirect": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_common-scenarios_third-party.html"
+    },
+    {
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic.html",
+      "title": "Policy evaluation logic - AWS Identity and Access Management (https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic.html)",
+      "lines": 47,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html",
+      "title": "DynamoDB read consistency - Amazon DynamoDB (https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadConsistency.html)",
+      "lines": 41,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html",
+      "title": "Best practices for designing and using partition keys effectively in DynamoDB - Amazon DynamoDB (https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html)",
+      "lines": 42,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/app-mesh/latest/userguide/what-is-app-mesh.html",
+      "title": "What Is AWS App Mesh? - AWS App Mesh (https://docs.aws.amazon.com/app-mesh/latest/userguide/what-is-app-mesh.html)",
+      "lines": 97,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/apprunner/latest/dg/apprunner-availability-change.html",
+      "title": "AWS App Runner availability change - AWS App Runner (https://docs.aws.amazon.com/apprunner/latest/dg/apprunner-availability-change.html)",
+      "lines": 328,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/athena/latest/ug/performance-tuning.html",
+      "title": "Optimize Athena performance - Amazon Athena (https://docs.aws.amazon.com/athena/latest/ug/performance-tuning.html)",
+      "lines": 47,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/autoscaling/ec2/userguide/what-is-amazon-ec2-auto-scaling.html",
+      "title": "What is Amazon EC2 Auto Scaling? - Amazon EC2 Auto Scaling (https://docs.aws.amazon.com/autoscaling/ec2/userguide/what-is-amazon-ec2-auto-scaling.html)",
+      "lines": 88,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/aws-backup/latest/devguide/whatisbackup.html",
+      "title": "What is AWS Backup? - AWS Backup (https://docs.aws.amazon.com/aws-backup/latest/devguide/whatisbackup.html)",
+      "lines": 122,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/aws-certification/latest/solutions-architect-associate-03/solutions-architect-associate-03.html",
+      "title": "AWS Certified Solutions Architect - Associate (SAA-C03)",
+      "lines": 115,
+      "retrieval": "retrieved",
+      "replacedLandingPage": "https://docs.aws.amazon.com/aws-certification/latest/solutions-architect-associate-03.html"
+    },
+    {
+      "url": "https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-alloc-tags.html",
+      "title": "Organizing and tracking costs using AWS cost allocation tags - AWS Billing (https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-alloc-tags.html)",
+      "lines": 64,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-user-guide.html",
+      "title": "What Is AWS CloudTrail? - AWS CloudTrail (https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-user-guide.html)",
+      "lines": 105,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/config/latest/developerguide/WhatIsConfig.html",
+      "title": "What Is AWS Config? - AWS Config (https://docs.aws.amazon.com/config/latest/developerguide/WhatIsConfig.html)",
+      "lines": 97,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html",
+      "title": "Managing your costs with AWS Budgets - AWS Cost Management (https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html)",
+      "lines": 75,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/cost-management/latest/userguide/ce-what-is.html",
+      "title": "Analyzing your costs and usage with AWS Cost Explorer - AWS Cost Management (https://docs.aws.amazon.com/cost-management/latest/userguide/ce-what-is.html)",
+      "lines": 48,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/cur/latest/userguide/what-is-data-exports.html",
+      "title": "What is AWS Data Exports? - AWS Data Exports (https://docs.aws.amazon.com/cur/latest/userguide/what-is-data-exports.html)",
+      "lines": 65,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/datasync/latest/userguide/what-is-datasync.html",
+      "title": "What is AWS DataSync? - AWS DataSync (https://docs.aws.amazon.com/datasync/latest/userguide/what-is-datasync.html)",
+      "lines": 105,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Task.CDC.html",
+      "title": "Creating tasks for ongoing replication using AWS DMS - AWS Database Migration Service (https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Task.CDC.html)",
+      "lines": 317,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/dms/latest/userguide/Welcome.html",
+      "title": "What is AWS Database Migration Service? - AWS Database Migration Service (https://docs.aws.amazon.com/dms/latest/userguide/Welcome.html)",
+      "lines": 66,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/ebs/latest/userguide/ebs-volume-types.html",
+      "title": "Amazon EBS volume types - Amazon EBS (https://docs.aws.amazon.com/ebs/latest/userguide/ebs-volume-types.html)",
+      "lines": 122,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/ec2/latest/instancetypes/instance-types.html",
+      "title": "Amazon EC2 instance types - Amazon EC2 (https://docs.aws.amazon.com/ec2/latest/instancetypes/instance-types.html)",
+      "lines": 85,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/efs/latest/ug/whatisefs.html",
+      "title": "What is Amazon Elastic File System? - Amazon Elastic File System (https://docs.aws.amazon.com/efs/latest/ug/whatisefs.html)",
+      "lines": 61,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/finspace/latest/management-api/amazon-finspace-end-of-support.html",
+      "title": "Amazon FinSpace end of support - Amazon FinSpace (https://docs.aws.amazon.com/finspace/latest/management-api/amazon-finspace-end-of-support.html)",
+      "lines": 45,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/firehose/latest/dev/what-is-this-service.html",
+      "title": "What is Amazon Data Firehose? - Amazon Data Firehose (https://docs.aws.amazon.com/firehose/latest/dev/what-is-this-service.html)",
+      "lines": 61,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/fsx/latest/FileCacheGuide/what-is.html",
+      "title": "What is Amazon File Cache? - Amazon File Cache (https://docs.aws.amazon.com/fsx/latest/FileCacheGuide/what-is.html)",
+      "lines": 131,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/general/latest/gr/full_shutdown_services.html",
+      "title": "Services in Full Shutdown - AWS General Reference (https://docs.aws.amazon.com/general/latest/gr/full_shutdown_services.html)",
+      "lines": 86,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/general/latest/gr/maintenance_services.html",
+      "title": "Services in Maintenance - AWS General Reference (https://docs.aws.amazon.com/general/latest/gr/maintenance_services.html)",
+      "lines": 86,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/glue/latest/dg/catalog-and-crawler.html",
+      "title": "Data discovery and cataloging in AWS Glue - AWS Glue (https://docs.aws.amazon.com/glue/latest/dg/catalog-and-crawler.html)",
+      "lines": 108,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/guardduty/latest/ug/what-is-guardduty.html",
+      "title": "What is Amazon GuardDuty? - Amazon GuardDuty (https://docs.aws.amazon.com/guardduty/latest/ug/what-is-guardduty.html)",
+      "lines": 103,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/inspector/latest/user/what-is-inspector.html",
+      "title": "What is Amazon Inspector? - Amazon Inspector (https://docs.aws.amazon.com/inspector/latest/user/what-is-inspector.html)",
+      "lines": 77,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html",
+      "title": "AWS KMS keys - AWS Key Management Service (https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html)",
+      "lines": 158,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html",
+      "title": "Rotate AWS KMS keys - AWS Key Management Service (https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html)",
+      "lines": 186,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html",
+      "title": "Configure Lambda Event Function memory - AWS Lambda (https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html)",
+      "lines": 98,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html",
+      "title": "Understanding Lambda Event Function scaling - AWS Lambda (https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html)",
+      "lines": 275,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html",
+      "title": "Service control policies (SCPs) - AWS Organizations (https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html)",
+      "lines": 121,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/proton/latest/userguide/proton-end-of-support.html",
+      "title": "AWS Proton Service Deprecation and Migration Guide - AWS Proton (https://docs.aws.amazon.com/proton/latest/userguide/proton-end-of-support.html)",
+      "lines": 171,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/savingsplans/latest/userguide/what-is-savings-plans.html",
+      "title": "What are Savings Plans? - Savings Plans (https://docs.aws.amazon.com/savingsplans/latest/userguide/what-is-savings-plans.html)",
+      "lines": 41,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html",
+      "title": "What is AWS Secrets Manager? - AWS Secrets Manager (https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html)",
+      "lines": 76,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/sns/latest/dg/sns-sqs-as-subscriber.html",
+      "title": "Fanout Amazon SNS notifications to Amazon SQS queues for asynchronous processing - Amazon Simple Notification Service (https://docs.aws.amazon.com/sns/latest/dg/sns-sqs-as-subscriber.html)",
+      "lines": 42,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/step-functions/latest/dg/choosing-workflow-type.html",
+      "title": "Choosing workflow type in Step Functions - AWS Step Functions (https://docs.aws.amazon.com/step-functions/latest/dg/choosing-workflow-type.html)",
+      "lines": 87,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/streams/latest/dev/introduction.html",
+      "title": "What is Amazon Kinesis Data Streams? - Amazon Kinesis Data Streams (https://docs.aws.amazon.com/streams/latest/dev/introduction.html)",
+      "lines": 66,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/transfer/latest/userguide/what-is-aws-transfer-family.html",
+      "title": "What is AWS Transfer Family? - AWS Transfer Family (https://docs.aws.amazon.com/transfer/latest/userguide/what-is-aws-transfer-family.html)",
+      "lines": 177,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/vpc/latest/privatelink/what-is-privatelink.html",
+      "title": "What is AWS PrivateLink? - Amazon Virtual Private Cloud (https://docs.aws.amazon.com/vpc/latest/privatelink/what-is-privatelink.html)",
+      "lines": 66,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Route_Tables.html",
+      "title": "Configure route tables - Amazon Virtual Private Cloud (https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Route_Tables.html)",
+      "lines": 52,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Security.html",
+      "title": "Ensure internetwork traffic privacy in Amazon VPC - Amazon Virtual Private Cloud (https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Security.html)",
+      "lines": 31,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html",
+      "title": "Logging IP traffic using VPC Flow Logs - Amazon Virtual Private Cloud (https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html)",
+      "lines": 76,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/wellarchitected/latest/cost-optimization-pillar/welcome.html",
+      "title": "Cost Optimization Pillar - AWS Well-Architected Framework - Cost Optimization Pillar (https://docs.aws.amazon.com/wellarchitected/latest/cost-optimization-pillar/welcome.html)",
+      "lines": 61,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/wellarchitected/latest/framework/definitions.html",
+      "title": "Definitions - AWS Well-Architected Framework (https://docs.aws.amazon.com/wellarchitected/latest/framework/definitions.html)",
+      "lines": 56,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/wellarchitected/latest/framework/welcome.html",
+      "title": "AWS Well-Architected Framework - AWS Well-Architected Framework (https://docs.aws.amazon.com/wellarchitected/latest/framework/welcome.html)",
+      "lines": 37,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/wellarchitected/latest/performance-efficiency-pillar/welcome.html",
+      "title": "Performance Efficiency Pillar - AWS Well-Architected Framework - Performance Efficiency Pillar (https://docs.aws.amazon.com/wellarchitected/latest/performance-efficiency-pillar/welcome.html)",
+      "lines": 58,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html",
+      "title": "Reliability Pillar - AWS Well-Architected Framework - Reliability Pillar (https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html)",
+      "lines": 47,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html",
+      "title": "Security Pillar - AWS Well-Architected Framework - Security Pillar (https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html)",
+      "lines": 48,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/wellarchitected/latest/sustainability-pillar/cloud-sustainability.html",
+      "title": "Cloud sustainability",
+      "lines": 36,
+      "retrieval": "retrieved",
+      "replacedLandingPage": "https://docs.aws.amazon.com/wellarchitected/latest/sustainability-pillar/welcome.html"
+    },
+    {
+      "url": "https://docs.aws.amazon.com/whitepapers/latest/aws-overview/introduction.html",
+      "title": "Overview of Amazon Web Services - Overview of Amazon Web Services (https://docs.aws.amazon.com/whitepapers/latest/aws-overview/introduction.html)",
+      "lines": 37,
+      "retrieval": "retrieved",
+      "redirect": null
+    },
+    {
+      "url": "https://docs.aws.amazon.com/whitepapers/latest/aws-security-incident-response-guide/aws-security-incident-response-guide.pdf",
+      "title": "AWS Security Incident Response Guide PDF",
+      "lines": 2108,
+      "retrieval": "retrieved",
+      "replacedLandingPage": "https://docs.aws.amazon.com/whitepapers/latest/aws-security-incident-response-guide/welcome.html"
+    },
+    {
+      "url": "https://docs.aws.amazon.com/whitepapers/latest/disaster-recovery-workloads-on-aws/disaster-recovery-options-in-the-cloud.html",
+      "title": "Disaster recovery options in the cloud",
+      "lines": 181,
+      "retrieval": "retrieved",
+      "replacedLandingPage": "https://docs.aws.amazon.com/whitepapers/latest/disaster-recovery-workloads-on-aws/welcome.html"
+    }
+  ]
+}

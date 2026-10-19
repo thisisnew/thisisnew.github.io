@@ -1,0 +1,82 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="COST 5~11: TCO·rightsizing·가격 모델·전송 경로·큐·동적 공급·지속 개선·운영 자동화"><title>AWS 22 · 비용 심화 2: 자원·약정·데이터 전송·수요를 함께 최적화하기 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/aws-study-22.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/aws-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="aws"><main><a href="/">← 전체 글</a> · <a href="/posts/aws-study-00.html">AWS 학습 지도</a><header><p class="meta">AWS QUEST · 22 / 22 · DEEP DIVE · 2026-10-20</p><h1>비용 심화 2: 자원·약정·데이터 전송·수요를 함께 최적화하기</h1><p class="subtitle">COST 5~11: TCO·rightsizing·가격 모델·전송 경로·큐·동적 공급·지속 개선·운영 자동화</p><p class="note">첨부 공부팩 D09_비용최적화_리소스_수요관리_지속최적화.pdf (56쪽)의 주제를 재구성한 해설입니다. 공식 문서 확인일: 2026-10-20. 장애 사례와 수치는 학습용 가정이며 AWS 실계정 실험 결과가 아닙니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. 할인받은 빈 창고도 비용이다</a></li><li><a href="#section-2">2. COST 5: 모든 구성 요소의 총비용</a></li><li><a href="#section-3">3. COST 6: 유형·크기·수량의 조합</a></li><li><a href="#section-4">4. COST 7: 가격 모델을 구성 요소마다</a></li><li><a href="#section-5">5. COST 8: 바이트가 어떤 경로를 지나는가</a></li><li><a href="#section-6">6. COST 9: 큐는 수요를 시간으로 이동시킨다</a></li><li><a href="#section-7">7. COST 10: 정기 검토와 새로운 서비스 평가</a></li><li><a href="#section-8">8. COST 11: 사람의 반복 작업도 비용</a></li><li><a href="#section-9">9. 종합 실습: 비용 개선 순서 정하기</a></li><li><a href="#section-10">10. 상세 면접 Q&amp;A</a></li><li><a href="#section-11">공식 문서</a></li></ol></aside><article><h2 id="section-1">1. 할인받은 빈 창고도 비용이다</h2>
+<p>월 임대료를 30% 할인받았어도 절반이 비어 있으면 좋은 선택인지 다시 봐야 합니다. 클라우드도 같은 순서가 필요합니다. 먼저 필요 없는 일을 줄이고, 필요한 일을 적절한 자원으로 처리하고, 남은 안정적 사용량에 맞는 구매 옵션을 선택합니다. 원문의 COST 5~11은 서비스 선택에서 운영 자동화까지 비용을 구조적으로 다룹니다.</p>
+<h2 id="section-2">2. COST 5: 모든 구성 요소의 총비용</h2>
+<p>비즈니스 비용 목표, 모든 구성 요소 분석, 상세 평가, 라이선스, 우선순위, 시간별 사용 변화를 검토하는 것이 COST05-BP01~06입니다. 앱 서버만 계산하고 DB·로드 밸런서·NAT·전송·로그·백업·키 API·지원·인력 비용을 빼면 비교가 왜곡됩니다. 직접 운영 브로커와 관리형 큐의 비교에는 설치·패치·당직·장애 복구 시간도 포함해야 합니다.</p>
+<p>TCO는 총소유비용을 뜻합니다. 예를 들어 관리형 서비스 요금이 월 50만 원 더 비싸더라도 운영 작업과 사고 대응이 크게 줄면 합리적일 수 있습니다. 반대로 기존 도구와 호환되지 않아 많은 코드를 다시 써야 한다면 이전 비용이 큽니다. 숫자는 실제 팀의 가정으로 채우고 재사용·교육·전환·되돌림 비용을 빠뜨리지 않습니다.</p>
+<h2 id="section-3">3. COST 6: 유형·크기·수량의 조합</h2>
+<p>비용 모델링, 데이터 기반 선택, 자동 선택, 공유 자원 검토가 COST06-BP01~04입니다. 작은 서버 여러 대와 큰 서버 몇 대의 비교는 시간당 가격만이 아니라 장애 영향·최소 배치 수·라이선스·네트워크·운영 복잡성까지 봅니다. CPU 평균이 낮다고 메모리·I/O 병목을 무시하고 축소하면 안 됩니다.</p>
+<p>공유 자원은 활용률을 높이지만 noisy neighbor와 장애 범위를 키울 수 있습니다. tenant별 한도·격리·비용 배분이 필요합니다. Compute Optimizer 등의 권장은 관찰 기간과 지원 지표 안에서 나온 제안이므로 드문 피크나 곧 있을 성장·DR 요구를 사람이 검토합니다. 추천을 자동 적용할 때는 SLO와 되돌림 조건을 둡니다.</p>
+<h2 id="section-4">4. COST 7: 가격 모델을 구성 요소마다</h2>
+<p>요금 모델 분석, 리전 비용, 서드파티 계약, 전체 구성 요소 적용, 관리 계정 수준 검토가 COST07-BP01~05입니다. 안정적 기저 부하는 약정 할인, 중단 가능한 작업은 Spot, 예측이 어렵고 짧은 부하는 유연한 과금 방식을 검토합니다. 컴퓨팅·DB·캐시·스토리지의 할인과 용량 예약 조건은 서로 다르므로 한 제품의 규칙을 다른 제품에 복사하지 않습니다.</p>
+<p>리전 가격 차이만 보고 데이터와 앱을 멀리 분리하면 전송료·지연이 더 커질 수 있습니다. 라이선스 포함과 BYOL은 지원 조건과 권리를 확인해야 합니다. 특정 할인 약정이 실제 필요한 용량 확보를 보장하는지도 별도 확인합니다. 조직 전체 할인 공유와 비용 귀속 기준이 팀별 구매 판단에 영향을 줄 수 있습니다.</p>
+<h2 id="section-5">5. COST 8: 바이트가 어떤 경로를 지나는가</h2>
+<p>데이터 전송 모델링, 구성 요소 선택, 전송을 줄이는 서비스 활용이 COST08-BP01~03입니다. 그림에 화살표를 그리고 출발·도착·방향·GB·요금 항목을 적습니다. 인터넷 egress, 리전 간, AZ 간, NAT 처리, endpoint 시간·데이터 처리 등은 서로 다른 항목입니다. 모든 AZ 간 전송이 같은 가격이라는 식의 일반화 대신 실제 서비스 가격표와 경로를 확인합니다.</p>
+<p>S3 접근을 위해 NAT를 거치는 구성에서는 gateway endpoint가 관련 NAT 경로 비용을 줄이는 대안이 될 수 있습니다. 하지만 interface endpoint는 시간·처리 요금이 있고 대상·AZ·사용량에 따라 비교가 달라집니다. CloudFront 캐시와 압축·중복 전송 제거도 도움이 되지만 요청료와 캐시 효과를 함께 계산해야 합니다. 보안을 약화하거나 필요한 AZ 분리를 없애는 방식으로 비용만 줄이지 않습니다.</p>
+<p>가상 계산: 하루 500GB를 불필요하게 두 번 전송하면 월 30일 기준 15,000GB의 추가 흐름이 생깁니다. 이 값에 해당 경로의 단가를 곱하고 처리 요금을 더해야 합니다. 숫자는 실제 가격이 아니라 데이터 흐름 모델의 예시입니다. 어느 서비스가 어느 방향에 요금을 부과하는지 확인해야 정확합니다.</p>
+<h2 id="section-6">6. COST 9: 큐는 수요를 시간으로 이동시킨다</h2>
+<p>수요 분석, 버퍼·제한, 동적 공급이 COST09-BP01~03입니다. 피크를 모두 즉시 처리해야 하는 API와 몇 분 늦어도 되는 배치는 다른 용량을 요구합니다. 큐로 작업을 평탄화하면 피크 전용 자원을 줄일 수 있지만 완료 시간과 backlog 보존 요구를 만족해야 합니다. 사용자에게 즉시 완료를 약속한 업무를 조용히 비동기로 바꾸면 비용은 줄어도 요구를 어깁니다.</p>
+<p>초당 유입 200건이 10분 지속되고 소비는 100건이라면 backlog는 60,000건 늘어납니다. 이후 유입이 20건으로 줄고 소비가 100건이면 초당 80건씩 줄어 약 750초가 필요합니다. 실제 처리율은 변하므로 가장 오래된 메시지의 나이로 서비스 목표를 함께 봅니다. 큐가 가득 찼을 때 유입 제한·실패 응답·우선순위가 필요합니다.</p>
+<p>개발 환경의 업무 시간 스케줄링, 예상 이벤트 전 사전 확장, 수요 감소 후 축소를 활용할 수 있습니다. 축소할 때 작업 중단·연결 종료·데이터 보존을 고려합니다. 무조건 최소 용량을 0으로 두면 초기화 지연과 복구 요구를 만족하지 못할 수 있습니다.</p>
+<h2 id="section-7">7. COST 10: 정기 검토와 새로운 서비스 평가</h2>
+<p>검토 프로세스와 정기 분석이 COST10-BP01~02입니다. 한 번 최적화한 구성도 데이터·트래픽·가격·서비스 기능이 바뀌면 다시 평가해야 합니다. 새 인스턴스나 엔진 기능의 이점은 대표 부하로 검증하고 이전 비용과 위험을 포함합니다. 작은 개선을 위해 큰 전환을 강행하면 순이익이 없을 수 있습니다.</p>
+<p>리뷰에는 마지막 변경 이후의 단위 비용, SLO, 수요 변화, 약정 만료, 미사용 자원, 전송·로그 증가, 새 대안을 포함합니다. 변경 전후 수치의 기간과 부하를 맞추지 않으면 계절적 수요 감소를 최적화 효과로 착각할 수 있습니다. 개선 가설과 실제 결과를 연결해 다음 선택에 재사용합니다.</p>
+<h2 id="section-8">8. COST 11: 사람의 반복 작업도 비용</h2>
+<p>COST11-BP01은 운영 자동화를 통해 반복 작업과 비용을 줄이는 관점입니다. 매주 수동 보고에 4시간을 쓰고 자동화 제작·유지에 40시간이 든다면 단순 계산의 회수 기간은 10주입니다. 실제로는 검토·예외 처리·오류 위험·담당자 변경을 포함합니다. 자동화가 복잡해져 특정 사람만 고칠 수 있다면 운영 비용을 다른 형태로 옮긴 것일 수 있습니다.</p>
+<p>자동화할 절차는 입력·성공 기준·실패·재시도·권한·로그·중단 조건이 분명해야 합니다. 잘못된 리소스 삭제를 빠르게 반복하는 코드는 비용 절감 도구가 아닙니다. 읽기 전용 보고와 권장안부터 시작해 검증된 범위의 조치로 넓힐 수 있습니다.</p>
+<h2 id="section-9">9. 종합 실습: 비용 개선 순서 정하기</h2>
+<p>가상 서비스에서 CPU 유휴 50%, 불필요한 원본 재전송, 무제한 로그 보존, 높은 약정 적용률이 관찰되었다고 합시다. 먼저 업무·보존·장애 여유 조건을 확인합니다. 그다음 불필요한 처리와 전송·데이터를 줄이고 자원 크기·수량을 재측정합니다. 안정화된 사용량을 기준으로 약정을 조정합니다. 이미 높은 적용률을 더 올리는 것보다 낭비 제거가 유리할 수 있습니다.</p>
+<table>
+<thead>
+<tr>
+<th>개선안</th>
+<th>예상 이득</th>
+<th>검증할 위험</th>
+<th>완료 증거</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>유휴 개발 자원 스케줄</td>
+<td>실행 시간 감소</td>
+<td>야간 작업·복구</td>
+<td>사용 시간·실패 기록</td>
+</tr>
+<tr>
+<td>로그 보존 조정</td>
+<td>저장·검색 감소</td>
+<td>조사·보존 요구</td>
+<td>정책·복구 가능한 기간</td>
+</tr>
+<tr>
+<td>캐시·전송 중복 제거</td>
+<td>원본 요청·바이트 감소</td>
+<td>stale·보안</td>
+<td>적중률·업무 오류·바이트</td>
+</tr>
+<tr>
+<td>rightsizing</td>
+<td>자원 단가 감소</td>
+<td>p99·장애 여유</td>
+<td>부하 테스트·운영 관찰</td>
+</tr>
+<tr>
+<td>약정 조정</td>
+<td>안정 부하 단가 감소</td>
+<td>미사용 약정</td>
+<td>활용률·적용률·예측</td>
+</tr>
+</tbody></table>
+<h2 id="section-10">10. 상세 면접 Q&amp;A</h2>
+<details class="question"><summary>Q. 비용 절감 순서는 왜 할인 구매부터가 아닌가요?</summary><div class="answer"><p>불필요한 사용량에 약정을 걸면 구조를 개선한 뒤에도 지출 의무가 남을 수 있습니다. 낭비 제거와 적정화로 실제 기저 부하를 파악한 다음 그 부분에 맞게 할인 모델을 선택하는 편이 합리적입니다.</p></div></details>
+<details class="question"><summary>Q. VPC endpoint는 항상 NAT보다 저렴한가요?</summary><div class="answer"><p>endpoint 종류와 대상 서비스·사용량·AZ 수·시간·처리 요금을 비교해야 합니다. S3 gateway endpoint와 interface endpoint의 요금 구조는 다릅니다. 경로와 접근 정책·DNS까지 검증하고 실제 비용 항목으로 비교합니다.</p></div></details>
+<details class="question"><summary>Q. 관리형 서비스가 더 비싸 보이면 직접 운영해야 하나요?</summary><div class="answer"><p>서비스 요금 외에 설치·패치·모니터링·당직·장애 손실·인력 기회비용을 포함해 비교합니다. 팀의 전문성과 기존 투자에 따라 결론이 달라질 수 있습니다. 직접 운영이 가능하다는 사실과 총비용이 낮다는 사실은 다릅니다.</p></div></details>
+<details class="question"><summary>Q. 자동화는 언제 하지 않는 것이 낫나요?</summary><div class="answer"><p>일회성이거나 절차가 자주 바뀌고 실패 영향이 크며 유지 비용이 이득보다 큰 경우에는 우선 표준화와 관찰부터 할 수 있습니다. 반복 빈도·시간 절약·오류 감소·제작 및 유지 비용을 비교해 범위를 정합니다.</p></div></details>
+<details class="question"><summary>Q. 비용을 줄인 뒤 무엇을 확인해야 하나요?</summary><div class="answer"><p>동일한 업무량 기준의 비용, 성공률·지연·복구 여유·보안·운영 작업량을 확인합니다. 총 청구가 낮아졌다는 사실만으로 성공을 선언하지 않습니다. 절감이 실제 구조 개선인지 수요 감소인지도 분리합니다.</p></div></details>
+
+<h2 id="section-11">공식 문서</h2>
+<ul>
+<li><a href="https://docs.aws.amazon.com/wellarchitected/latest/cost-optimization-pillar/welcome.html">비용 최적화 원칙</a></li>
+<li><a href="https://docs.aws.amazon.com/savingsplans/latest/userguide/what-is-savings-plans.html">Savings Plans</a></li>
+<li><a href="https://aws.amazon.com/vpc/pricing/">VPC 요금: NAT 등</a></li>
+<li><a href="https://aws.amazon.com/privatelink/pricing/">PrivateLink 요금</a></li>
+</ul>
+</article><nav aria-label="연재 이동"><a href="/posts/aws-study-21.html">← 비용 심화 1: 팀이 비용을 소유하고 설명하는 체계 만들기</a><a href="/posts/aws-study-00.html">학습 지도 ↗</a></nav><footer>AWS SAA 학습 연재 · <a href="/learning/aws/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

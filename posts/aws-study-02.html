@@ -1,0 +1,69 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="공동 책임, 탄력성, 장애 영역과 데이터 위치가 실제 설계에 미치는 영향"><title>AWS 02 · 클라우드와 글로벌 인프라: 계정·리전·AZ를 처음부터 구분하기 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/aws-study-02.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/aws-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="aws"><main><a href="/">← 전체 글</a> · <a href="/posts/aws-study-00.html">AWS 학습 지도</a><header><p class="meta">AWS QUEST · 02 / 22 · CORE · 2026-10-20</p><h1>클라우드와 글로벌 인프라: 계정·리전·AZ를 처음부터 구분하기</h1><p class="subtitle">공동 책임, 탄력성, 장애 영역과 데이터 위치가 실제 설계에 미치는 영향</p><p class="note">첨부 공부팩 02_AWS_기초_클라우드_글로벌인프라.pdf (8쪽)의 주제를 재구성한 해설입니다. 공식 문서 확인일: 2026-10-20. 장애 사례와 수치는 학습용 가정이며 AWS 실계정 실험 결과가 아닙니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. 서버를 산다는 것과 빌린다는 것</a></li><li><a href="#section-2">2. 계정, 리전, AZ, 엣지는 서로 다른 경계</a></li><li><a href="#section-3">3. 요청의 경로로 범위를 이해하기</a></li><li><a href="#section-4">4. 확장성·탄력성·고가용성을 분리하기</a></li><li><a href="#section-5">5. 공동 책임 모델: 관리형이어도 내 일이 남는다</a></li><li><a href="#section-6">6. 가상 장애 사례와 설계 연습</a></li><li><a href="#section-7">7. 상세 면접 Q&amp;A</a></li><li><a href="#section-8">공식 문서</a></li></ol></aside><article><h2 id="section-1">1. 서버를 산다는 것과 빌린다는 것</h2>
+<p>물류센터를 직접 지으면 건물·전력·보안·장비를 먼저 마련해야 합니다. 임대한 센터를 쓰면 시작이 빠르지만 상품 배치와 출입 권한까지 임대인이 정해 주지는 않습니다. 클라우드는 컴퓨팅·스토리지·네트워크 자원을 API로 요청해 사용하는 방식입니다. 핵심은 남의 컴퓨터라는 사실보다 <strong>필요할 때 프로비저닝하고 사용량에 맞춰 바꿀 수 있는 운영 방식</strong>입니다.</p>
+<p>고정 투자에서 사용 기반 지출로 이동하고, 공급자의 규모의 경제를 활용하며, 용량을 미리 과하게 추정하는 부담을 줄일 수 있습니다. 실험 환경을 빠르게 만들고 여러 지역으로 확장하기도 쉽습니다. 다만 켜 둔 자원·복제·데이터 전송·라이선스는 계속 비용을 만들 수 있습니다. 클라우드로 옮기기만 하면 저렴해진다는 보장은 없습니다.</p>
+<h2 id="section-2">2. 계정, 리전, AZ, 엣지는 서로 다른 경계</h2>
+<table>
+<thead>
+<tr>
+<th>개념</th>
+<th>쉬운 비유</th>
+<th>실제 의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>AWS 계정</td>
+<td>회사별 장부와 출입증 체계</td>
+<td>리소스 소유·권한·청구의 주요 경계</td>
+</tr>
+<tr>
+<td>리전</td>
+<td>서로 떨어진 도시의 사업장</td>
+<td>지리적으로 구분된 서비스 운영 영역</td>
+</tr>
+<tr>
+<td>AZ</td>
+<td>한 도시 안의 독립 시설군</td>
+<td>하나 이상의 데이터센터로 구성되는 장애 격리 영역</td>
+</tr>
+<tr>
+<td>엣지 위치</td>
+<td>고객 가까운 배송 거점</td>
+<td>캐시·네트워크 접점을 제공하는 위치</td>
+</tr>
+<tr>
+<td>VPC</td>
+<td>설계한 사설 도로망</td>
+<td>리전 범위의 논리적 네트워크</td>
+</tr>
+<tr>
+<td>서브넷</td>
+<td>특정 구역의 주소 블록</td>
+<td>한 AZ에 속하는 IP 범위</td>
+</tr>
+</tbody></table>
+<p>AZ 하나가 곧 서버실 건물 하나라고 단정하면 안 됩니다. 중요한 것은 AWS가 전력·네트워크 등 장애 영향을 줄이도록 분리한 영역이라는 점입니다. 리전은 멀리 떨어져 있어 더 큰 범위의 장애 격리에 도움이 되지만 지연·복제 비용·일관성 문제가 커집니다. 엣지가 있다고 DB 전체가 모든 엣지로 자동 복제되는 것도 아닙니다.</p>
+<h2 id="section-3">3. 요청의 경로로 범위를 이해하기</h2>
+<p>서울 사용자가 DNS로 주소를 찾고 CloudFront에서 캐시된 이미지를 받으면 오리진까지 가지 않을 수 있습니다. 캐시가 없거나 동적 요청이면 지정한 오리진으로 전달됩니다. ALB가 서로 다른 AZ의 애플리케이션으로 요청을 분산하더라도, 세션이 한 서버 메모리에만 있으면 다른 서버가 같은 사용자의 상태를 모릅니다. 인프라를 여러 AZ에 놓는 것과 애플리케이션이 장애를 견디는 것은 별도 작업입니다.</p>
+<p>멀티 리전도 “복사 버튼 하나”의 문제가 아닙니다. 애플리케이션 코드·설정·비밀·키·데이터·DNS·외부 허용 목록·서비스 할당량을 함께 준비해야 합니다. 복제 중인 데이터가 몇 초 뒤처질 수 있다면 장애 직전 쓰기를 잃을 수 있습니다. 이런 문제를 수치로 표현하는 도구가 RPO와 RTO이며 18편에서 자세히 다룹니다.</p>
+<h2 id="section-4">4. 확장성·탄력성·고가용성을 분리하기</h2>
+<p>확장성은 더 큰 부하를 처리하도록 용량을 늘릴 수 있는 성질입니다. 수직 확장은 더 큰 서버, 수평 확장은 더 많은 서버를 쓰는 방식입니다. 탄력성은 수요에 맞춰 늘렸다 줄이는 성질입니다. 고가용성은 장애가 있어도 서비스를 제공하는 성질입니다. 서버 100대가 있어도 단일 전원 장애에 모두 멈춘다면 고가용성이라고 보기 어렵습니다.</p>
+<p>예를 들어 한 대가 안정적으로 초당 200건을 처리하고 평상시 부하가 초당 600건이면 단순 계산상 세 대가 필요합니다. 그러나 세 대 중 한 대가 죽으면 남은 용량은 400건입니다. 장애 시에도 600건을 유지하려면 여유 용량이나 빠른 확장·트래픽 제한이 필요합니다. 이 숫자는 AWS 성능 보장이 아니라 설계 계산 예시이며 실제 처리량은 부하 테스트로 정해야 합니다.</p>
+<h2 id="section-5">5. 공동 책임 모델: 관리형이어도 내 일이 남는다</h2>
+<p>AWS는 클라우드 자체의 물리 시설과 기반 인프라를 보호합니다. 고객은 자신이 선택한 서비스 수준에 따라 데이터·신원·권한·설정·애플리케이션을 책임집니다. EC2에서는 게스트 OS 패치와 애플리케이션 관리 책임이 큽니다. RDS에서는 기반 DB 운영의 많은 부분이 관리형이 되지만, 스키마·쿼리·DB 계정·접근 경로·백업 요구는 고객이 설계합니다. Lambda에서도 코드 취약점과 과도한 role 권한이 사라지지 않습니다.</p>
+<p>IaaS는 가상 인프라, PaaS는 애플리케이션 실행 플랫폼, SaaS는 완성된 소프트웨어를 제공하는 방향으로 추상화 수준이 높아지는 분류입니다. 실제 AWS 서비스는 이 교과서 분류에 딱 하나씩 들어맞지 않을 수 있습니다. 따라서 분류 이름보다 “누가 무엇을 패치하고 복구하는가”를 묻는 것이 정확합니다. 퍼블릭 클라우드, 온프레미스, 하이브리드는 배포 위치와 연결 모델을 설명하며 위 책임 수준 분류와 다른 축입니다.</p>
+<h2 id="section-6">6. 가상 장애 사례와 설계 연습</h2>
+<p>두 애플리케이션 서버를 만들었는데 같은 AZ에 배치했습니다. AZ 장애로 둘 다 접근 불가가 되었습니다. 해결책은 단순히 세 번째 서버를 같은 AZ에 더 만드는 것이 아니라 장애 영역을 분리하는 것입니다. 이어 DB·NAT·파일 공유도 같은 장애 영역에 묶이지 않았는지 확인해야 합니다. Multi-AZ로 바꾼 후에는 한 AZ를 잃은 상태의 처리 용량까지 확인합니다.</p>
+<p>직접 종이에 계정·리전·AZ를 큰 원부터 그리고 각 리소스를 넣어 보세요. VPC는 리전 범위, 서브넷과 EBS 볼륨은 AZ 범위라는 차이를 표시합니다. 서비스별 정확한 범위는 문서로 확인해야 하며 “관리형은 전부 리전 전체에 자동 복제된다”라고 일반화하면 안 됩니다.</p>
+<h2 id="section-7">7. 상세 면접 Q&amp;A</h2>
+<details class="question"><summary>Q. Multi-AZ와 Multi-Region은 언제 선택하나요?</summary><div class="answer"><p>AZ 장애를 견디는 것이 목표라면 보통 한 리전의 여러 AZ부터 설계합니다. 리전 전체 장애·지리적 규제·글로벌 지연 요구가 있으면 멀티 리전을 검토합니다. 멀티 리전은 복제 지연과 충돌·키와 권한·라우팅·운영 비용을 추가하므로 “더 많으니 더 좋다”로 선택하지 않습니다.</p></div></details>
+<details class="question"><summary>Q. AWS가 보안을 책임지는데 왜 버킷 유출이 생기나요?</summary><div class="answer"><p>시설과 서비스 기반을 보호하는 것과 고객이 공개 권한을 부여하는 것은 다릅니다. 고객 데이터 접근 정책과 애플리케이션 인증이 잘못되면 정상적인 서비스 기능을 통해 데이터가 노출될 수 있습니다. 공동 책임은 책임이 반씩 나뉜다는 말이 아니라 서비스마다 서로 맡는 영역이 있다는 뜻입니다.</p></div></details>
+<details class="question"><summary>Q. Auto Scaling이면 용량 계획이 필요 없나요?</summary><div class="answer"><p>감지·인스턴스 확보·애플리케이션 시작·건강 확인에는 시간이 걸리고 할당량이나 공급 제약도 있습니다. 급격한 부하에는 미리 확보한 용량·예약 확장·큐·요청 제한이 필요할 수 있습니다. 자동 확장 정책 자체도 테스트해야 합니다.</p></div></details>
+<details class="question"><summary>Q. 리전은 가장 싼 곳을 고르면 되나요?</summary><div class="answer"><p>사용자 지연, 데이터 거주 요구, 필요한 서비스와 기능의 지원, 다른 시스템과의 거리, 재해복구 관계를 먼저 확인합니다. 비용은 그 조건을 만족하는 후보 사이에서 비교합니다. 값이 싸더라도 네트워크 왕복 때문에 업무 요구를 못 맞추면 적절한 선택이 아닙니다.</p></div></details>
+
+<h2 id="section-8">공식 문서</h2>
+<ul>
+<li><a href="https://aws.amazon.com/about-aws/global-infrastructure/">AWS 글로벌 인프라</a></li>
+<li><a href="https://aws.amazon.com/compliance/shared-responsibility-model/">공동 책임 모델</a></li>
+<li><a href="https://docs.aws.amazon.com/whitepapers/latest/aws-overview/introduction.html">AWS 개요 백서</a></li>
+</ul>
+</article><nav aria-label="연재 이동"><a href="/posts/aws-study-01.html">← SAA-C03 시험 가이드: 긴 문제에서 설계 조건을 추출하는 법</a><a href="/posts/aws-study-03.html">컴퓨팅 선택: EC2·Auto Scaling·Lambda·컨테이너의 동작과 책임 →</a></nav><footer>AWS SAA 학습 연재 · <a href="/learning/aws/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

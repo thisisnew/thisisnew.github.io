@@ -1,1 +1,14 @@
-{"name":"thisisnew-engineering-notes","private":true,"type":"module","scripts":{"build:jvm":"node scripts/build-jvm.mjs","check:jvm":"python3 scripts/check-jvm.py"},"devDependencies":{"marked":"15.0.12"}}
+{
+  "name": "thisisnew-engineering-notes",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:jvm": "node scripts/build-jvm.mjs",
+    "check:jvm": "python3 scripts/check-jvm.py",
+    "build:aws": "node scripts/build-aws.mjs",
+    "check:aws": "python3 scripts/check-aws.py"
+  },
+  "devDependencies": {
+    "marked": "15.0.12"
+  }
+}

@@ -1,0 +1,61 @@
+{"n":9,"title":"운영과 관찰성: CloudWatch·CloudTrail·Config에서 조직 관리까지","desc":"지표·로그·추적·감사·구성 이력, IaC와 멀티계정 거버넌스를 실제 장애 조사로 연결하기"}
+
+## 1. 계기판, 출입 기록, 설비 장부
+
+자동차 계기판은 현재 속도와 온도를 보여 줍니다. 출입 기록은 누가 차고에 들어왔는지 알려 주고, 정비 장부는 부품이 어떻게 바뀌었는지 남깁니다. CloudWatch는 지표·로그·알람 등 관찰성, CloudTrail은 API 활동과 감사, Config는 리소스 구성과 규정 준수 평가라는 출발점으로 구분할 수 있습니다. 실제 기능은 일부 겹치지만 장애 조사에서 던지는 질문이 다릅니다.
+
+## 2. 지표·로그·추적을 한 요청으로 묶기
+
+지표는 시간에 따른 숫자입니다. 초당 요청 수·오류율·p99 지연·큐 대기 시간 같은 값을 집계해 이상을 빨리 찾습니다. 로그는 사건의 구체적 맥락입니다. 어떤 주문과 오류 코드가 실패했는지 확인합니다. trace는 여러 서비스에 걸친 요청 구간을 연결합니다. 전체 2초 중 DB 1.8초, 외부 API 0.1초였다는 식으로 시간을 나눕니다.
+
+평균 지연이 낮아도 일부 요청이 매우 느릴 수 있습니다. 창고 A는 정상인데 창고 B만 실패하면 전체 평균 오류율은 낮게 보일 수 있습니다. 업무적으로 중요한 차원으로 지표를 나누되 주문 ID처럼 무한히 증가하는 값을 지표 차원으로 넣으면 cardinality와 비용이 커집니다. 개별 ID는 로그·trace에 두고 지표는 제한된 차원으로 설계합니다.
+
+## 3. CloudWatch 알람은 평가 규칙이다
+
+알람은 지표 한 번을 보는 버튼이 아니라 기간·평가 횟수·임계값·누락 데이터 처리로 상태를 판단합니다. “5분 평균 CPU 80%”는 10초 동안의 심한 지연을 놓칠 수 있습니다. 반대로 단일 순간 값만 보면 잡음에 자주 울립니다. 요청량이 적어 데이터가 없는 시간과 수집 장애로 데이터가 없는 시간을 구분해야 합니다.
+
+EC2 기본 지표만으로 애플리케이션의 메모리·디스크 내부 사용량·업무 성공률이 모두 보이는 것은 아닙니다. 에이전트나 사용자 지표·로그 계측이 필요할 수 있습니다. 알람에는 담당자·영향·확인 명령·안전한 조치·복구 기준을 연결합니다. 자동 대응은 오탐 때도 안전하고 반복 실행 가능해야 합니다. 알람을 많이 만드는 것보다 행동 가능한 알람을 만드는 것이 중요합니다.
+
+## 4. CloudTrail과 Config로 변경을 추적하기
+
+장애 시작 직전에 보안 그룹이 바뀌었다면 CloudTrail로 누가 어떤 API를 호출했는지 찾고 Config로 이전과 현재 설정을 비교할 수 있습니다. CloudTrail의 관리 이벤트와 데이터 이벤트는 범위와 수집 설정이 다릅니다. 기본 이벤트 이력만 켜 두었다고 모든 S3 객체 읽기나 모든 애플리케이션 행동이 기록된다고 가정하지 않습니다. 장기 보관·조직 통합·데이터 이벤트는 요구에 맞게 구성해야 합니다.
+
+Config rule이 비준수라고 평가했다고 자동으로 리소스가 수정되는 것은 아닙니다. 별도의 remediation을 연결하고 그 조치의 위험을 검토합니다. 예를 들어 공개 보안 그룹을 자동 제거할 때 정상 서비스 입구를 차단할 수 있으므로 소유자·예외·되돌리기 경로가 필요합니다. 규정 준수 평가와 실제 보안 사고 탐지는 다른 질문입니다.
+
+## 5. CloudFormation과 Systems Manager
+
+CloudFormation은 원하는 리소스 구성을 코드로 정의하고 stack 단위로 생성·변경합니다. 사람이 콘솔에서 수정한 상태가 코드와 어긋나는 drift를 확인하고, 변경 내용을 검토한 뒤 배포합니다. stack rollback이 발생해도 이미 외부로 보낸 메일이나 애플리케이션이 변경한 데이터까지 되돌려 준다는 뜻은 아닙니다.
+
+Systems Manager는 인벤토리·명령 실행·패치·자동화·세션 관리 등의 운영 작업에 활용합니다. SSH 키와 공개 포트를 줄이는 데 도움을 줄 수 있지만 agent·IAM·서비스 endpoint 연결이 필요합니다. “SSM이 있으니 네트워크가 필요 없다”는 오해는 피합니다. Launch Wizard는 지원 워크로드 배포 안내, Service Catalog는 승인된 제품 배포, License Manager는 라이선스 관리라는 위치로 구분합니다.
+
+## 6. Organizations와 Control Tower
+
+Organizations는 계정 묶음과 OU·정책·통합 청구의 기반입니다. 개발·운영·로그 보관을 계정으로 분리하면 실수의 영향과 권한 경계를 줄일 수 있습니다. SCP는 멤버 계정 권한의 상한을 제한하는 가드레일이며 IAM Allow를 대신하지 않습니다. 관리 계정과 서비스 연결 role 등에는 별도의 적용 범위가 있으므로 “조직 안의 모든 주체에 같은 방식으로 적용된다”고 단정하지 않습니다.
+
+Control Tower는 멀티계정 환경의 landing zone과 통제를 구성·운영하는 데 도움을 줍니다. Organizations와 경쟁하는 완전히 다른 계정 체계라기보다 관련 서비스를 조합하는 관리 계층으로 이해합니다. AWS Health는 AWS 서비스 이벤트와 계정 영향, Trusted Advisor는 모범 사례 관점의 점검, Compute Optimizer는 사용 지표에 기반한 자원 권장이라는 서로 다른 역할입니다.
+
+## 7. 나머지 운영 도구와 제품 상태
+
+Managed Service for Prometheus는 메트릭 수집·조회 생태계, Managed Grafana는 대시보드와 시각화라는 관계로 봅니다. Amazon Q Developer in chat applications는 채팅 환경의 운영 상호작용, User Notifications는 알림 관리, Console Mobile Application은 모바일 관리 접근, Well-Architected Tool은 설계 검토 기록을 지원합니다. AWS Auto Scaling이라는 여러 자원 확장 관리와 EC2 Auto Scaling Group의 구체적인 인스턴스 관리를 구분하세요.
+
+원문의 OpsWorks는 2024-05-01, Proton은 2026-10-07 지원 종료가 공지되어 있습니다. 따라서 이 둘은 과거 구성 관리·템플릿 기반 배포의 사례로 설명하며 현재 신규 도입 대상으로 추천하지 않습니다. [OpsWorks 종료 목록](https://docs.aws.amazon.com/general/latest/gr/full_shutdown_services.html) · [Proton 종료 공지](https://docs.aws.amazon.com/proton/latest/userguide/proton-end-of-support.html) 도구 이름을 외우는 것보다 승인된 변경을 재현하고 되돌릴 수 있는지가 중요합니다.
+
+## 8. 가상 장애 조사 순서
+
+10:02부터 오류가 늘었다고 가정합니다. CloudWatch에서 어느 endpoint·AZ·버전의 오류인지 좁히고, trace로 DB 접속 단계가 실패하는지 확인합니다. 로그에서는 AccessDenied인지 timeout인지 구분합니다. CloudTrail에서 10:00의 정책 변경을 찾고 Config의 차이를 확인합니다. 원인을 확인하기 전 모든 인스턴스를 재시작하면 증거를 잃거나 문제를 확산할 수 있습니다. 변경과 증상은 상관관계이며 최종 원인은 재현·되돌림·설정 검증으로 확인합니다.
+
+실습으로 가상의 장애 타임라인을 작성해 보세요. 시각, 사용자 영향, 관찰한 증거, 가설, 실행한 조치, 결과를 열로 분리하면 추측을 사실처럼 기록하는 실수를 줄일 수 있습니다.
+
+## 9. 상세 면접 Q&A
+
+<details><summary>Q. CloudWatch와 CloudTrail 중 어느 것을 먼저 보나요?</summary><p>질문에 따라 다릅니다. “언제부터 얼마나 느려졌나”는 지표·로그·trace로, “누가 설정을 바꿨나”는 감사 이벤트로 시작합니다. 실제 장애에서는 두 정보를 같은 시간축에 놓아 연결합니다. CloudTrail만으로 업무 요청의 모든 내부 지연을 알 수는 없습니다.</p></details>
+<details><summary>Q. Config가 있으면 보안 위협 탐지 도구가 필요 없나요?</summary><p>Config는 리소스의 구성 상태와 규칙 준수에 강점이 있습니다. 정상 구성에서도 탈취된 자격 증명이나 의심스러운 사용 패턴이 발생할 수 있으므로 위협 탐지와 감사·대응이 별도로 필요합니다. 구성이 올바르다는 것과 공격이 없다는 것은 다릅니다.</p></details>
+<details><summary>Q. CPU 알람만으로 서비스 상태를 볼 수 있나요?</summary><p>CPU가 낮아도 DB 락이나 외부 API 대기로 요청이 실패할 수 있습니다. 사용자 관점의 성공률·지연·처리 지연과 자원 포화 지표를 연결해야 합니다. 시스템 내부 건강과 고객이 경험하는 서비스 건강을 함께 봅니다.</p></details>
+<details><summary>Q. 운영 자동화의 첫 조건은 무엇인가요?</summary><p>반복 가능한 절차와 관측 가능한 성공·실패 기준입니다. 원인을 모르는 상황에서 자동 재시작을 붙이면 잠깐 증상만 가리거나 장애를 확대할 수 있습니다. 조치의 범위·멱등성·승인 조건·중단 및 되돌림을 먼저 정의합니다.</p></details>
+
+## 공식 문서
+
+- [CloudWatch](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/WhatIsCloudWatch.html)
+- [CloudTrail](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-user-guide.html)
+- [AWS Config](https://docs.aws.amazon.com/config/latest/developerguide/WhatIsConfig.html)
+- [Organizations의 SCP](https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html)

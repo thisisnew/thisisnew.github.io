@@ -1,0 +1,36 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="SEC 7~11: 데이터 분류·키 수명주기·TLS·포렌식·플레이북·게임데이·공급망"><title>AWS 16 · 보안 심화 3: 데이터 보호·사고 대응·개발 파이프라인 보안 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/aws-study-16.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/aws-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="aws"><main><a href="/">← 전체 글</a> · <a href="/posts/aws-study-00.html">AWS 학습 지도</a><header><p class="meta">AWS QUEST · 16 / 22 · DEEP DIVE · 2026-10-20</p><h1>보안 심화 3: 데이터 보호·사고 대응·개발 파이프라인 보안</h1><p class="subtitle">SEC 7~11: 데이터 분류·키 수명주기·TLS·포렌식·플레이북·게임데이·공급망</p><p class="note">첨부 공부팩 D03_보안_데이터보호_사고대응_앱보안.pdf (74쪽)의 주제를 재구성한 해설입니다. 공식 문서 확인일: 2026-10-20. 장애 사례와 수치는 학습용 가정이며 AWS 실계정 실험 결과가 아닙니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. 모든 상자에 같은 자물쇠를 달면 충분할까</a></li><li><a href="#section-2">2. SEC 7: 분류와 수명주기</a></li><li><a href="#section-3">3. SEC 8: 저장 암호화와 접근 제어</a></li><li><a href="#section-4">4. SEC 9: TLS는 어디에서 끝나는가</a></li><li><a href="#section-5">5. SEC 10: 사고 중에 도구부터 설치하지 않기</a></li><li><a href="#section-6">6. SEC 11: 개발 수명주기에 보안을 넣기</a></li><li><a href="#section-7">7. 가상 사고: 운영 secret이 빌드 로그에 노출</a></li><li><a href="#section-8">8. 상세 면접 Q&amp;A</a></li><li><a href="#section-9">공식 문서</a></li></ol></aside><article><h2 id="section-1">1. 모든 상자에 같은 자물쇠를 달면 충분할까</h2>
+<p>홍보 전단과 고객 주소 명단은 둘 다 파일이지만 노출의 피해는 다릅니다. 데이터 분류는 무엇을 얼마나 보호하고 얼마나 오래 보관할지 정하는 출발점입니다. 보안 장비를 먼저 사기보다 데이터가 어디서 생겨 어디로 이동하고 누가 읽으며 언제 삭제되는지 그려야 합니다. SEC 7~9는 데이터 분류·저장·전송 보호, SEC 10은 사고 대응, SEC 11은 개발 과정의 보안을 다룹니다.</p>
+<h2 id="section-2">2. SEC 7: 분류와 수명주기</h2>
+<p>공개·내부·기밀·민감 같은 분류 체계를 업무와 연결합니다. 실제 등급 이름보다 소유자·허용 사용자·보관 기간·복구 요구·삭제 기준이 명확한지가 중요합니다. 개인 정보가 로그·백업·분석 복사본에도 남을 수 있으므로 원본 DB만 조사해서는 부족합니다. Macie 같은 자동 발견 도구는 지원 범위에서 도움이 되지만 모든 데이터의 의미와 규정을 자동으로 확정하지는 못합니다.</p>
+<p>SEC07-BP01~04는 분류 체계, 민감도별 통제, 발견 자동화, 수명주기 관리를 포함합니다. 보존 기간이 끝난 데이터는 원본뿐 아니라 복사본·캐시·export·백업 정책까지 검토해야 합니다. 반대로 복구와 감사에 필요한 데이터를 비용 절감만 보고 삭제하면 안 됩니다. 데이터 소유자와 보존 책임을 정하고 예외를 기록합니다.</p>
+<h2 id="section-3">3. SEC 8: 저장 암호화와 접근 제어</h2>
+<p>암호화는 데이터가 저장 매체나 백업으로 노출될 때 읽기 위험을 줄이지만, 정상 권한으로 복호화하는 공격자를 막는 만능 통제는 아닙니다. KMS key policy·IAM·grant·서비스 통합을 통해 누가 어떤 맥락에서 키를 사용하는지 제한합니다. 데이터 접근 권한과 키 사용 권한을 구분하면 사고 조사와 역할 분리가 쉬워집니다.</p>
+<p>envelope encryption에서는 데이터 키로 본문을 암호화하고 KMS key로 데이터 키를 보호합니다. key rotation은 키 재료 변경을 관리하는 과정이고 기존 암호문 전체를 자동으로 다시 쓰는 것과 다릅니다. 키를 비활성화하거나 삭제하면 업무와 복구가 영향을 받습니다. 백업 복사 시 대상 계정·리전의 키와 복호화 권한까지 확인해야 합니다.</p>
+<p>SEC08-BP01~04는 키 관리, 저장 암호화, 자동 검증·수정, 접근 제어입니다. 기본 암호화 설정이 있어도 예전 객체·다른 저장소·export 파일의 보호 상태가 같다고 단정하지 않습니다. 통제를 코드로 배포하고 실제 리소스와 데이터에 적용되었는지 증거를 수집합니다.</p>
+<h2 id="section-4">4. SEC 9: TLS는 어디에서 끝나는가</h2>
+<p>사용자와 ALB 사이가 HTTPS라도 ALB와 앱 사이가 HTTP이면 그 구간은 다른 보호 조건입니다. TLS 종료 지점을 표시하고 각 구간에 필요한 암호화와 인증을 설계합니다. 인증서 검증을 끄면 암호화는 되어도 상대가 올바른 서버인지 확인하지 못할 수 있습니다. 인증서 이름·체인·만료·회전을 관리해야 합니다.</p>
+<p>mTLS는 양쪽 인증서를 검증하는 방식으로 서비스 신원 확인에 활용할 수 있지만, 인증된 주체가 어떤 업무를 할 수 있는지는 별도의 인가입니다. private network나 Direct Connect를 사용한다고 자동으로 모든 데이터가 종단 간 암호화되는 것은 아닙니다. SEC09-BP01~03은 키·인증서 관리, 전송 암호화, 통신 상대 인증을 구분합니다.</p>
+<h2 id="section-5">5. SEC 10: 사고 중에 도구부터 설치하지 않기</h2>
+<p>사고 대응은 준비→탐지와 분석→격리→근절→복구→학습의 흐름으로 생각할 수 있습니다. 연락할 사람과 외부 지원, 의사결정 권한, 증거 취급, 커뮤니케이션 계획을 미리 정합니다. 사고 중 필요한 role·포렌식 도구·격리 환경을 사전 준비하지 않으면 가장 급할 때 권한 요청과 설치에 시간을 씁니다.</p>
+<p>로그·디스크 스냅샷·메모리 등 증거의 필요성과 휘발성을 이해합니다. 무조건 재부팅하거나 종료하면 증거를 잃을 수 있고, 아무 조치 없이 보존만 하면 공격이 계속될 수 있습니다. 사고 유형별 플레이북에서 격리와 업무 영향·증거 보존의 순서를 정합니다. 증거 수집 시각·주체·해시·보관 위치·접근 이력을 남겨 신뢰성을 확보합니다.</p>
+<p>SEC10-BP01~08은 연락망, 대응 계획, 포렌식, 플레이북 개발·검증, 사전 권한, 사전 도구, 시뮬레이션, 사고 학습을 포함합니다. 게임데이는 통제된 환경에서 역할과 절차를 연습하는 활동입니다. 성공 기준은 “훈련을 했다”가 아니라 발견·판단·격리·복구 시간이 목표에 맞고 누락된 권한과 절차를 수정했는지입니다.</p>
+<h2 id="section-6">6. SEC 11: 개발 수명주기에 보안을 넣기</h2>
+<p>개발자 교육은 추상적인 규정 전달보다 실제 코드의 인증 우회·입력 처리·secret 노출 사례와 연결합니다. 코드 검토는 업무 권한과 데이터 흐름을 확인하고, SAST·SCA·secret scanning·동적 테스트 등 자동 검사를 파이프라인에 배치합니다. 각 도구는 발견 가능한 문제가 다르고 오탐·누락이 있어 사람의 검토와 상호 보완해야 합니다.</p>
+<p>의존성과 패키지를 승인된 출처로 관리하고 버전과 빌드 결과를 추적합니다. CI가 배포 role을 얻는 경로와 서명 키, 외부 PR이 접근 가능한 secret도 점검합니다. 애플리케이션 소스는 안전해도 파이프라인이 침해되면 악성 결과물이 배포될 수 있습니다. 프로그래밍 방식의 배포는 재현성을 높이지만 배포 권한을 좁히고 변경 이력을 남겨야 합니다.</p>
+<p>SEC11-BP01~08은 교육, 자동 테스트, 침투 테스트, 코드 검토, 의존성 중앙화, 자동 배포, 파이프라인 보안 검토, 워크로드 팀의 보안 책임을 포함합니다. 침투 테스트는 허용된 범위와 정책에 따라 수행하고 자동 검사 결과만으로 모든 비즈니스 로직 취약점이 제거되었다고 주장하지 않습니다.</p>
+<h2 id="section-7">7. 가상 사고: 운영 secret이 빌드 로그에 노출</h2>
+<p>먼저 노출된 secret을 실제 사용하는 시스템과 유효 기간·권한 범위를 파악합니다. 필요한 교체·폐기와 접근 기록 조사를 진행하고, 로그 접근자와 보관·복사 범위를 확인합니다. 로그 한 줄을 지우는 것으로 끝내지 않습니다. 캐시·아티팩트·외부 로그 수집기에 남아 있을 수 있고 이미 사용되었을 수 있기 때문입니다. 빌드 단계에서 운영 secret이 정말 필요했는지와 최소 권한·마스킹·검출을 개선합니다.</p>
+<p>연습으로 데이터 한 종류를 골라 생성·저장·전송·분석·백업·삭제 단계를 그립니다. 각 단계에 소유자·암호화·키·권한·로그·보존 기간을 적으면 빠진 복사본과 신뢰 경계가 드러납니다. 실제 운영 사고를 만들 필요 없이 문서와 비운영 시나리오로도 먼저 검증할 수 있습니다.</p>
+<h2 id="section-8">8. 상세 면접 Q&amp;A</h2>
+<details class="question"><summary>Q. HTTPS를 쓰면 데이터 보호가 끝났나요?</summary><div class="answer"><p>전송 구간의 암호화와 서버 인증을 제공하지만 저장 데이터·로그·권한·키 관리·업무 인가는 별도입니다. TLS가 종료되는 지점 이후 통신도 확인해야 합니다. 인증서 검증을 끄거나 잘못된 신뢰 체인을 쓰면 기대한 보호가 성립하지 않을 수 있습니다.</p></div></details>
+<details class="question"><summary>Q. KMS 키를 교체하면 기존 데이터를 모두 재암호화하나요?</summary><div class="answer"><p>키 재료 회전과 기존 데이터 재암호화는 다른 작업입니다. 서비스와 키 유형의 회전 동작을 확인해야 하며, 필요한 데이터 재암호화는 별도 절차일 수 있습니다. 기존 데이터 복호화를 위해 어떤 키 재료가 유지되는지도 이해해야 합니다.</p></div></details>
+<details class="question"><summary>Q. 사고가 나면 서버부터 종료해야 하나요?</summary><div class="answer"><p>피해 확산과 증거 보존·업무 영향의 균형을 판단해야 합니다. 종료로 휘발성 증거를 잃을 수 있으므로 가능한 격리와 수집 절차를 미리 준비합니다. 정답은 모든 사고에 같은 단일 조치가 아니라 유형별 검증된 플레이북입니다.</p></div></details>
+<details class="question"><summary>Q. 보안 팀이 있으니 개발 팀은 기능만 만들면 되나요?</summary><div class="answer"><p>업무 권한·데이터 의미·코드 흐름을 가장 잘 아는 팀이 보안 책임을 공유해야 합니다. 보안 팀은 기준과 전문 지원을 제공하고, 개발 팀은 설계·검토·수정·운영에 통합합니다. 출시 직전에 검사만 추가하면 구조적 문제를 고치는 비용이 커집니다.</p></div></details>
+
+<h2 id="section-9">공식 문서</h2>
+<ul>
+<li><a href="https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html">보안 원칙</a></li>
+<li><a href="https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html">KMS 키 회전</a></li>
+<li><a href="https://docs.aws.amazon.com/whitepapers/latest/aws-security-incident-response-guide/aws-security-incident-response-guide.pdf">AWS 보안 사고 대응 가이드</a></li>
+</ul>
+</article><nav aria-label="연재 이동"><a href="/posts/aws-study-15.html">← 보안 심화 2: 탐지에서 네트워크·컴퓨팅 보호까지</a><a href="/posts/aws-study-17.html">신뢰성 심화 1: 분산 시스템이 연쇄 장애를 막는 방법 →</a></nav><footer>AWS SAA 학습 연재 · <a href="/learning/aws/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

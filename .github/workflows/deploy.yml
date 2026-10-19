@@ -19,7 +19,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify all static pages and local links
-        run: python tools/verify_site.py
+        run: |
+          python tools/verify_site.py
+          python scripts/check-aws.py
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -87,6 +89,7 @@ jobs:
         run: |
           node tools/check_mysql_browser.cjs
           node tools/check_categories.cjs
+          node scripts/check-aws-browser.cjs
       - name: Upload MySQL verification evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -94,6 +97,7 @@ jobs:
           name: mysql-verification
           path: |
             learning/mysql-*-checks.json
+            learning/aws/*checks.json
             mysql-screenshots/
       - name: MySQL logs on failure
         if: failure()

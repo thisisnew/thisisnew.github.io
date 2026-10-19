@@ -1,0 +1,66 @@
+{"n":12,"title":"데이터 분석 흐름: Kinesis·Firehose·Flink·Athena·Glue·Redshift·MSK","desc":"수집·버퍼·처리·카탈로그·쿼리·시각화의 경계와 실시간·배치의 선택"}
+
+## 1. 컨베이어와 분석실은 같은 장비가 아니다
+
+창고 센서가 온도를 계속 보내고, 하루 뒤 관리자가 시간대별 평균을 본다고 해 봅시다. 데이터를 받는 통로, 잠깐 보관하는 공간, 계산하는 작업자, 결과를 조회하는 분석실이 필요합니다. Kinesis나 MSK가 데이터를 운반·보관하는 역할을 맡는다고 Athena의 SQL 분석까지 같은 서비스가 처리하는 것은 아닙니다. 분석 시스템을 **수집→저장→가공→조회→공유**로 나누면 긴 제품 목록이 정리됩니다.
+
+## 2. 스트림과 큐의 차이부터
+
+큐에서는 작업 완료 후 메시지를 제거하는 소비 모델을 많이 사용합니다. 로그 기반 스트림은 보존된 레코드를 소비 위치에 따라 읽고 여러 소비자가 독립적으로 다시 처리하는 모델이 중요합니다. 어느 쪽이 더 좋다는 뜻이 아니라 작업 분배와 기록 재생의 요구가 다르다는 뜻입니다.
+
+Kinesis Data Streams는 partition key와 shard 기반의 스트림 처리 개념을 제공합니다. 같은 키의 부하가 집중되면 전체 용량이 남아도 hot shard 문제가 생길 수 있습니다. 소비자는 자신의 처리 위치와 지연을 관리하고, 보존 기간 안에서 재처리를 계획합니다. 전역 순서와 키·shard 안의 순서는 다르므로 “스트림이면 모든 사건이 한 줄로 정렬된다”고 가정하지 않습니다.
+
+MSK는 Apache Kafka의 관리형 운영 선택지입니다. 브로커 운영의 일부가 관리형이 되어도 partition key·consumer group·offset·retention·중복 처리·스키마 호환성은 애플리케이션 책임으로 남습니다. Kafka를 쓴 경험과 생태계가 중요한 요구라면 MSK를, 다른 관리형 스트림 선택이 운영 요구에 더 맞으면 해당 서비스를 비교합니다.
+
+## 3. Firehose와 Flink: 전달과 계산
+
+Data Firehose는 스트리밍 데이터를 지원 목적지에 전달하는 관리형 수집·전달 서비스입니다. 버퍼링과 변환 옵션을 이용할 수 있지만 모든 이벤트를 즉시 단건으로 전달하는 초저지연 경로로 일반화하지 않습니다. 버퍼 크기·시간·목적지·오류 레코드 처리에 따라 지연과 비용이 달라집니다. “S3로 안정적으로 적재하고 나중에 분석”하는 요구와 잘 연결됩니다.
+
+Managed Service for Apache Flink는 상태를 가진 스트림 계산에 사용합니다. 최근 5분의 창고별 평균 온도처럼 시간 창과 상태가 필요할 때 중요합니다. 이벤트가 발생한 시간(event time)과 시스템이 처리한 시간(processing time)은 다릅니다. 늦게 온 데이터까지 어떻게 집계할지 watermark·허용 지연·상태 복구 전략을 정해야 합니다. checkpoint가 있어도 외부 sink의 보장과 함께 검토해야 end-to-end 결과를 설명할 수 있습니다.
+
+## 4. S3·Glue·Lake Formation: 데이터와 설명서와 출입 통제
+
+S3는 데이터 레이크의 객체 저장소로 사용할 수 있습니다. Glue Data Catalog는 테이블·스키마·위치 같은 메타데이터를 관리하는 역할이며 데이터 본문을 자동으로 모두 복사해 보관하는 DB가 아닙니다. crawler는 데이터를 관찰해 메타데이터를 추론하는 데 도움을 주지만 모든 의미적 타입과 변경을 완벽히 판단하지는 않습니다. 스키마 변화가 소비 쿼리를 깨뜨리지 않도록 계약을 관리합니다.
+
+Glue ETL은 데이터를 추출·변환·적재하는 작업을 지원합니다. CSV 로그를 날짜·창고 기준으로 정리하고 Parquet 같은 열 지향 파일로 변환하면 분석 스캔을 줄일 수 있습니다. Lake Formation은 데이터 레이크 권한과 거버넌스에 관련됩니다. IAM·S3·KMS와의 관계를 함께 이해해야 “카탈로그에서 보이니 데이터도 읽힌다”는 오해를 피할 수 있습니다.
+
+## 5. Athena와 Redshift
+
+Athena는 S3 등의 지원 데이터 소스에 SQL로 분석하는 서버리스 쿼리 서비스입니다. S3에 JSON을 쌓아 두었다고 자동으로 최적의 분석 구조가 되는 것은 아닙니다. 날짜 파티션을 만들고 쿼리에 해당 조건을 넣으며 필요한 열만 읽도록 포맷을 개선하면 읽는 데이터량을 줄일 수 있습니다. 작은 파일이 지나치게 많으면 파일 목록·계획·요청 오버헤드가 커질 수 있어 파일 크기도 관리합니다.
+
+Redshift는 데이터 웨어하우스 분석 목적의 선택지입니다. 대규모 분석과 반복적인 BI 질의, 분산 처리·열 저장·데이터 배치와 최적화라는 관점을 가집니다. Serverless 선택지에서도 비용·용량·쿼리 패턴 검토가 없어지는 것은 아닙니다. Athena와 Redshift를 “작으면 Athena, 크면 Redshift”로만 구분하지 말고 반복성·동시성·지연·운영·데이터 모델을 비교하세요.
+
+| 요구 | 출발 후보 | 검증할 병목 |
+|---|---|---|
+| S3 로그를 가끔 SQL로 탐색 | Athena | 스캔량·파티션·파일 수 |
+| 반복적인 대규모 BI | Redshift | 분산·정렬·동시 쿼리 |
+| 검색과 로그 탐색 | OpenSearch | 색인·샤드·메모리·보존 |
+| Spark/Hadoop 생태계 처리 | EMR | 작업 자원·shuffle·스토리지 |
+| 지속적인 상태 기반 스트림 집계 | Flink | 상태 크기·지연·checkpoint |
+
+## 6. 원문의 나머지 분석 서비스
+
+Kinesis Video Streams는 영상 스트림이라는 별도 입력 특성을 다룹니다. OpenSearch Serverless는 운영 용량 관리의 추상화가 다르지만 인덱스와 접근 정책·비용을 이해해야 합니다. Amazon Quick 계열은 분석·시각화와 사용자 소비 맥락, DataZone은 데이터 발견·공유·거버넌스, Clean Rooms는 여러 주체의 제한된 협업 분석이라는 목적입니다.
+
+Data Exchange는 외부 데이터 구독과 공유, Entity Resolution은 서로 다른 기록이 같은 실체인지 연결하는 작업입니다. CloudSearch는 현재 신규 고객을 받지 않는 유지보수 단계입니다. Data Pipeline은 원문에서 데이터 이동·처리 의존성을 정의하는 오케스트레이션 서비스로 소개되며, 실제 신규 구성에서는 현재 이용 조건과 Glue·Step Functions·MWAA 같은 대안의 적합성을 확인합니다. [CloudSearch 상태](https://docs.aws.amazon.com/general/latest/gr/maintenance_services.html) FinSpace는 공식 문서상 2026-10-07 지원 종료가 안내되어 있으므로 이 연재의 작성일에는 신규 시스템 추천으로 다루지 않습니다. 제품 소개를 보존하는 것과 오늘 도입할 도구를 추천하는 것은 분리해야 합니다.
+
+## 7. 가상 장애: 분석 비용이 갑자기 열 배
+
+원본 JSON을 날짜 구분 없이 저장하고 `SELECT *`로 전체 기간을 매번 읽었습니다. 데이터가 늘면서 스캔량과 시간이 함께 커졌습니다. 먼저 쿼리의 필터와 실제 스캔량을 확인합니다. 필요한 열만 읽도록 열 지향 포맷을 검토하고, 날짜 파티션과 적절한 파일 크기를 설계합니다. 파티션을 만들기만 하고 쿼리가 그 조건을 사용하지 않으면 기대한 pruning 효과가 없을 수 있습니다.
+
+실습으로 총 1TB 중 하루치 10GB만 필요한 상황을 계산해 보세요. 날짜로 읽는 범위를 줄이고 열 선택으로 추가 절감할 수 있지만, 압축률·파일 통계·실제 쿼리 엔진 동작에 따라 결과가 달라집니다. 임의 수치를 제품 성능 보장처럼 쓰지 말고 실제 scanned bytes로 검증합니다.
+
+## 8. 상세 면접 Q&A
+
+<details><summary>Q. Firehose와 Data Streams는 왜 둘 다 있나요?</summary><p>직접 소비 위치와 여러 처리 애플리케이션을 관리할 스트림이 필요한지, 지원 저장소로 관리형 적재를 맡길지가 다릅니다. Firehose는 버퍼링과 목적지 전달에 초점이 있고 Data Streams는 스트림을 읽는 소비 애플리케이션 설계가 중요합니다. 서로 연결해 사용할 수도 있습니다.</p></details>
+<details><summary>Q. Glue Catalog에 테이블을 만들면 데이터가 복사되나요?</summary><p>카탈로그는 주로 스키마와 위치 등 메타데이터를 관리합니다. 별도 ETL이나 복사 작업 없이 원본 데이터가 자동으로 새 저장소에 복제되는 것은 아닙니다. 데이터 위치와 메타데이터의 관계를 구분해야 권한과 삭제 영향도 올바르게 이해할 수 있습니다.</p></details>
+<details><summary>Q. MSK를 쓰면 Kafka 운영 지식이 필요 없나요?</summary><p>인프라 관리 부담은 줄지만 파티션·키·소비자 병렬성·오프셋·보존·재시도는 남습니다. 특정 키에 부하가 집중되거나 소비자 처리가 느려지는 문제는 관리형이라는 이유로 해결되지 않습니다. 운영 책임이 줄어드는 범위를 정확히 확인해야 합니다.</p></details>
+<details><summary>Q. 실시간 분석은 언제 필요한가요?</summary><p>의사결정이 늦어져 발생하는 손실과 필요한 지연을 먼저 정합니다. 냉장 온도 이상에 즉시 대응하는 요구와 다음 날 보고서는 다릅니다. 실시간 상태·재처리·늦은 이벤트 처리 복잡성에 비해 얻는 가치가 있는지 판단합니다.</p></details>
+
+## 공식 문서
+
+- [Kinesis Data Streams](https://docs.aws.amazon.com/streams/latest/dev/introduction.html)
+- [Data Firehose](https://docs.aws.amazon.com/firehose/latest/dev/what-is-this-service.html)
+- [Athena 성능 개선](https://docs.aws.amazon.com/athena/latest/ug/performance-tuning.html)
+- [Glue Data Catalog](https://docs.aws.amazon.com/glue/latest/dg/catalog-and-crawler.html)
+- [FinSpace 종료 공지](https://docs.aws.amazon.com/finspace/latest/management-api/amazon-finspace-end-of-support.html)

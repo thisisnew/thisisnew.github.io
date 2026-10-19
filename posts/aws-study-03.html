@@ -1,0 +1,71 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="프로세스 실행부터 확장 지표·cold start·컨테이너 오케스트레이션·중단 허용 작업까지"><title>AWS 03 · 컴퓨팅 선택: EC2·Auto Scaling·Lambda·컨테이너의 동작과 책임 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/aws-study-03.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/aws-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="aws"><main><a href="/">← 전체 글</a> · <a href="/posts/aws-study-00.html">AWS 학습 지도</a><header><p class="meta">AWS QUEST · 03 / 22 · CORE · 2026-10-20</p><h1>컴퓨팅 선택: EC2·Auto Scaling·Lambda·컨테이너의 동작과 책임</h1><p class="subtitle">프로세스 실행부터 확장 지표·cold start·컨테이너 오케스트레이션·중단 허용 작업까지</p><p class="note">첨부 공부팩 03_컴퓨팅_EC2_AutoScaling_Lambda_Containers.pdf (14쪽)의 주제를 재구성한 해설입니다. 공식 문서 확인일: 2026-10-20. 장애 사례와 수치는 학습용 가정이며 AWS 실계정 실험 결과가 아닙니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. 실행할 곳과 관리할 사람을 함께 고른다</a></li><li><a href="#section-2">2. EC2의 내부 흐름: 이미지에서 요청 처리까지</a></li><li><a href="#section-3">3. Auto Scaling은 “CPU가 높으면 복제”보다 넓다</a></li><li><a href="#section-4">4. Lambda: 함수가 실행되는 단위를 이해하기</a></li><li><a href="#section-5">5. ECR·ECS·EKS·Fargate는 대체어가 아니다</a></li><li><a href="#section-6">6. 원문에 나오는 다른 컴퓨팅 서비스의 위치</a></li><li><a href="#section-7">7. 가상 장애: 확장했더니 DB가 먼저 죽었다</a></li><li><a href="#section-8">8. 상세 면접 Q&amp;A</a></li><li><a href="#section-9">공식 문서</a></li></ol></aside><article><h2 id="section-1">1. 실행할 곳과 관리할 사람을 함께 고른다</h2>
+<p>식당을 운영한다고 생각해 봅시다. 주방 전체를 빌려 직접 관리하는 방식은 EC2에 가깝습니다. 조리 도구와 재료를 정해진 포장 단위로 배치하는 것이 컨테이너라면, 여러 조리대를 배치하고 고장 난 조리대를 교체하는 관리자는 ECS나 Kubernetes입니다. 주문마다 작은 조리 작업을 맡기는 방식은 Lambda에 가깝습니다. 다만 비유와 달리 Lambda도 실제 서버 위에서 실행되고, 컨테이너가 반드시 서버리스인 것도 아닙니다.</p>
+<p>핵심 질문은 세 가지입니다. <strong>무엇을 실행하는가, 얼마나 오래 실행하는가, 운영체제와 실행 용량을 누가 관리하는가?</strong> 이 질문에 답한 뒤 서비스 이름을 선택해야 합니다.</p>
+<h2 id="section-2">2. EC2의 내부 흐름: 이미지에서 요청 처리까지</h2>
+<p>EC2는 가상 서버 인스턴스입니다. AMI는 시작에 필요한 OS와 소프트웨어 구성을 담는 이미지이고, instance type은 CPU·메모리·네트워크 등의 자원 형태를 정합니다. 시작 템플릿에는 이미지, 유형, 보안 그룹, IAM instance profile 등의 시작 설정을 담을 수 있습니다. 인스턴스가 켜졌다고 서비스가 준비된 것은 아닙니다. OS 부팅, 설정 로딩, Java 프로세스 시작, DB 연결, 캐시 준비를 거쳐야 실제 트래픽을 받을 수 있습니다.</p>
+<p>일반 목적·컴퓨팅 최적화·메모리 최적화·스토리지 최적화·가속 컴퓨팅은 병목이 다른 작업을 위한 선택지입니다. Java 서비스가 느릴 때 CPU가 낮다고 더 작은 인스턴스로 바꾸면 안 됩니다. DB 대기·메모리 부족·디스크 지연일 수 있기 때문입니다. burstable 인스턴스는 CPU 크레딧 조건도 확인합니다. 지속적인 고부하와 짧은 순간 부하는 같은 평균 CPU라도 비용과 성능이 다를 수 있습니다.</p>
+<p>EBS는 인스턴스와 생명주기가 분리될 수 있는 블록 스토리지입니다. instance store는 호스트에 연결된 임시 저장 성격이 강하므로 유일한 원본 데이터 저장소로 쓰면 위험합니다. 재부팅·중지·종료·호스트 장애는 서로 다른 사건이며, 어떤 저장 데이터가 남는지는 저장 방식과 삭제 설정에 따라 판단합니다.</p>
+<h2 id="section-3">3. Auto Scaling은 “CPU가 높으면 복제”보다 넓다</h2>
+<p>Auto Scaling Group은 최소·희망·최대 용량과 건강 상태를 바탕으로 인스턴스 수를 유지합니다. 건강하지 않은 인스턴스를 교체하는 일과 부하에 맞춰 수를 바꾸는 일은 별개입니다. target tracking은 지표를 목표 수준에 가깝게 유지하려는 정책이고, scheduled scaling은 예상 가능한 시간에 용량을 준비합니다. 애플리케이션 준비 시간과 instance warmup을 고려하지 않으면 새 서버가 충분히 처리하기 전에 또 확장하거나 너무 빨리 축소할 수 있습니다.</p>
+<p>큐 소비자는 CPU보다 <strong>인스턴스당 backlog</strong>와 가장 오래된 메시지의 나이가 더 직접적인 지표일 수 있습니다. 가령 1건 처리에 0.2초가 걸리고 한 소비자가 순차 처리하면 초당 약 5건입니다. 1분 안에 대기 작업 3,000건을 처리하려면 신규 유입이 없다는 단순 가정에서 10개 소비자의 처리량이 필요합니다. 실제로는 유입·병렬성·외부 API 제한·DB 용량을 포함해야 합니다.</p>
+<p>축소할 때는 새 요청을 막고 진행 중 요청을 마무리해야 합니다. LB의 deregistration delay, 애플리케이션 graceful shutdown, 큐 visibility timeout을 따로 설정하면 종료 중 중복 처리나 요청 실패가 생길 수 있습니다. 단순히 프로세스를 즉시 죽이는 배포는 자동 확장과 잘 맞지 않습니다.</p>
+<h2 id="section-4">4. Lambda: 함수가 실행되는 단위를 이해하기</h2>
+<p>Lambda는 이벤트를 받아 함수를 실행합니다. 실행 환경 준비가 필요할 때 초기화 지연이 발생할 수 있고, 재사용되는 환경에서는 초기화 비용을 줄일 수 있습니다. 그러나 환경 재사용을 영속 상태 보장으로 생각하면 안 됩니다. 임시 파일과 메모리 캐시는 최적화 수단일 뿐, 업무 원본은 외부 저장소에 둡니다.</p>
+<p>동시성은 동시에 진행 중인 호출 수입니다. 안정 상태의 근사로 <code>동시성 ≈ 초당 호출 수 × 평균 실행 시간(초)</code>를 사용할 수 있습니다. 초당 100회 호출되고 평균 0.5초가 걸리면 약 50개가 동시에 실행됩니다. 실행 시간이 DB 지연으로 5초가 되면 같은 유입에도 약 500개가 필요합니다. Lambda를 무작정 늘리면 DB 연결이 먼저 한계에 닿을 수 있습니다. reserved concurrency는 함수의 동시성 한계를 정하고 다른 함수와 자원을 나누는 데 쓰이며, provisioned concurrency는 준비된 실행 환경으로 초기화 지연을 줄이는 목적입니다.</p>
+<p>호출 방식마다 재시도와 오류 처리 계약이 다릅니다. 동기 호출 실패는 호출자가 처리하고, 비동기 호출과 큐 이벤트 소스는 각자의 재시도 동작을 가집니다. “Lambda가 알아서 정확히 한 번 실행한다”는 가정은 금물입니다. 장시간 상주 연결·특정 OS 제어·실행 시간 제한을 넘는 작업은 다른 실행 환경을 검토합니다.</p>
+<h2 id="section-5">5. ECR·ECS·EKS·Fargate는 대체어가 아니다</h2>
+<table>
+<thead>
+<tr>
+<th>요소</th>
+<th>책임</th>
+<th>오해하기 쉬운 점</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ECR</td>
+<td>컨테이너 이미지 보관·배포</td>
+<td>이미지를 저장해도 실행되지는 않음</td>
+</tr>
+<tr>
+<td>ECS</td>
+<td>task·service 단위 배치와 유지</td>
+<td>EC2 또는 Fargate 등의 실행 용량과 결합</td>
+</tr>
+<tr>
+<td>EKS</td>
+<td>관리형 Kubernetes 제어 영역</td>
+<td>워커·애드온·네트워크·앱 운영이 모두 없어지지 않음</td>
+</tr>
+<tr>
+<td>Fargate</td>
+<td>컨테이너 실행용 서버 용량 관리</td>
+<td>컨테이너 이미지·권한·앱 자원 설정은 고객 책임</td>
+</tr>
+<tr>
+<td>EC2</td>
+<td>가상 서버 용량</td>
+<td>컨테이너 없이도, 컨테이너 호스트로도 사용 가능</td>
+</tr>
+</tbody></table>
+<p>ECS의 task definition은 이미지·자원·포트·role 등의 실행 명세이고, service는 원하는 task 수를 유지하는 역할을 합니다. task role은 애플리케이션이 AWS API를 호출하는 권한, execution role은 이미지 가져오기나 로그 전달 등 실행 지원 작업의 권한이라는 구분이 중요합니다. EKS를 선택하는 이유는 Kubernetes 생태계·표준 도구·팀 경험과 연결해야 합니다. 단지 컨테이너를 쓴다는 이유만으로 EKS가 필수는 아닙니다.</p>
+<h2 id="section-6">6. 원문에 나오는 다른 컴퓨팅 서비스의 위치</h2>
+<p>Batch는 대량 작업의 대기열·스케줄링·실행 용량을 조정합니다. Elastic Beanstalk는 애플리케이션 배포와 기반 리소스 구성을 추상화하고, Lightsail은 단순한 묶음형 환경을 제공합니다. Image Builder는 이미지 제작·검증 파이프라인을 관리하고, Amazon Linux는 실행 OS 선택지입니다. Serverless Application Repository는 재사용할 서버리스 애플리케이션 배포물을 찾는 곳이지 별도의 실행 서버가 아닙니다.</p>
+<p>Outposts는 온프레미스로 AWS 인프라와 서비스를 확장하는 하이브리드 방식이고, Wavelength는 통신망 엣지 가까운 실행 요구와 연결됩니다. App2Container는 기존 애플리케이션의 컨테이너화 지원, ROSA는 관리형 OpenShift, VMware Cloud on AWS는 VMware 기반 이전과 운영 연속성이라는 맥락에서 이해합니다. App Runner는 소스나 이미지에서 웹 애플리케이션을 배포하는 추상화를 제공하지만, 현재 공식 문서는 신규 고객을 받지 않으며 기존 고객만 계속 사용할 수 있다고 안내합니다. 새 구축에는 이 제한을 반영해야 합니다. <a href="https://docs.aws.amazon.com/apprunner/latest/dg/apprunner-availability-change.html">App Runner 상태 공지</a> 핵심은 제품 이름을 암기하기보다 “배포 추상화·이미지 제작·배치·하이브리드”라는 역할을 분리하는 것입니다.</p>
+<h2 id="section-7">7. 가상 장애: 확장했더니 DB가 먼저 죽었다</h2>
+<p>이미지 처리 Lambda가 빨리 늘어나며 각 실행이 새 DB 연결을 만들었습니다. 함수의 CPU는 여유가 있지만 DB 연결 수가 한계에 도달해 timeout이 증가했습니다. timeout 때문에 재시도가 늘어 동시성이 더 커졌습니다. 해결은 Lambda 용량 확대 하나가 아닙니다. 동시성 제한, 큐로 유입 완충, 짧은 트랜잭션, 연결 재사용 또는 적절한 프록시, 멱등 처리를 함께 설계합니다. DB가 견딜 처리량을 넘지 않도록 전체 경로의 예산을 정합니다.</p>
+<p>실습 대신 먼저 초당 유입 200건, 처리 시간 0.1초·1초·3초를 표로 계산해 보세요. 필요한 동시성은 20·200·600으로 바뀝니다. 평균만으로는 꼬리 지연과 burst를 담지 못하므로 실제 배포 전에는 p95/p99와 throttling도 관찰해야 합니다.</p>
+<h2 id="section-8">8. 상세 면접 Q&amp;A</h2>
+<details class="question"><summary>Q. Spring Boot API는 EC2와 Lambda 중 무엇이 맞나요?</summary><div class="answer"><p>기존 상주 서버 구조·연결 패턴·트래픽·초기화 시간·요청 제한을 먼저 확인합니다. 일정한 장기 부하와 OS 제어가 중요하면 EC2나 컨테이너가 자연스러울 수 있고, 이벤트 중심의 간헐적 작업이면 Lambda가 운영 부담을 줄일 수 있습니다. 서버리스라는 단어만으로 비용이나 지연이 더 좋다고 단정하지 않습니다.</p></div></details>
+<details class="question"><summary>Q. Fargate를 쓰면 ECS와 EKS가 필요 없나요?</summary><div class="answer"><p>Fargate는 실행 용량을 관리하는 계층이고 ECS/EKS는 작업 배치와 수명주기를 관리하는 계층입니다. 서로 다른 질문에 답합니다. 따라서 “ECS 대 Fargate”보다는 “ECS의 실행 용량을 EC2로 관리할지 Fargate로 맡길지”라는 비교가 정확합니다.</p></div></details>
+<details class="question"><summary>Q. Spot 인스턴스는 어디에 적합한가요?</summary><div class="answer"><p>중단 가능성을 전제로 재시도·체크포인트·대체 용량을 설계할 수 있는 작업에 적합합니다. 원본이 다른 곳에 있고 다시 계산 가능한 배치가 예입니다. 중단되면 회복할 수 없는 유일한 상태를 두거나, 대체 용량 없이 즉시 응답을 보장하려는 구성에는 맞지 않습니다.</p></div></details>
+<details class="question"><summary>Q. 무상태 서버란 DB를 사용하지 않는 서버인가요?</summary><div class="answer"><p>아닙니다. 특정 서버의 로컬 메모리에만 있어야 다음 요청을 처리할 수 있는 업무 상태를 피한다는 뜻입니다. DB나 외부 세션 저장소를 사용할 수 있습니다. 어느 인스턴스가 요청을 받아도 필요한 상태를 얻을 수 있어야 교체·확장·장애 조치가 쉬워집니다.</p></div></details>
+
+<h2 id="section-9">공식 문서</h2>
+<ul>
+<li><a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/concepts.html">EC2 기본 개념</a></li>
+<li><a href="https://docs.aws.amazon.com/autoscaling/ec2/userguide/what-is-amazon-ec2-auto-scaling.html">EC2 Auto Scaling</a></li>
+<li><a href="https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html">Lambda 동시성</a></li>
+<li><a href="https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html">ECS 개념</a></li>
+</ul>
+</article><nav aria-label="연재 이동"><a href="/posts/aws-study-02.html">← 클라우드와 글로벌 인프라: 계정·리전·AZ를 처음부터 구분하기</a><a href="/posts/aws-study-04.html">스토리지: S3·EBS·EFS를 데이터 접근 방식부터 이해하기 →</a></nav><footer>AWS SAA 학습 연재 · <a href="/learning/aws/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

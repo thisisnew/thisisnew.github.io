@@ -1,0 +1,1610 @@
+[
+  {
+    "n": 0,
+    "file": "00_AWS_SAA_공부순서_로드맵.pdf",
+    "pages": 2,
+    "headings": [
+      {
+        "page": 1,
+        "title": "AWS SAA-C03"
+      },
+      {
+        "page": 1,
+        "title": "공식문서기반공부로드맵"
+      },
+      {
+        "page": 1,
+        "title": "1."
+      },
+      {
+        "page": 1,
+        "title": "이공부팩을어떻게쓰는가"
+      },
+      {
+        "page": 1,
+        "title": "2. 1"
+      },
+      {
+        "page": 1,
+        "title": "회전권장순서-"
+      },
+      {
+        "page": 1,
+        "title": "전체지도만들기"
+      },
+      {
+        "page": 2,
+        "title": "3. 2"
+      },
+      {
+        "page": 2,
+        "title": "회전-"
+      },
+      {
+        "page": 2,
+        "title": "시험에서자주비교되는것"
+      },
+      {
+        "page": 2,
+        "title": "4. DEEP_DIVE"
+      },
+      {
+        "page": 2,
+        "title": "는이렇게사용"
+      },
+      {
+        "page": 2,
+        "title": "5."
+      },
+      {
+        "page": 2,
+        "title": "권장일정"
+      },
+      {
+        "page": 2,
+        "title": "6. PDF"
+      },
+      {
+        "page": 2,
+        "title": "하나를공부할때그대로붙여넣을질문"
+      }
+    ],
+    "sha256": "cdcca3ec355d2139c296bbcc0cf18794c7487957ccbda65087c00433b8225d0c"
+  },
+  {
+    "n": 1,
+    "file": "01_SAA-C03_공식_시험가이드.pdf",
+    "pages": 30,
+    "headings": [
+      {
+        "page": 1,
+        "title": "Exam Guide (SAA-C03)"
+      },
+      {
+        "page": 1,
+        "title": "AWS Certiﬁed Solutions Architect -"
+      },
+      {
+        "page": 1,
+        "title": "Associate"
+      },
+      {
+        "page": 2,
+        "title": "AWS Certiﬁed Solutions Architect - Associate: Exam Guide (SAA-C03)"
+      },
+      {
+        "page": 3,
+        "title": "Table of Contents"
+      },
+      {
+        "page": 5,
+        "title": "AWS Certiﬁed Solutions Architect - Associate (SAA-C03)"
+      },
+      {
+        "page": 5,
+        "title": "Introduction"
+      },
+      {
+        "page": 6,
+        "title": "Target candidate description"
+      },
+      {
+        "page": 6,
+        "title": "Exam content"
+      },
+      {
+        "page": 6,
+        "title": "Response types"
+      },
+      {
+        "page": 6,
+        "title": "Unscored content"
+      },
+      {
+        "page": 6,
+        "title": "Exam results"
+      },
+      {
+        "page": 7,
+        "title": "Content outline"
+      },
+      {
+        "page": 7,
+        "title": "Service References"
+      },
+      {
+        "page": 7,
+        "title": "Content Domain 1: Design Secure Architectures"
+      },
+      {
+        "page": 8,
+        "title": "Task 1.1: Design secure access to AWS resources"
+      },
+      {
+        "page": 8,
+        "title": "Task 1.2: Design secure workloads and applications"
+      },
+      {
+        "page": 9,
+        "title": "Task 1.3: Determine appropriate data security controls"
+      },
+      {
+        "page": 10,
+        "title": "Content Domain 2: Design Resilient Architectures"
+      },
+      {
+        "page": 10,
+        "title": "Task 2.1: Design scalable and loosely coupled architectures"
+      },
+      {
+        "page": 11,
+        "title": "Task 2.2: Design highly available and/or fault-tolerant architectures"
+      },
+      {
+        "page": 12,
+        "title": "Content Domain 3: Design High-Performing Architectures"
+      },
+      {
+        "page": 12,
+        "title": "Task 3.1: Determine high-performing and/or scalable storage solutions"
+      },
+      {
+        "page": 12,
+        "title": "Task 3.2: Design high-performing and elastic compute solutions"
+      },
+      {
+        "page": 13,
+        "title": "Task 3.3: Determine high-performing database solutions"
+      },
+      {
+        "page": 14,
+        "title": "Task 3.4: Determine high-performing and/or scalable network"
+      },
+      {
+        "page": 14,
+        "title": "architectures"
+      },
+      {
+        "page": 14,
+        "title": "Task 3.5: Determine high-performing data ingestion and"
+      },
+      {
+        "page": 14,
+        "title": "transformation solutions"
+      },
+      {
+        "page": 15,
+        "title": "Content Domain 4: Design Cost-Optimized Architectures"
+      },
+      {
+        "page": 15,
+        "title": "Task 4.1: Design cost-optimized storage solutions"
+      },
+      {
+        "page": 16,
+        "title": "Task 4.2: Design cost-optimized compute solutions"
+      },
+      {
+        "page": 17,
+        "title": "Task 4.3: Design cost-optimized database solutions"
+      },
+      {
+        "page": 18,
+        "title": "Task 4.4: Design cost-optimized network architectures"
+      },
+      {
+        "page": 19,
+        "title": "Technologies and Concepts"
+      },
+      {
+        "page": 20,
+        "title": "Mentions of AWS Services on the Exam"
+      },
+      {
+        "page": 20,
+        "title": "In-Scope AWS Services"
+      },
+      {
+        "page": 21,
+        "title": "Analytics"
+      },
+      {
+        "page": 21,
+        "title": "Application Integration"
+      },
+      {
+        "page": 21,
+        "title": "AWS Cost Management"
+      },
+      {
+        "page": 22,
+        "title": "Compute"
+      },
+      {
+        "page": 22,
+        "title": "Containers"
+      },
+      {
+        "page": 22,
+        "title": "Database"
+      },
+      {
+        "page": 23,
+        "title": "Developer Tools"
+      },
+      {
+        "page": 23,
+        "title": "Front-End Web and Mobile"
+      },
+      {
+        "page": 23,
+        "title": "Machine Learning"
+      },
+      {
+        "page": 23,
+        "title": "Management and Governance"
+      },
+      {
+        "page": 24,
+        "title": "Media Services"
+      },
+      {
+        "page": 24,
+        "title": "Migration and Transfer"
+      },
+      {
+        "page": 24,
+        "title": "Networking and Content Delivery"
+      },
+      {
+        "page": 25,
+        "title": "Security, Identity, and Compliance"
+      },
+      {
+        "page": 26,
+        "title": "Serverless"
+      },
+      {
+        "page": 26,
+        "title": "Storage"
+      },
+      {
+        "page": 26,
+        "title": "Out-of-Scope AWS Services"
+      },
+      {
+        "page": 27,
+        "title": "AR and VR"
+      },
+      {
+        "page": 27,
+        "title": "Blockchain"
+      },
+      {
+        "page": 28,
+        "title": "Game Tech"
+      },
+      {
+        "page": 28,
+        "title": "Internet of Things"
+      },
+      {
+        "page": 29,
+        "title": "Quantum Technologies"
+      },
+      {
+        "page": 29,
+        "title": "Satellite"
+      },
+      {
+        "page": 30,
+        "title": "Survey"
+      }
+    ],
+    "sha256": "064b11db4367154b0651f973022365362279a0ba6b7e8b80a101752d5b1e3f1a"
+  },
+  {
+    "n": 2,
+    "file": "02_AWS_기초_클라우드_글로벌인프라.pdf",
+    "pages": 8,
+    "headings": [
+      {
+        "page": 1,
+        "title": "Overview of Amazon Web Services"
+      },
+      {
+        "page": 1,
+        "title": "Introduction"
+      },
+      {
+        "page": 2,
+        "title": "What is cloud computing?"
+      },
+      {
+        "page": 3,
+        "title": "Six advantages of cloud computing"
+      },
+      {
+        "page": 4,
+        "title": "Types of cloud computing"
+      },
+      {
+        "page": 4,
+        "title": "Deployment models"
+      },
+      {
+        "page": 4,
+        "title": "Cloud"
+      },
+      {
+        "page": 4,
+        "title": "Private cloud (on-premises)"
+      },
+      {
+        "page": 4,
+        "title": "Hybrid"
+      },
+      {
+        "page": 5,
+        "title": "Global infrastructure"
+      },
+      {
+        "page": 6,
+        "title": "Security and compliance"
+      },
+      {
+        "page": 6,
+        "title": "Security"
+      },
+      {
+        "page": 7,
+        "title": "Beneﬁts of AWS security"
+      },
+      {
+        "page": 7,
+        "title": "Compliance"
+      },
+      {
+        "page": 8,
+        "title": "AWS services by category"
+      }
+    ],
+    "sha256": "957d89d8b201ee3d5726da1f7f3836aef96fe3f46d69a8c2daeeb7788328629e"
+  },
+  {
+    "n": 3,
+    "file": "03_컴퓨팅_EC2_AutoScaling_Lambda_Containers.pdf",
+    "pages": 14,
+    "headings": [
+      {
+        "page": 2,
+        "title": "Compare AWS compute services"
+      },
+      {
+        "page": 4,
+        "title": "Amazon EC2"
+      },
+      {
+        "page": 5,
+        "title": "Instance types"
+      },
+      {
+        "page": 6,
+        "title": "Amazon EC2 Auto Scaling"
+      },
+      {
+        "page": 7,
+        "title": "Amazon EC2 Image Builder"
+      },
+      {
+        "page": 7,
+        "title": "Amazon Lightsail"
+      },
+      {
+        "page": 7,
+        "title": "Amazon Linux 2023"
+      },
+      {
+        "page": 8,
+        "title": "AWS App Runner"
+      },
+      {
+        "page": 8,
+        "title": "AWS Batch"
+      },
+      {
+        "page": 8,
+        "title": "AWS Elastic Beanstalk"
+      },
+      {
+        "page": 9,
+        "title": "AWS Fargate"
+      },
+      {
+        "page": 9,
+        "title": "AWS Lambda"
+      },
+      {
+        "page": 9,
+        "title": "AWS Serverless Application Repository"
+      },
+      {
+        "page": 10,
+        "title": "AWS Outposts"
+      },
+      {
+        "page": 10,
+        "title": "AWS Wavelength"
+      },
+      {
+        "page": 11,
+        "title": "VMware Cloud on AWS"
+      },
+      {
+        "page": 12,
+        "title": "Amazon Elastic Container Registry"
+      },
+      {
+        "page": 13,
+        "title": "Amazon Elastic Container Service"
+      },
+      {
+        "page": 13,
+        "title": "Amazon Elastic Kubernetes Service"
+      },
+      {
+        "page": 13,
+        "title": "AWS App2Container"
+      },
+      {
+        "page": 14,
+        "title": "Red Hat OpenShift Service on AWS"
+      },
+      {
+        "page": 14,
+        "title": "Databases"
+      }
+    ],
+    "sha256": "fb74c7628cdbc150e9e0b53ea324121d0eeff2497986f9aea4d9a64cecb29482"
+  },
+  {
+    "n": 4,
+    "file": "04_스토리지_S3_EBS_EFS_Backup.pdf",
+    "pages": 7,
+    "headings": [
+      {
+        "page": 2,
+        "title": "AWS Backup"
+      },
+      {
+        "page": 2,
+        "title": "Amazon Elastic Block Store"
+      },
+      {
+        "page": 2,
+        "title": "AWS Elastic Disaster Recovery"
+      },
+      {
+        "page": 3,
+        "title": "Amazon Elastic File System"
+      },
+      {
+        "page": 3,
+        "title": "Amazon File Cache"
+      },
+      {
+        "page": 4,
+        "title": "Amazon FSx for Lustre"
+      },
+      {
+        "page": 4,
+        "title": "Amazon FSx for NetApp ONTAP"
+      },
+      {
+        "page": 5,
+        "title": "Amazon FSx for OpenZFS"
+      },
+      {
+        "page": 5,
+        "title": "Amazon FSx for Windows File Server"
+      },
+      {
+        "page": 5,
+        "title": "Amazon Simple Storage Service"
+      },
+      {
+        "page": 6,
+        "title": "AWS Storage Gateway"
+      }
+    ],
+    "sha256": "7acd25831ea33bb6aa96dece83c0efb02bd33d595a3ce3f39049719a750fd251"
+  },
+  {
+    "n": 5,
+    "file": "05_네트워크_VPC_ELB_Route53_CloudFront.pdf",
+    "pages": 7,
+    "headings": [
+      {
+        "page": 1,
+        "title": "Amazon API Gateway"
+      },
+      {
+        "page": 1,
+        "title": "AWS App Mesh"
+      },
+      {
+        "page": 2,
+        "title": "Amazon CloudFront"
+      },
+      {
+        "page": 2,
+        "title": "AWS Cloud Map"
+      },
+      {
+        "page": 3,
+        "title": "Direct Connect"
+      },
+      {
+        "page": 3,
+        "title": "Elastic Load Balancing"
+      },
+      {
+        "page": 4,
+        "title": "AWS Global Accelerator"
+      },
+      {
+        "page": 5,
+        "title": "Integrated Private Wireless on AWS"
+      },
+      {
+        "page": 5,
+        "title": "AWS PrivateLink"
+      },
+      {
+        "page": 5,
+        "title": "AWS Private 5G"
+      },
+      {
+        "page": 6,
+        "title": "Amazon Route 53"
+      },
+      {
+        "page": 7,
+        "title": "AWS Transit Gateway"
+      },
+      {
+        "page": 7,
+        "title": "AWS Veriﬁed Access"
+      },
+      {
+        "page": 7,
+        "title": "Amazon VPC"
+      }
+    ],
+    "sha256": "a912a10fbefc8b885ee5db5cd355d430c31558bc575fd7a5580b4202129271e5"
+  },
+  {
+    "n": 6,
+    "file": "06_데이터베이스_RDS_Aurora_DynamoDB_ElastiCache.pdf",
+    "pages": 8,
+    "headings": [
+      {
+        "page": 2,
+        "title": "Compare AWS database services"
+      },
+      {
+        "page": 3,
+        "title": "Amazon Aurora"
+      },
+      {
+        "page": 4,
+        "title": "Amazon DynamoDB"
+      },
+      {
+        "page": 4,
+        "title": "Amazon ElastiCache"
+      },
+      {
+        "page": 5,
+        "title": "Amazon Keyspaces (for Apache Cassandra)"
+      },
+      {
+        "page": 6,
+        "title": "Amazon MemoryDB"
+      },
+      {
+        "page": 6,
+        "title": "Amazon Neptune"
+      },
+      {
+        "page": 7,
+        "title": "Amazon Relational Database Service"
+      },
+      {
+        "page": 7,
+        "title": "Amazon RDS for Db2"
+      },
+      {
+        "page": 7,
+        "title": "Amazon RDS on VMware"
+      },
+      {
+        "page": 8,
+        "title": "Amazon Timestream"
+      },
+      {
+        "page": 8,
+        "title": "Amazon DocumentDB (with MongoDB compatibility)"
+      },
+      {
+        "page": 8,
+        "title": "Amazon Lightsail managed databases"
+      }
+    ],
+    "sha256": "e4038e012633bb0615a166205ad57b299cf16fd44c825080bb5535211d559786"
+  },
+  {
+    "n": 7,
+    "file": "07_메시징_통합_SQS_SNS_EventBridge_StepFunctions.pdf",
+    "pages": 3,
+    "headings": [
+      {
+        "page": 2,
+        "title": "AWS Step Functions"
+      },
+      {
+        "page": 2,
+        "title": "Amazon AppFlow"
+      },
+      {
+        "page": 2,
+        "title": "AWS B2B Data Interchange"
+      },
+      {
+        "page": 3,
+        "title": "Amazon EventBridge"
+      },
+      {
+        "page": 3,
+        "title": "Amazon Managed Workﬂows for Apache Airﬂow (MWAA)"
+      },
+      {
+        "page": 3,
+        "title": "Amazon MQ"
+      }
+    ],
+    "sha256": "712a0ea7c111aa162ef59c1e98b9bf09831d7e489636f883e91f8c3ccbe406b0"
+  },
+  {
+    "n": 8,
+    "file": "08_보안_IAM_KMS_Secrets_WAF_Shield.pdf",
+    "pages": 13,
+    "headings": [
+      {
+        "page": 2,
+        "title": "Amazon Cognito"
+      },
+      {
+        "page": 2,
+        "title": "Amazon Detective"
+      },
+      {
+        "page": 3,
+        "title": "Amazon GuardDuty"
+      },
+      {
+        "page": 4,
+        "title": "Amazon Inspector"
+      },
+      {
+        "page": 4,
+        "title": "Amazon Macie"
+      },
+      {
+        "page": 5,
+        "title": "Amazon Security Lake"
+      },
+      {
+        "page": 6,
+        "title": "Amazon Veriﬁed Permissions"
+      },
+      {
+        "page": 6,
+        "title": "AWS Artifact"
+      },
+      {
+        "page": 6,
+        "title": "AWS Audit Manager"
+      },
+      {
+        "page": 7,
+        "title": "AWS Certiﬁcate Manager"
+      },
+      {
+        "page": 7,
+        "title": "AWS CloudHSM"
+      },
+      {
+        "page": 8,
+        "title": "AWS Directory Service"
+      },
+      {
+        "page": 8,
+        "title": "AWS Firewall Manager"
+      },
+      {
+        "page": 8,
+        "title": "AWS Identity and Access Management"
+      },
+      {
+        "page": 9,
+        "title": "AWS Key Management Service"
+      },
+      {
+        "page": 9,
+        "title": "AWS Network Firewall"
+      },
+      {
+        "page": 10,
+        "title": "AWS Resource Access Manager"
+      },
+      {
+        "page": 10,
+        "title": "AWS Secrets Manager"
+      },
+      {
+        "page": 11,
+        "title": "AWS Security Hub CSPM"
+      },
+      {
+        "page": 11,
+        "title": "AWS Shield"
+      },
+      {
+        "page": 12,
+        "title": "AWS IAM Identity Center"
+      },
+      {
+        "page": 13,
+        "title": "AWS WAF"
+      },
+      {
+        "page": 13,
+        "title": "AWS WAF Captcha"
+      },
+      {
+        "page": 13,
+        "title": "Storage"
+      }
+    ],
+    "sha256": "aa6ce47bbaac75c3736448dc2a5d4c3bd838caff654accd60ca5876613c01203"
+  },
+  {
+    "n": 9,
+    "file": "09_운영_관찰성_CloudWatch_CloudTrail_Config_Organizations.pdf",
+    "pages": 10,
+    "headings": [
+      {
+        "page": 1,
+        "title": "AWS Auto Scaling"
+      },
+      {
+        "page": 1,
+        "title": "AWS CloudFormation"
+      },
+      {
+        "page": 2,
+        "title": "AWS CloudTrail"
+      },
+      {
+        "page": 2,
+        "title": "Amazon CloudWatch"
+      },
+      {
+        "page": 2,
+        "title": "AWS Compute Optimizer"
+      },
+      {
+        "page": 3,
+        "title": "AWS Console Mobile Application"
+      },
+      {
+        "page": 3,
+        "title": "AWS Control Tower"
+      },
+      {
+        "page": 4,
+        "title": "AWS Conﬁg"
+      },
+      {
+        "page": 4,
+        "title": "AWS Health"
+      },
+      {
+        "page": 4,
+        "title": "AWS Launch Wizard"
+      },
+      {
+        "page": 5,
+        "title": "AWS License Manager"
+      },
+      {
+        "page": 5,
+        "title": "Amazon Managed Grafana"
+      },
+      {
+        "page": 6,
+        "title": "Amazon Managed Service for Prometheus"
+      },
+      {
+        "page": 6,
+        "title": "AWS Organizations"
+      },
+      {
+        "page": 6,
+        "title": "OpsWorks"
+      },
+      {
+        "page": 7,
+        "title": "AWS Proton"
+      },
+      {
+        "page": 7,
+        "title": "Amazon Q Developer in chat applications (formerly AWS Chatbot)"
+      },
+      {
+        "page": 7,
+        "title": "AWS Service Catalog"
+      },
+      {
+        "page": 8,
+        "title": "AWS Systems Manager"
+      },
+      {
+        "page": 10,
+        "title": "AWS Trusted Advisor"
+      },
+      {
+        "page": 10,
+        "title": "AWS User Notiﬁcations"
+      },
+      {
+        "page": 10,
+        "title": "AWS Well-Architected Tool"
+      }
+    ],
+    "sha256": "56253b8f750430aa5330d6a068afb75a9c1b23fe5fd03e41fd2170fcbd4d9c99"
+  },
+  {
+    "n": 10,
+    "file": "10_비용관리_CostExplorer_Budgets_SavingsPlans.pdf",
+    "pages": 3,
+    "headings": [
+      {
+        "page": 1,
+        "title": "AWS Billing Conductor"
+      },
+      {
+        "page": 2,
+        "title": "AWS Cost Explorer"
+      },
+      {
+        "page": 2,
+        "title": "AWS Budgets"
+      },
+      {
+        "page": 3,
+        "title": "AWS Cost and Usage Report"
+      },
+      {
+        "page": 3,
+        "title": "Reserved Instance (RI) reporting"
+      },
+      {
+        "page": 3,
+        "title": "Savings Plans"
+      },
+      {
+        "page": 3,
+        "title": "Compute"
+      }
+    ],
+    "sha256": "0049b97657e066251646c1cb295a0173bc3bda72c5d39e07ea09e41cc8eaf1c5"
+  },
+  {
+    "n": 11,
+    "file": "11_마이그레이션_하이브리드_DMS_DataSync_Snow.pdf",
+    "pages": 6,
+    "headings": [
+      {
+        "page": 1,
+        "title": "AWS Application Discovery Service"
+      },
+      {
+        "page": 2,
+        "title": "AWS Transform MGN"
+      },
+      {
+        "page": 2,
+        "title": "AWS Database Migration Service"
+      },
+      {
+        "page": 2,
+        "title": "AWS Mainframe Modernization Service"
+      },
+      {
+        "page": 3,
+        "title": "AWS Migration Hub"
+      },
+      {
+        "page": 3,
+        "title": "AWS Snow Family"
+      },
+      {
+        "page": 4,
+        "title": "AWS Snowball"
+      },
+      {
+        "page": 4,
+        "title": "AWS Snowball Edge"
+      },
+      {
+        "page": 5,
+        "title": "AWS DataSync"
+      },
+      {
+        "page": 5,
+        "title": "AWS Transfer Family"
+      },
+      {
+        "page": 6,
+        "title": "Networking and content delivery"
+      }
+    ],
+    "sha256": "39c79c2fa7be0b3b81c8c3e6bda4ddfdac6a2b1ae63bd42d9057d2ca691b58c9"
+  },
+  {
+    "n": 12,
+    "file": "12_분석_데이터_Kinesis_Athena_Glue_Redshift_MSK.pdf",
+    "pages": 10,
+    "headings": [
+      {
+        "page": 2,
+        "title": "Amazon Athena"
+      },
+      {
+        "page": 2,
+        "title": "Amazon CloudSearch"
+      },
+      {
+        "page": 2,
+        "title": "Amazon DataZone"
+      },
+      {
+        "page": 3,
+        "title": "Amazon EMR"
+      },
+      {
+        "page": 3,
+        "title": "Amazon FinSpace"
+      },
+      {
+        "page": 3,
+        "title": "Amazon Kinesis"
+      },
+      {
+        "page": 4,
+        "title": "Amazon Data Firehose"
+      },
+      {
+        "page": 4,
+        "title": "Amazon Managed Service for Apache Flink"
+      },
+      {
+        "page": 5,
+        "title": "Amazon Kinesis Data Streams"
+      },
+      {
+        "page": 5,
+        "title": "Amazon Kinesis Video Streams"
+      },
+      {
+        "page": 5,
+        "title": "Amazon OpenSearch Service"
+      },
+      {
+        "page": 5,
+        "title": "Amazon OpenSearch Serverless"
+      },
+      {
+        "page": 6,
+        "title": "Amazon Redshift"
+      },
+      {
+        "page": 6,
+        "title": "Amazon Redshift Serverless"
+      },
+      {
+        "page": 6,
+        "title": "Quick"
+      },
+      {
+        "page": 7,
+        "title": "AWS Clean Rooms"
+      },
+      {
+        "page": 7,
+        "title": "AWS Data Exchange"
+      },
+      {
+        "page": 7,
+        "title": "AWS Data Pipeline"
+      },
+      {
+        "page": 8,
+        "title": "AWS Entity Resolution"
+      },
+      {
+        "page": 8,
+        "title": "AWS Glue"
+      },
+      {
+        "page": 9,
+        "title": "AWS Lake Formation"
+      },
+      {
+        "page": 9,
+        "title": "Amazon Managed Streaming for Apache Kafka (Amazon MSK)"
+      },
+      {
+        "page": 10,
+        "title": "Application integration"
+      }
+    ],
+    "sha256": "a8ea03e1e34742cfed6339d6508e0b19d83aca96c92b93c4718838cb3c543b39"
+  },
+  {
+    "n": 13,
+    "file": "13_Well-Architected_핵심요약_6대원칙.pdf",
+    "pages": 59,
+    "headings": [
+      {
+        "page": 1,
+        "title": "AWS Well-Architected 프레임워크"
+      },
+      {
+        "page": 1,
+        "title": "소개"
+      },
+      {
+        "page": 2,
+        "title": "정의"
+      },
+      {
+        "page": 4,
+        "title": "아키텍처"
+      },
+      {
+        "page": 5,
+        "title": "일반 설계 원칙"
+      },
+      {
+        "page": 7,
+        "title": "프레임워크의 원칙"
+      },
+      {
+        "page": 7,
+        "title": "운영 우수성"
+      },
+      {
+        "page": 8,
+        "title": "설계 원칙"
+      },
+      {
+        "page": 9,
+        "title": "모범 사례"
+      },
+      {
+        "page": 10,
+        "title": "Organization"
+      },
+      {
+        "page": 13,
+        "title": "Prepare"
+      },
+      {
+        "page": 15,
+        "title": "운영"
+      },
+      {
+        "page": 17,
+        "title": "개선"
+      },
+      {
+        "page": 17,
+        "title": "리소스"
+      },
+      {
+        "page": 18,
+        "title": "설명서"
+      },
+      {
+        "page": 18,
+        "title": "백서"
+      },
+      {
+        "page": 18,
+        "title": "비디오"
+      },
+      {
+        "page": 18,
+        "title": "보안"
+      },
+      {
+        "page": 20,
+        "title": "보안 기초"
+      },
+      {
+        "page": 20,
+        "title": "ID 및 액세스 관리"
+      },
+      {
+        "page": 23,
+        "title": "감지"
+      },
+      {
+        "page": 24,
+        "title": "인프라 보호"
+      },
+      {
+        "page": 25,
+        "title": "데이터 보호"
+      },
+      {
+        "page": 27,
+        "title": "사고 대응"
+      },
+      {
+        "page": 27,
+        "title": "애플리케이션 보안"
+      },
+      {
+        "page": 29,
+        "title": "신뢰성"
+      },
+      {
+        "page": 31,
+        "title": "기본"
+      },
+      {
+        "page": 32,
+        "title": "워크로드 아키텍처"
+      },
+      {
+        "page": 33,
+        "title": "변경 관리"
+      },
+      {
+        "page": 34,
+        "title": "장애 관리"
+      },
+      {
+        "page": 36,
+        "title": "성능 효율성"
+      },
+      {
+        "page": 37,
+        "title": "아키텍처 선택"
+      },
+      {
+        "page": 38,
+        "title": "컴퓨팅 및 하드웨어"
+      },
+      {
+        "page": 39,
+        "title": "데이터 관리"
+      },
+      {
+        "page": 40,
+        "title": "네트워킹 및 콘텐츠 전송"
+      },
+      {
+        "page": 40,
+        "title": "프로세스 및 문화"
+      },
+      {
+        "page": 42,
+        "title": "비용 최적화"
+      },
+      {
+        "page": 44,
+        "title": "클라우드 재무 관리 시행"
+      },
+      {
+        "page": 45,
+        "title": "지출 및 사용량 인식"
+      },
+      {
+        "page": 47,
+        "title": "비용 효율적인 리소스"
+      },
+      {
+        "page": 48,
+        "title": "수요 관리 및 리소스 공급"
+      },
+      {
+        "page": 49,
+        "title": "시간 경과에 따른 최적화"
+      },
+      {
+        "page": 50,
+        "title": "지속 가능성"
+      },
+      {
+        "page": 52,
+        "title": "리전 선택"
+      },
+      {
+        "page": 53,
+        "title": "수요에 맞춘 조정"
+      },
+      {
+        "page": 54,
+        "title": "소프트웨어 및 아키텍처"
+      },
+      {
+        "page": 56,
+        "title": "하드웨어 및 서비스"
+      },
+      {
+        "page": 59,
+        "title": "검토 프로세스"
+      }
+    ],
+    "sha256": "aa38020f45ee07cf93ed8af86cf54b727e7c903d47bf5b52f6051a091aad6361"
+  },
+  {
+    "n": 14,
+    "file": "D01_보안_기초_IAM_권한관리.pdf",
+    "pages": 76,
+    "headings": [
+      {
+        "page": 1,
+        "title": "보안"
+      },
+      {
+        "page": 1,
+        "title": "보안 기초"
+      },
+      {
+        "page": 1,
+        "title": "SEC 1. 워크로드는 어떻게 안전하게 운영하나요?"
+      },
+      {
+        "page": 23,
+        "title": "ID 및 액세스 관리"
+      },
+      {
+        "page": 24,
+        "title": "SEC 2. 사람과 시스템에 대한 인증은 어떻게 관리하나요?"
+      },
+      {
+        "page": 45,
+        "title": "SEC 3. 사람과 시스템에 대한 권한은 어떻게 관리하나요?"
+      }
+    ],
+    "sha256": "58762f93b7ef5941198c2cfd27ca7c79227efb46d7597c4dc1df64ad4dcaf0b2"
+  },
+  {
+    "n": 15,
+    "file": "D02_보안_탐지_인프라보호.pdf",
+    "pages": 38,
+    "headings": [
+      {
+        "page": 1,
+        "title": "감지"
+      },
+      {
+        "page": 1,
+        "title": "SEC 4. 보안 이벤트는 어떻게 감지하고 조사하나요?"
+      },
+      {
+        "page": 15,
+        "title": "인프라 보호"
+      },
+      {
+        "page": 15,
+        "title": "SEC 5. 네트워크 리소스는 어떻게 보호하나요?"
+      },
+      {
+        "page": 26,
+        "title": "SEC 6. 컴퓨팅 리소스는 어떻게 보호하나요?"
+      }
+    ],
+    "sha256": "0a5b1621bde561279bf16c20df78bdeaa83bfea47675f0a11be6b44f7f3c1f91"
+  },
+  {
+    "n": 16,
+    "file": "D03_보안_데이터보호_사고대응_앱보안.pdf",
+    "pages": 74,
+    "headings": [
+      {
+        "page": 1,
+        "title": "데이터 보호"
+      },
+      {
+        "page": 1,
+        "title": "SEC 7. 데이터는 어떻게 분류하나요?"
+      },
+      {
+        "page": 11,
+        "title": "SEC 8. 저장 데이터는 어떻게 보호하나요?"
+      },
+      {
+        "page": 23,
+        "title": "SEC 9. 전송 중 데이터는 어떻게 보호하나요?"
+      },
+      {
+        "page": 33,
+        "title": "사고 대응"
+      },
+      {
+        "page": 33,
+        "title": "SEC 10. 인시던트를 어떻게 예상하고 대응하며 어떻게 사후 복구하나요?"
+      },
+      {
+        "page": 54,
+        "title": "애플리케이션 보안"
+      },
+      {
+        "page": 54,
+        "title": "SEC 11. 설계, 개발 및 배포 수명 주기 전반에 걸쳐 애플리케이션의 보안 속성을 어떻게"
+      },
+      {
+        "page": 54,
+        "title": "통합하고 검증하시나요?"
+      }
+    ],
+    "sha256": "3791caae34d4966dc64f9a8ee5e3d526c7ba34a639ed722a356dfa950388d34c"
+  },
+  {
+    "n": 17,
+    "file": "D04_신뢰성_기초_워크로드아키텍처.pdf",
+    "pages": 84,
+    "headings": [
+      {
+        "page": 1,
+        "title": "기본"
+      },
+      {
+        "page": 1,
+        "title": "REL 1. 서비스 할당량과 제약 조건은 어떻게 관리하나요?"
+      },
+      {
+        "page": 24,
+        "title": "REL 2. 네트워크 토폴로지는 어떻게 계획하나요?"
+      },
+      {
+        "page": 39,
+        "title": "워크로드 아키텍처"
+      },
+      {
+        "page": 39,
+        "title": "REL 3. 워크로드 서비스 아키텍처는 어떻게 설계하나요?"
+      },
+      {
+        "page": 49,
+        "title": "REL 4. 분산 시스템에서 장애 방지를 위한 상호 작용은 어떻게 설계하나요?"
+      },
+      {
+        "page": 64,
+        "title": "REL 5. 분산 시스템에서 장애를 완화하거나 견딜 수 있도록 상호 작용을 설계하려면 어"
+      },
+      {
+        "page": 64,
+        "title": "떻게 해야 하나요?"
+      }
+    ],
+    "sha256": "22c481c03d9ed37fda63da24b30f42d6cc0991b855cbc7e2455445c86db76679"
+  },
+  {
+    "n": 18,
+    "file": "D05_신뢰성_변경관리_장애관리_DR.pdf",
+    "pages": 137,
+    "headings": [
+      {
+        "page": 1,
+        "title": "변경 관리"
+      },
+      {
+        "page": 1,
+        "title": "REL 6. 워크로드 리소스는 어떻게 모니터링하나요?"
+      },
+      {
+        "page": 22,
+        "title": "REL 7. 수요 변화에 적응하도록 워크로드를 설계하려면 어떻게 해야 하나요?"
+      },
+      {
+        "page": 32,
+        "title": "REL 8. 변경은 어떻게 구현하나요?"
+      },
+      {
+        "page": 44,
+        "title": "장애 관리"
+      },
+      {
+        "page": 45,
+        "title": "REL 9. 데이터는 어떻게 백업하나요?"
+      },
+      {
+        "page": 57,
+        "title": "REL 10. 장애 격리를 사용하여 워크로드를 보호하려면 어떻게 해야 하나요?"
+      },
+      {
+        "page": 70,
+        "title": "REL 11. 구성 요소 장애를 견디도록 워크로드를 설계하려면 어떻게 해야 하나요?"
+      },
+      {
+        "page": 93,
+        "title": "REL 12. 신뢰성은 어떻게 테스트하나요?"
+      },
+      {
+        "page": 114,
+        "title": "REL 13. 재해 복구(DR)를 어떻게 계획하나요?"
+      }
+    ],
+    "sha256": "1d9449eadc6cd3b725d20038e6597507efc276213d7d4cb56b804fcb95631df0"
+  },
+  {
+    "n": 19,
+    "file": "D06_성능효율_아키텍처선택_컴퓨팅.pdf",
+    "pages": 30,
+    "headings": [
+      {
+        "page": 1,
+        "title": "아키텍처 선택"
+      },
+      {
+        "page": 1,
+        "title": "PERF 1. 워크로드에 적합한 클라우드 리소스 및 아키텍처를 어떻게 선택하나요?"
+      },
+      {
+        "page": 15,
+        "title": "컴퓨팅 및 하드웨어"
+      },
+      {
+        "page": 15,
+        "title": "PERF 2. 워크로드에서 컴퓨팅 리소스를 선택하고 사용하는 방법은 무엇인가요?"
+      }
+    ],
+    "sha256": "bb668e26363f5e6d61f9096d48f83e53e62340f9d5eb7c57906e61480691b676"
+  },
+  {
+    "n": 20,
+    "file": "D07_성능효율_데이터_네트워크.pdf",
+    "pages": 50,
+    "headings": [
+      {
+        "page": 1,
+        "title": "데이터 관리"
+      },
+      {
+        "page": 2,
+        "title": "PERF 3. 워크로드의 데이터를 어떻게 저장, 관리, 액세스하나요?"
+      },
+      {
+        "page": 24,
+        "title": "네트워킹 및 콘텐츠 전송"
+      },
+      {
+        "page": 24,
+        "title": "PERF 4. 워크로드에서 네트워킹 리소스를 어떻게 선택하고 구성하나요?"
+      }
+    ],
+    "sha256": "2a6f8556d4e9701cb9733fc64b5b2aa0d64db3e917892d7ca88273ac879d5877"
+  },
+  {
+    "n": 21,
+    "file": "D08_비용최적화_재무관리_지출인식.pdf",
+    "pages": 60,
+    "headings": [
+      {
+        "page": 1,
+        "title": "비용 최적화"
+      },
+      {
+        "page": 1,
+        "title": "클라우드 재무 관리 시행"
+      },
+      {
+        "page": 1,
+        "title": "COST 1. 클라우드 재무 관리를 어떻게 구현하나요?"
+      },
+      {
+        "page": 22,
+        "title": "지출 및 사용량 인식"
+      },
+      {
+        "page": 22,
+        "title": "COST 2. 사용량을 어떻게 관리하나요?"
+      },
+      {
+        "page": 40,
+        "title": "COST 3. 비용과 사용량을 어떻게 모니터링하나요?"
+      },
+      {
+        "page": 53,
+        "title": "COST 4. 리소스를 어떻게 폐기하나요?"
+      }
+    ],
+    "sha256": "4a17b5da87a78d3f20a6371b1e8da7d88890f8fb00b764844d858c6e226ffba6"
+  },
+  {
+    "n": 22,
+    "file": "D09_비용최적화_리소스_수요관리_지속최적화.pdf",
+    "pages": 56,
+    "headings": [
+      {
+        "page": 1,
+        "title": "비용 효율적인 리소스"
+      },
+      {
+        "page": 1,
+        "title": "COST 5. 서비스를 선택할 때 비용을 어떻게 평가하나요?"
+      },
+      {
+        "page": 12,
+        "title": "COST 6. 리소스 유형, 크기 및 수 선택을 통해 비용 목표를 어떻게 달성하나요?"
+      },
+      {
+        "page": 21,
+        "title": "COST 7. 비용 절감을 위해 요금 모델을 어떻게 사용하나요?"
+      },
+      {
+        "page": 32,
+        "title": "COST 8. 데이터 전송 요금을 위한 계획은 어떻게 되나요?"
+      },
+      {
+        "page": 38,
+        "title": "수요 관리 및 리소스 공급"
+      },
+      {
+        "page": 38,
+        "title": "COST 9. 수요와 리소스 공급은 어떻게 관리하나요?"
+      },
+      {
+        "page": 50,
+        "title": "시간 경과에 따른 최적화"
+      },
+      {
+        "page": 50,
+        "title": "COST 10. 새로운 서비스를 어떻게 평가하나요?"
+      },
+      {
+        "page": 53,
+        "title": "COST 11. 작업 비용을 어떻게 평가하나요?"
+      }
+    ],
+    "sha256": "751368781c8bca85e8561b73b77b733b8da35c8fa214fd926017d25f55e3cbe4"
+  }
+]

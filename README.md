@@ -54,3 +54,13 @@ boundaries, runs Kafka 4.3.1 + Spring integration, then deploys static pages onl
 - 검증 결과: `learning/jvm-*-checks.json`. GC 타이밍처럼 결정적이지 않은 결과는 고정값으로 검증하지 않습니다.
 
 기존 픽셀 스킨 파일은 공통으로 참조하며 JVM 전용 보조 스타일은 `assets/jvm-study.css`에 있습니다. GitHub Pages에는 생성된 HTML을 배포하므로 방문자의 브라우저에서 Markdown 변환 도구가 필요하지 않습니다.
+
+## AWS SAA 학습 연재
+
+- [학습 지도](https://thisisnew.github.io/posts/aws-study-00.html): 첨부 PDF 23개에 대응하는 로드맵 1편·CORE 13편·심화 9편
+- 원고: `content/aws/*.md`; 생성: `npm ci && npm run build:aws`
+- 구조·내부 링크·문답·JSON: `python scripts/check-aws.py`
+- 전편 데스크톱/모바일·문답·키보드·검색: `node scripts/check-aws-browser.cjs` (Playwright + Chromium 필요)
+- 근거·검증 범위: `learning/aws/verification.html`
+- AWS 실계정 통합·성능 테스트는 실행하지 않았으며 모든 장애·수치 예시는 학습용 가정입니다.
+- 기존 픽셀 스킨을 유지하고 AWS 카테고리는 옅은 녹색 계열로 구분합니다.

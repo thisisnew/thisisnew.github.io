@@ -92,3 +92,5 @@ body[data-series]:not(:has(.layout)) h2{border-left-color:var(--series-edge)!imp
 body[data-series]:not(:has(.layout)) .toc a,body[data-series]:not(:has(.layout)) .meta{color:var(--series-ink)!important}
 body[data-series] .series-home{display:table;margin-bottom:22px;padding:7px 12px;background:var(--series-tint)!important;color:var(--series-ink)!important;border:2px solid var(--series-edge);border-radius:3px;font-size:14px}
 .post[hidden]{display:none!important}
+
+[data-category="aws"],[data-filter="aws"],[data-category-link="aws"],body[data-series="aws"]{--series-ink:#3e6445;--series-tint:#e7f0df;--series-edge:#93b17c}
