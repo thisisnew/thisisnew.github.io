@@ -1,0 +1,69 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>복합 인덱스 설계: 조건·정렬·커버링을 함께 생각하기 | thisisnew</title><meta name="description" content="복합 인덱스 설계: 조건·정렬·커버링을 함께 생각하기 — 비유·내부 원리·SQL 실습·장애 분석·면접 답변으로 배우는 MySQL 8.0"><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.95}main{max-width:960px;margin:auto;padding:36px 24px 100px}h1{font-size:clamp(30px,5vw,48px);line-height:1.4}h2{margin-top:64px;line-height:1.5}p,li{font-size:17px}a{color:inherit}pre{padding:18px;line-height:1.65;overflow:auto}table{border-collapse:collapse;width:100%}td,th{padding:12px;border:1px solid #a69c80;vertical-align:top}details{border:2px solid #a69c80;margin:16px 0;padding:16px}summary{font-weight:700;cursor:pointer}details p{margin-bottom:0}.meta{font-size:13px}.lesson-nav{display:flex;flex-wrap:wrap;gap:18px;margin-top:50px}.callout{border:2px solid #a69c80;padding:18px;margin:24px 0}.series-grid{display:grid;gap:18px}.series-card{border:2px solid #a69c80;padding:20px}.series-card h2{margin:0;font-size:22px}</style><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/study-reading.css"></head><body><main><a href="/">thisisnew / Engineering Notes</a><p class="meta">MYSQL DEEP STUDY · 08 / 12 · 2026-10-19</p><h1>복합 인덱스 설계: 조건·정렬·커버링을 함께 생각하기</h1><div class="callout"><strong>읽는 방법</strong><p>비유로 개념을 잡고 SQL을 실행하기 전 결과를 예상해 보세요. 본문의 수치 예시는 설명용이고, 실행 환경에 따라 달라지는 값은 따로 표시했습니다. 기준은 MySQL 8.0·InnoDB, 재현용 서버는 8.0.36입니다. 처음 시작한다면 <a href="/posts/mysql-study-01.html">1편의 서버 준비</a>만 먼저 진행하면 됩니다.</p><p><a href="/learning/mysql/">전체 학습 지도·검증 범위</a></p></div><h2 id="section-0">1. 복합 인덱스는 여러 목록이 아니라 하나의 사전이다</h2>
+<p>주소록을 시·구·이름 순서로 정리했다고 합시다. 같은 시 안에서 구가 정렬되고, 같은 구 안에서 이름이 정렬됩니다. 이름만 전체적으로 정렬된 것은 아닙니다. <code>(warehouse_id, status, expected_date)</code> 인덱스도 이런 사전식 순서입니다. 세 열에 각각 별도 인덱스를 만든 것과 다른 구조입니다.</p>
+<p>이 인덱스에서는 특정 창고·특정 상태·특정 날짜 범위가 하나의 연속 구간에 모이기 쉽습니다. 반면 날짜만 지정하면 날짜가 여러 창고·상태마다 흩어집니다. 그래서 왼쪽 열부터 조건이 맞는지가 중요합니다. 단, 왼쪽 조건이 없으면 ‘어떤 방식으로도 인덱스를 사용할 수 없다’는 절대 규칙은 아닙니다. 전체 인덱스 스캔이나 제한적인 skip scan 같은 다른 경로도 있습니다.</p>
+<h2 id="section-1">2. 동등 조건과 범위 조건의 순서</h2>
+<p>창고=1, 상태=WAITING으로 고정한 뒤 날짜 범위를 잡으면 해당 묶음 안의 날짜를 연속으로 읽습니다. 반대로 창고=1, 날짜가 한 달 범위이고 그 뒤에 상태가 있다면 날짜별로 여러 상태가 섞입니다. 후행 상태가 검색 범위를 똑같이 좁혀 주지는 못할 수 있습니다.</p>
+<p>그렇다고 “범위 뒤 열은 무조건 아무 소용 없다”도 틀립니다. 후행 열이 인덱스에서 조건을 검사하는 ICP에 쓰이거나 필요한 결과 열을 제공해 커버링에 기여할 수 있습니다. <strong>시작·종료 경계를 좁히는 역할, 후보를 거르는 역할, 결과 열을 제공하는 역할</strong>을 구분하면 이 문제가 명확해집니다.</p>
+<h2 id="section-2">3. 독립 실습 데이터 만들기</h2>
+<pre><code>CREATE DATABASE IF NOT EXISTS mysql_school;
+USE mysql_school;
+DROP TABLE IF EXISTS order_index_demo;
+CREATE TABLE order_index_demo (
+ id INT PRIMARY KEY,
+ warehouse_id INT NOT NULL,
+ status VARCHAR(16) NOT NULL,
+ expected_date DATE NOT NULL,
+ memo VARCHAR(200) NOT NULL,
+ KEY ix_wsd(warehouse_id,status,expected_date)
+) ENGINE=InnoDB;
+INSERT INTO order_index_demo
+WITH RECURSIVE seq AS (
+ SELECT 1 n UNION ALL SELECT n+1 FROM seq WHERE n&lt;1000
+)
+SELECT n, MOD(n,5), IF(MOD(n,10)=0,'WAITING','DONE'),
+ DATE_ADD('2026-01-01',INTERVAL MOD(n,30) DAY), REPEAT('m',100)
+FROM seq;
+ANALYZE TABLE order_index_demo;</code></pre>
+<p>이 자료는 의도적으로 창고와 상태 사이에 상관관계가 있습니다. n이 10의 배수면 창고가 0이므로 WAITING은 모두 창고 0입니다. 실제 업무 데이터에도 이런 편향이 있습니다. 무작위 균등 데이터에서만 빠른 인덱스를 운영에도 그대로 적용하면 예상과 달라질 수 있습니다.</p>
+<pre><code>EXPLAIN FORMAT=JSON
+SELECT id, expected_date FROM order_index_demo
+WHERE warehouse_id=0 AND status='WAITING'
+  AND expected_date&gt;='2026-01-01' AND expected_date&lt;'2026-02-01'
+ORDER BY expected_date;
+
+EXPLAIN FORMAT=JSON
+SELECT memo FROM order_index_demo
+WHERE status='WAITING' AND expected_date&gt;='2026-01-15';</code></pre>
+<p>첫 쿼리는 선두 두 열을 고정하고 날짜 범위를 읽는 형태입니다. 반환 id는 보조 인덱스에 포함된 PK로 얻을 수 있어 커버링 후보입니다. 두 번째는 warehouse_id 조건이 없고 memo가 필요합니다. 실제 계획을 비교하되 이 작은 테이블에서 반드시 특정 type이 나와야 한다고 기대하지 않습니다.</p>
+<h2 id="section-3">4. ICP와 커버링을 같은 말로 외우지 않기</h2>
+<p>ICP(Index Condition Pushdown)는 인덱스 레코드만으로 검사할 수 있는 조건을 엔진 쪽에서 먼저 평가해 불필요한 본문 접근을 줄이는 기법입니다. 택배 목록에 무게가 적혀 있다면 상자를 꺼내기 전에 무게 조건으로 제외하는 것과 같습니다. 커버링은 필요한 모든 정보를 목록에서 얻어 상자를 꺼낼 필요가 적어지는 것입니다. 둘 다 이득을 주지만 이유가 다릅니다.</p>
+<p>EXPLAIN의 <code>Using index condition</code>과 <code>Using index</code>는 다릅니다. 앞은 ICP, 뒤는 커버링 접근과 연결됩니다. key 열에 인덱스 이름이 있다고 두 표현이 항상 나타나는 것도 아닙니다. 선택한 경로, 필요한 열, 조건의 평가 위치를 함께 봅니다.</p>
+<h2 id="section-4">5. 인덱스가 있는데도 검색에 불리한 SQL</h2>
+<pre><code>-- 날짜 열 자체의 정렬을 활용하기 어려워질 수 있는 형태
+SELECT * FROM order_index_demo WHERE YEAR(expected_date)=2026;
+-- 같은 의미의 범위 조건 후보
+SELECT * FROM order_index_demo
+WHERE expected_date&gt;='2026-01-01' AND expected_date&lt;'2027-01-01';</code></pre>
+<p>이 예에서는 expected_date가 ix_wsd의 세 번째 열이라는 추가 제약도 있습니다. 함수만 없앴다고 지금 인덱스로 효율적인 범위 검색이 보장되지 않습니다. 실험하려면 날짜 선두 인덱스도 별도 후보로 비교해야 합니다. 문제를 하나씩 분리해서 보는 것이 중요합니다.</p>
+<p>문자열 코드 열에 숫자 파라미터를 비교하면 암묵적 형 변환 때문에 원래 문자열 정렬의 검색 이점을 잃을 수 있습니다. Java에서 문자열 코드는 setString으로 바인딩하는 식으로 타입을 맞춥니다. <code>LIKE 'ABC%'</code>는 접두 범위 검색 후보가 될 수 있지만 <code>LIKE '%ABC%'</code>는 일반 B-tree의 시작점을 정하기 어렵습니다. collation과 문자열 길이, 반환량도 함께 고려합니다.</p>
+<h2 id="section-5">6. 정렬과 페이지네이션까지 함께 설계하기</h2>
+<p>검색이 빨라도 결과를 별도로 정렬하면 추가 비용이 생깁니다. (창고, 상태, 날짜)에서 창고·상태가 하나의 값이면 날짜 순서로 읽기 좋습니다. 상태가 여러 값이면 상태별 날짜 묶음이어서 전역 날짜 순서와 다를 수 있습니다. ORDER BY 방향이 섞이는 경우에도 인덱스의 정렬 방향을 검토해야 합니다.</p>
+<p>동일 날짜가 많으면 날짜만으로 페이지를 넘길 때 순서가 불안정합니다. id를 추가한 정렬과 커서를 사용하면 경계를 명확히 할 수 있습니다. 다음은 첫 페이지에서 마지막으로 본 날짜·id가 주어졌을 때의 형태입니다.</p>
+<pre><code>SELECT id, expected_date FROM order_index_demo
+WHERE warehouse_id=0 AND status='WAITING'
+  AND (expected_date &gt; '2026-01-11'
+       OR (expected_date='2026-01-11' AND id&gt;100))
+ORDER BY expected_date, id LIMIT 20;</code></pre>
+<p>대량 OFFSET은 앞의 행들을 건너뛰기 위한 작업이 계속 커질 수 있습니다. 커서 방식은 이전 경계 이후를 찾는 데 유리하지만 임의의 100페이지로 바로 이동하는 UX와는 다릅니다. 또한 중간 삽입·수정이 있는 동안 여러 페이지를 읽는 일관성 정책도 별도 문제입니다.</p>
+<h2 id="section-6">7. 인덱스 후보를 고르는 실제 순서</h2>
+<p>우선 자주 실행되고 총 비용이 큰 SQL을 고릅니다. 동등 조건, 범위, 정렬, 반환 열을 적습니다. 후보 인덱스를 만들고 대표 파라미터별 EXPLAIN ANALYZE를 비교합니다. 읽는 행·본문 접근·정렬·시간뿐 아니라 INSERT/UPDATE 비용과 인덱스 크기를 기록합니다. ‘카디널리티 높은 열부터’는 모든 경우를 해결하는 공식이 아닙니다. 조회 형태가 먼저입니다.</p>
+<p>운영 중 보조 인덱스를 추가할 때는 지원 여부를 확인하고 <code>ALGORITHM=INPLACE, LOCK=NONE</code>처럼 원하는 조건을 명시해 불가능하면 오류로 알게 할 수 있습니다. 이것이 메타데이터 잠금·I/O·임시 공간·복제 지연을 없애 주지는 않습니다. 작은 학습 테이블과 운영의 수억 행 테이블은 변경 절차가 달라야 합니다.</p>
+<h2 id="section-7">8. 상세 면접 Q&amp;A</h2>
+<details><summary>(a,b,c)에서 a 조건이 없으면 인덱스는 무조건 못 쓰나요?</summary><p>효율적인 선두 범위 탐색이 어려운 것이 기본 원칙입니다. 그러나 전체 인덱스 스캔, 커버링, 조건을 만족하는 skip scan 등이 가능할 수 있습니다. “사용 여부”보다 “얼마나 좁게 읽는가”로 평가하는 것이 정확합니다.</p></details>
+<details><summary>범위 조건 뒤의 열은 왜 그래도 유용할까요?</summary><p>탐색 경계를 추가로 좁히는 역할이 제한되어도 인덱스에서 필터링하거나 결과 열을 제공할 수 있습니다. ICP·커버링·정렬 기여를 각각 확인해야 합니다. key_len 하나만 보고 모든 후행 열이 무의미하다고 결론내리지 않습니다.</p></details>
+<details><summary>단일 인덱스 세 개가 복합 인덱스 하나와 같나요?</summary><p>아닙니다. 복합 인덱스는 사전식 순서의 하나의 자료구조입니다. 여러 단일 인덱스를 결합하는 index merge가 선택될 수 있지만 후보 결합 비용과 정렬 활용이 다릅니다. 자주 쓰는 조건 조합에 맞춰 비교해야 합니다.</p></details>
+<details><summary>상태값처럼 종류가 적은 열은 인덱스에 쓸모없나요?</summary><p>아닙니다. 전체 비율, 특정 상태의 희소성, 다른 열과의 조합, 정렬 요구가 중요합니다. WAITING이 전체의 0.1%인 업무라면 유용할 수 있습니다. 값 종류 개수와 특정 값의 선택도는 같은 개념이 아닙니다.</p></details>
+<details><summary>LIKE와 =는 같은 인덱스를 쓰면 성능도 같나요?</summary><p>조건이 만드는 탐색 범위와 비교 의미가 다를 수 있습니다. 접두 LIKE는 여러 값을 포함하는 범위가 될 수 있고 collation도 영향을 줍니다. 인덱스 이름이 같다는 사실만으로 읽기량이 같다고 판단하지 않습니다.</p></details>
+<details><summary>인덱스를 추가했는데 안 쓰면 실패인가요?</summary><p>반드시 그렇지는 않습니다. 작은 테이블이나 대부분의 행을 반환하는 조건에서는 스캔이 더 저렴할 수 있습니다. 통계·대표 파라미터·실제 읽기량을 확인합니다. FORCE INDEX는 비교 실험 도구로 사용할 수 있지만 증거 없이 영구 적용하지 않습니다.</p></details>
+<h2 id="section-8">공식 문서</h2><ul><li><a href="https://dev.mysql.com/doc/refman/8.0/en/multiple-column-indexes.html">복합 인덱스</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/range-optimization.html">Range와 skip scan</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/index-condition-pushdown-optimization.html">ICP</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/order-by-optimization.html">정렬 최적화</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/type-conversion.html">형 변환</a></li></ul>
+<nav class="lesson-nav" aria-label="연재 이동"><a href="/learning/mysql/">전체 12편 학습 지도</a><a href="/posts/mysql-study-07.html">← 이전 편</a><a href="/posts/mysql-study-09.html">다음 편 →</a></nav></main><script src="/assets/study-tools.js"></script></body></html>

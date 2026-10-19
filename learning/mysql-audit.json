@@ -1,0 +1,156 @@
+{
+  "date": "2026-10-19",
+  "baseline": "MySQL 8.0.36",
+  "lessons": [
+    {
+      "lesson": 1,
+      "title": "처음부터 이해하는 MySQL: 서버·연결·SQL의 여행",
+      "body_chars": 5133,
+      "questions": 6,
+      "sources": [
+        "https://dev.mysql.com/doc/refman/8.0/en/docker-mysql-getting-started.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-introduction.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/mysql-nutshell.html"
+      ]
+    },
+    {
+      "lesson": 2,
+      "title": "계정과 권한: 접속 성공과 조회 허용은 다르다",
+      "body_chars": 5186,
+      "questions": 6,
+      "sources": [
+        "https://dev.mysql.com/doc/refman/8.0/en/account-names.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/roles.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/grant.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/caching-sha2-pluggable-authentication.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/using-encrypted-connections.html"
+      ]
+    },
+    {
+      "lesson": 3,
+      "title": "페이지와 버퍼 풀: 메모리·디스크·캐시의 실제 역할",
+      "body_chars": 5000,
+      "questions": 6,
+      "sources": [
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-buffer-pool.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-change-buffer.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-adaptive-hash.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/server-status-variables.html"
+      ]
+    },
+    {
+      "lesson": 4,
+      "title": "저장 완료의 비밀: redo·undo·커밋·장애 복구",
+      "body_chars": 4677,
+      "questions": 6,
+      "sources": [
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-redo-log.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-undo-logs.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-doublewrite-buffer.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/replication-options-binary-log.html"
+      ]
+    },
+    {
+      "lesson": 5,
+      "title": "트랜잭션과 MVCC: 같은 데이터를 다르게 보는 이유",
+      "body_chars": 4677,
+      "questions": 6,
+      "sources": [
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-multi-versioning.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-consistent-read.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html"
+      ]
+    },
+    {
+      "lesson": 6,
+      "title": "잠금과 데드락: 행·빈 공간·대기 관계를 직접 확인하기",
+      "body_chars": 4936,
+      "questions": 6,
+      "sources": [
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-deadlocks-handling.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-error-handling.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-online-ddl-limitations.html"
+      ]
+    },
+    {
+      "lesson": 7,
+      "title": "B-tree와 InnoDB 인덱스: 기본 키가 저장 구조를 바꾼다",
+      "body_chars": 4551,
+      "questions": 6,
+      "sources": [
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-index-types.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-physical-structure.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/mysql-indexes.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-auto-increment-handling.html"
+      ]
+    },
+    {
+      "lesson": 8,
+      "title": "복합 인덱스 설계: 조건·정렬·커버링을 함께 생각하기",
+      "body_chars": 5097,
+      "questions": 6,
+      "sources": [
+        "https://dev.mysql.com/doc/refman/8.0/en/multiple-column-indexes.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/range-optimization.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/index-condition-pushdown-optimization.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/order-by-optimization.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/type-conversion.html"
+      ]
+    },
+    {
+      "lesson": 9,
+      "title": "옵티마이저: 통계·조인 순서·힌트가 계획을 만드는 과정",
+      "body_chars": 4925,
+      "questions": 6,
+      "sources": [
+        "https://dev.mysql.com/doc/refman/8.0/en/optimizer-statistics.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/nested-loop-joins.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/hash-joins.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/derived-table-optimization.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/optimizer-hints.html"
+      ]
+    },
+    {
+      "lesson": 10,
+      "title": "실행 계획 해독: EXPLAIN ANALYZE로 느린 이유 찾기",
+      "body_chars": 4559,
+      "questions": 6,
+      "sources": [
+        "https://dev.mysql.com/doc/refman/8.0/en/explain.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/explain-output.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/order-by-optimization.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/internal-temporary-tables.html"
+      ]
+    },
+    {
+      "lesson": 11,
+      "title": "데이터 압축: 공간 절감과 CPU·쓰기 비용의 교환",
+      "body_chars": 5029,
+      "questions": 6,
+      "sources": [
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-table-compression.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-internals.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-page-compression.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-usage.html"
+      ]
+    },
+    {
+      "lesson": 12,
+      "title": "암호화와 복구: 데이터·로그·키를 끝까지 보호하기",
+      "body_chars": 5638,
+      "questions": 6,
+      "sources": [
+        "https://dev.mysql.com/doc/refman/8.0/en/innodb-data-encryption.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/keyring.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/using-encrypted-connections.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html",
+        "https://dev.mysql.com/doc/refman/8.0/en/point-in-time-recovery.html"
+      ]
+    }
+  ]
+}

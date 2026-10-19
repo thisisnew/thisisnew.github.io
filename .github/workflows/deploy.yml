@@ -52,9 +52,53 @@ jobs:
       - name: Broker logs on failure
         if: failure()
         run: docker logs kafka-study || true
+  verify-mysql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install MySQL test client
+        run: pip install PyMySQL==1.1.1
+      - name: Start isolated MySQL 8.0.36 lab
+        run: docker run -d --name mysql-school -e MYSQL_ROOT_PASSWORD=LocalStudyOnly_83 -e MYSQL_ROOT_HOST=% -p 127.0.0.1:3307:3306 mysql:8.0.36
+      - name: Wait for MySQL
+        run: |
+          for attempt in $(seq 1 60); do
+            if docker exec -e MYSQL_PWD=LocalStudyOnly_83 mysql-school mysql -uroot -e 'SELECT 1'; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs mysql-school
+          exit 1
+      - name: Verify published SQL, concurrency, restart, and restore
+        run: python tools/verify_mysql.py --database
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test runner
+        run: |
+          npm install --no-save playwright@1.51.1
+          npx playwright install --with-deps chromium
+      - name: Verify desktop mobile search and expandable answers
+        run: node tools/check_mysql_browser.cjs
+      - name: Upload MySQL verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mysql-verification
+          path: |
+            learning/mysql-*-checks.json
+            mysql-screenshots/
+      - name: MySQL logs on failure
+        if: failure()
+        run: docker logs mysql-school || true
   deploy:
     if: github.event_name != 'pull_request'
-    needs: verify
+    needs: [verify, verify-mysql]
     permissions:
       contents: read
       pages: write

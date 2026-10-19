@@ -1,0 +1,55 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>계정과 권한: 접속 성공과 조회 허용은 다르다 | thisisnew</title><meta name="description" content="계정과 권한: 접속 성공과 조회 허용은 다르다 — 비유·내부 원리·SQL 실습·장애 분석·면접 답변으로 배우는 MySQL 8.0"><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.95}main{max-width:960px;margin:auto;padding:36px 24px 100px}h1{font-size:clamp(30px,5vw,48px);line-height:1.4}h2{margin-top:64px;line-height:1.5}p,li{font-size:17px}a{color:inherit}pre{padding:18px;line-height:1.65;overflow:auto}table{border-collapse:collapse;width:100%}td,th{padding:12px;border:1px solid #a69c80;vertical-align:top}details{border:2px solid #a69c80;margin:16px 0;padding:16px}summary{font-weight:700;cursor:pointer}details p{margin-bottom:0}.meta{font-size:13px}.lesson-nav{display:flex;flex-wrap:wrap;gap:18px;margin-top:50px}.callout{border:2px solid #a69c80;padding:18px;margin:24px 0}.series-grid{display:grid;gap:18px}.series-card{border:2px solid #a69c80;padding:20px}.series-card h2{margin:0;font-size:22px}</style><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/study-reading.css"></head><body><main><a href="/">thisisnew / Engineering Notes</a><p class="meta">MYSQL DEEP STUDY · 02 / 12 · 2026-10-19</p><h1>계정과 권한: 접속 성공과 조회 허용은 다르다</h1><div class="callout"><strong>읽는 방법</strong><p>비유로 개념을 잡고 SQL을 실행하기 전 결과를 예상해 보세요. 본문의 수치 예시는 설명용이고, 실행 환경에 따라 달라지는 값은 따로 표시했습니다. 기준은 MySQL 8.0·InnoDB, 재현용 서버는 8.0.36입니다. 처음 시작한다면 <a href="/posts/mysql-study-01.html">1편의 서버 준비</a>만 먼저 진행하면 됩니다.</p><p><a href="/learning/mysql/">전체 학습 지도·검증 범위</a></p></div><h2 id="section-0">1. 접속할 수 있다는 것과 데이터를 볼 수 있다는 것은 다르다</h2>
+<p>건물 출입증을 생각해 봅시다. 로비에 들어오는 권한, 창고에 들어가는 권한, 창고에서 물건을 꺼내는 권한은 서로 다릅니다. DB도 마찬가지입니다. <strong>인증은 누구인지 확인하는 과정이고, 권한 검사는 그 사람이 무엇을 해도 되는지 판단하는 과정</strong>입니다. 비밀번호를 맞혔다고 모든 테이블을 읽거나 삭제할 수 있는 것은 아닙니다.</p>
+<p>실습의 root 계정은 학습 환경을 준비하는 관리자입니다. 실제 서비스 계정을 root로 두는 것은 앱의 작은 실수가 DB 전체 변경으로 확대되는 구조입니다. 조회 화면은 SELECT만, 업무 API는 필요한 테이블의 필요한 DML만, 스키마 변경은 별도 배포 계정으로 나눌 수 있습니다. 이것은 비밀번호를 어렵게 만드는 문제와 다른 문제입니다.</p>
+<h2 id="section-1">2. 사용자 이름만 같다고 같은 계정이 아니다</h2>
+<p>MySQL 계정은 <code>'user'@'host'</code>로 표현합니다. 예를 들어 <code>'reader'@'localhost'</code>와 <code>'reader'@'10.0.0.8'</code>은 서로 다른 계정입니다. 앞은 사용자 이름, 뒤는 서버 관점에서 접속을 허용할 출발지입니다. 데이터베이스 이름이나 서버 자신의 주소를 쓰는 자리가 아닙니다.</p>
+<p>서버는 접속 조건에 맞는 계정 행을 선택한 뒤 인증합니다. 더 구체적인 호스트 항목이 우선될 수 있으므로 “분명 reader의 비밀번호를 바꿨는데 접속이 안 된다”면 어느 reader 계정이 선택되었는지 확인해야 합니다. <code>USER()</code>는 접속할 때 제시한 사용자·호스트 정보를, <code>CURRENT_USER()</code>는 권한 판정에 쓰이는 실제 인증 계정을 보여 줍니다. 저장 프로그램의 실행 문맥 등에서는 의미가 추가로 달라질 수 있으므로 여기서는 일반 클라이언트 세션을 기준으로 합니다.</p>
+<pre><code>SELECT USER(), CURRENT_USER(), CURRENT_ROLE();
+SHOW GRANTS FOR CURRENT_USER();</code></pre>
+<p>Docker 안의 mysql 클라이언트가 소켓으로 접속하는 경우와 호스트 PC에서 TCP로 접속하는 경우는 출발지가 다를 수 있습니다. 로컬 실습에서 localhost 계정으로 성공했다고 원격 앱에서도 같은 계정이 선택된다고 가정하면 안 됩니다. 아래 실습은 혼동을 없애기 위해 모두 <code>docker exec</code>로 컨테이너 안에서 접속합니다.</p>
+<h2 id="section-2">3. 역할은 권한 묶음이고, 부여와 활성화는 별개다</h2>
+<p>신입 직원 30명에게 테이블 권한 20개를 일일이 부여하면 변경할 때 누락되기 쉽습니다. 역할(role)에 권한을 모으고 사용자에게 역할을 부여하면 권한 정책을 한 곳에서 관리할 수 있습니다. 그러나 역할을 부여했다는 것과 현재 세션에서 그 역할이 활성화되었다는 것은 다릅니다. 입장권을 가지고 있어도 사용할 출입증을 선택하지 않은 상태를 떠올리면 됩니다.</p>
+<pre><code>-- root로 실행. 1편 서버가 실행 중이어야 합니다.
+CREATE DATABASE IF NOT EXISTS mysql_school;
+CREATE TABLE IF NOT EXISTS mysql_school.account_demo (
+  id INT PRIMARY KEY, note VARCHAR(100) NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO mysql_school.account_demo VALUES (1, '읽기 실습')
+  ON DUPLICATE KEY UPDATE note='읽기 실습';
+CREATE ROLE 'school_read';
+GRANT SELECT ON mysql_school.account_demo TO 'school_read';
+CREATE USER 'school_reader'@'localhost'
+  IDENTIFIED BY 'LocalReaderOnly_83';
+GRANT 'school_read' TO 'school_reader'@'localhost';
+SET DEFAULT ROLE 'school_read' TO 'school_reader'@'localhost';</code></pre>
+<p>새 터미널에서 아래 명령으로 접속합니다. 관리자 세션을 종료할 필요는 없습니다. SQL을 실행하는 계정이 바뀌었다는 점이 중요합니다.</p>
+<pre><code>docker exec -it mysql-school mysql -uschool_reader -p</code></pre>
+<pre><code>SELECT CURRENT_USER(), CURRENT_ROLE();
+SELECT * FROM mysql_school.account_demo;
+UPDATE mysql_school.account_demo SET note='변경' WHERE id=1;
+-- UPDATE command denied 오류가 예상됩니다.
+SET ROLE NONE;
+SELECT * FROM mysql_school.account_demo;
+-- 활성 역할이 없어서 SELECT도 거부되는 것이 예상 결과입니다.
+SET ROLE DEFAULT;
+SELECT * FROM mysql_school.account_demo;</code></pre>
+<p>이 실습에서 권한 오류는 실패가 아니라 검증 성공입니다. 조회는 가능하지만 변경은 불가능해야 요구한 정책이 구현된 것입니다. 마지막 SELECT가 다시 성공하면 역할 활성화와 직접 권한의 차이까지 확인한 것입니다. 같은 이름으로 CREATE USER를 반복하면 이미 존재한다는 오류가 납니다. 재실습 때는 관리자 세션에서 해당 학습 계정과 역할만 DROP한 뒤 다시 만듭니다.</p>
+<h2 id="section-3">4. 권한 범위는 넓어질수록 실수의 반경도 커진다</h2>
+<table><thead><tr><th>범위</th><th>예</th><th>생각할 문제</th></tr></thead><tbody><tr><td>전역</td><td>*.*</td><td>미래에 생성될 DB까지 영향을 줄 수 있다.</td></tr><tr><td>데이터베이스</td><td>mysql_school.*</td><td>해당 스키마 전체에 정책이 적용된다.</td></tr><tr><td>테이블</td><td>mysql_school.account_demo</td><td>업무별 접근을 나누기 쉽다.</td></tr><tr><td>열</td><td>SELECT(note)</td><td>허용된 열만 요청해야 한다. SELECT *와 충돌할 수 있다.</td></tr></tbody></table>
+<p><code>GRANT OPTION</code>은 남에게 권한을 나누어 줄 수 있는 능력입니다. 데이터 읽기 권한과는 성격이 다릅니다. 또한 일부 관리 권한은 동적 권한으로 분류됩니다. 외운 GRANT 한 줄을 모든 환경에 복사하기보다 수행할 작업에 필요한 권한을 공식 문서에서 확인해야 합니다. 앱이 스키마를 자동 변경하지 않는다면 DDL 권한까지 줄 이유가 없습니다.</p>
+<p>CREATE USER, GRANT 같은 계정 관리 명령을 정상적으로 사용했다면 습관적으로 FLUSH PRIVILEGES를 실행할 필요는 없습니다. 권한 테이블을 직접 UPDATE하는 방식은 학습 코드에도 넣지 않는 편이 좋습니다. 표준 관리 명령이 검사와 내부 갱신을 처리하도록 해야 합니다.</p>
+<h2 id="section-4">5. 비밀번호·TLS·저장 암호화는 세 개의 문이다</h2>
+<p>비밀번호 인증은 접속 주체를 확인합니다. TLS는 클라이언트와 서버 사이의 네트워크 전송을 보호합니다. 저장 암호화는 디스크의 데이터를 보호합니다. 셋 중 하나가 나머지를 대체하지 않습니다. 예를 들어 TLS로 연결해도 SELECT 권한이 있는 사용자는 평문 결과를 받습니다. 저장 암호화를 켜도 잘못 부여한 SELECT 권한은 그대로 위험합니다.</p>
+<p>MySQL 8.0의 기본 인증 플러그인은 caching_sha2_password입니다. 구형 드라이버가 이를 지원하지 못하는 경우 인증 오류가 날 수 있습니다. 이때 즉시 인증 방식을 약하게 바꾸기보다 드라이버 지원 버전과 TLS 설정을 확인합니다. 실제 비밀번호는 소스·블로그·오류 로그에 기록하지 않습니다. 이 글의 비밀번호는 로컬 폐기용 서버에만 사용하는 공개 예시입니다.</p>
+<h2 id="section-5">6. 장애 시나리오: 역할은 줬는데 조회가 안 된다</h2>
+<p>가상의 운영 상황입니다. 신규 조회 API가 배포되었고 DB 연결은 성공하지만 테이블 접근이 거부됩니다. 첫째, CURRENT_USER로 인증 계정을 확인합니다. 둘째, SHOW GRANTS로 직접 권한과 역할 부여를 확인합니다. 셋째, CURRENT_ROLE로 활성 역할을 확인합니다. 넷째, 기본 역할 변경 전에 만들어진 연결을 재사용하고 있지는 않은지 봅니다. 마지막으로 SQL이 허용된 스키마의 테이블을 실제로 참조하는지 확인합니다.</p>
+<p>“일단 ALL PRIVILEGES 주면 되겠지”는 원인을 숨깁니다. 역할 활성화가 문제였다면 권한 확대 없이 고칠 수 있습니다. 반대로 SELECT만 필요한 것처럼 보이던 API가 임시 테이블이나 저장 프로그램을 사용한다면 실제 필요한 권한을 다시 분석해야 합니다. 에러 코드와 실행 SQL이 출발점입니다.</p>
+<h2 id="section-6">7. 상세 면접 Q&amp;A</h2>
+<details><summary>사용자 이름과 비밀번호가 맞는데 Access denied가 나는 이유는?</summary><p>접속 호스트가 다르거나 더 구체적인 계정 항목이 선택될 수 있습니다. 네트워크 연결 성공과 인증 성공도 구분해야 합니다. 접속 경로, 서버가 보는 클라이언트 주소, 계정의 host 부분, 인증 플러그인 지원을 순서대로 확인합니다. 권한 오류라면 인증 이후의 작업 권한 문제인지도 구분합니다.</p></details>
+<details><summary>역할을 부여하면 바로 권한을 사용할 수 있나요?</summary><p>역할 부여와 활성화는 별개입니다. SET ROLE 또는 기본 역할 설정을 확인해야 합니다. 새 연결과 이미 열린 연결을 구분하고 CURRENT_ROLE로 현재 상태를 직접 확인합니다. 역할이 있다는 사실만으로 실제 SQL이 허용된다고 결론내리지 않습니다.</p></details>
+<details><summary>읽기 전용 계정이면 서비스에 부하를 줄 수 없나요?</summary><p>SELECT만으로도 큰 조인·정렬·대량 결과 전송이 발생합니다. 데이터를 변경하지 못한다는 보장과 CPU·I/O를 소비하지 않는다는 보장은 다릅니다. 권한 최소화와 쿼리 시간·반환량 제한, 실행 계획 검토는 함께 필요합니다.</p></details>
+<details><summary>GRANT 뒤 FLUSH PRIVILEGES가 필요한가요?</summary><p>정상 계정 관리 명령을 사용한 경우 일반적으로 필요하지 않습니다. 권한 테이블을 직접 수정하는 예전 습관과 혼동하지 않아야 합니다. 접근 문제가 계속되면 불필요한 명령을 반복하기보다 계정 매칭과 역할 활성 상태를 확인합니다.</p></details>
+<details><summary>DB 계정 하나를 모든 서비스가 공유하면 무엇이 어렵나요?</summary><p>최소 권한 적용, 변경 영향 범위 제한, 접속 주체별 추적이 어려워집니다. 한 서비스에 필요한 DDL 권한이 다른 서비스에도 노출될 수 있습니다. 계정을 업무 경계별로 나누되 운영 가능한 비밀정보 회전·배포 절차와 함께 설계해야 합니다.</p></details>
+<details><summary>TLS가 켜졌는지 무엇으로 확인하나요?</summary><p>클라이언트 설정만 보지 말고 세션의 SSL/TLS 관련 상태를 확인합니다. SHOW SESSION STATUS LIKE 'Ssl_cipher'가 한 방법입니다. 암호군이 표시되는지 보고, 인증서와 호스트 이름 검증 정책도 함께 봅니다. 암호화된 연결과 올바른 서버에 연결했다는 검증은 서로 관련되지만 동일하지 않습니다.</p></details>
+<h2 id="section-7">공식 문서</h2><ul><li><a href="https://dev.mysql.com/doc/refman/8.0/en/account-names.html">계정 이름과 호스트</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/roles.html">역할 부여와 활성화</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/grant.html">GRANT와 권한 범위</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/caching-sha2-pluggable-authentication.html">caching_sha2_password 인증</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/using-encrypted-connections.html">TLS 연결</a></li></ul>
+<nav class="lesson-nav" aria-label="연재 이동"><a href="/learning/mysql/">전체 12편 학습 지도</a><a href="/posts/mysql-study-01.html">← 이전 편</a><a href="/posts/mysql-study-03.html">다음 편 →</a></nav></main><script src="/assets/study-tools.js"></script></body></html>

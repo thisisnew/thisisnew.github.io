@@ -1,0 +1,64 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>데이터 압축: 공간 절감과 CPU·쓰기 비용의 교환 | thisisnew</title><meta name="description" content="데이터 압축: 공간 절감과 CPU·쓰기 비용의 교환 — 비유·내부 원리·SQL 실습·장애 분석·면접 답변으로 배우는 MySQL 8.0"><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.95}main{max-width:960px;margin:auto;padding:36px 24px 100px}h1{font-size:clamp(30px,5vw,48px);line-height:1.4}h2{margin-top:64px;line-height:1.5}p,li{font-size:17px}a{color:inherit}pre{padding:18px;line-height:1.65;overflow:auto}table{border-collapse:collapse;width:100%}td,th{padding:12px;border:1px solid #a69c80;vertical-align:top}details{border:2px solid #a69c80;margin:16px 0;padding:16px}summary{font-weight:700;cursor:pointer}details p{margin-bottom:0}.meta{font-size:13px}.lesson-nav{display:flex;flex-wrap:wrap;gap:18px;margin-top:50px}.callout{border:2px solid #a69c80;padding:18px;margin:24px 0}.series-grid{display:grid;gap:18px}.series-card{border:2px solid #a69c80;padding:20px}.series-card h2{margin:0;font-size:22px}</style><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/study-reading.css"></head><body><main><a href="/">thisisnew / Engineering Notes</a><p class="meta">MYSQL DEEP STUDY · 11 / 12 · 2026-10-19</p><h1>데이터 압축: 공간 절감과 CPU·쓰기 비용의 교환</h1><div class="callout"><strong>읽는 방법</strong><p>비유로 개념을 잡고 SQL을 실행하기 전 결과를 예상해 보세요. 본문의 수치 예시는 설명용이고, 실행 환경에 따라 달라지는 값은 따로 표시했습니다. 기준은 MySQL 8.0·InnoDB, 재현용 서버는 8.0.36입니다. 처음 시작한다면 <a href="/posts/mysql-study-01.html">1편의 서버 준비</a>만 먼저 진행하면 됩니다.</p><p><a href="/learning/mysql/">전체 학습 지도·검증 범위</a></p></div><h2 id="section-0">1. 압축은 공간을 CPU와 바꾸는 선택이다</h2>
+<p>옷을 압축팩에 넣으면 보관 공간이 줄지만 꺼낼 때 펼쳐야 합니다. 데이터 압축도 저장·전송할 양을 줄이는 대신 압축과 해제 연산이 필요합니다. 디스크 읽기가 병목인 업무에서는 유리할 수 있고 CPU가 이미 꽉 찬 업무에서는 불리할 수 있습니다. 압축률만 측정해서 도입하면 실제 응답시간이 악화될 수 있습니다.</p>
+<p>예를 들어 가상의 문서 데이터가 원래 100GiB이고 압축 후 40GiB라면 60% 공간을 줄인 것입니다. 그러나 조회가 20ms에서 35ms로 느려졌다면 서비스 목표에 맞지 않을 수 있습니다. 반대로 네트워크·스토리지 비용이 큰 보관용 데이터에서는 가치가 있을 수 있습니다. 저장 크기, 읽기·쓰기 지연, CPU, 메모리, 백업·복구 비용을 함께 비교합니다.</p>
+<h2 id="section-1">2. 테이블 압축과 페이지 압축은 다른 기능이다</h2>
+<table><thead><tr><th>구분</th><th>대표 설정</th><th>핵심 특징</th></tr></thead><tbody><tr><td>InnoDB 테이블 압축</td><td>ROW_FORMAT=COMPRESSED, KEY_BLOCK_SIZE</td><td>압축된 B-tree 페이지를 관리하며 재압축·분할 비용을 고려한다.</td></tr><tr><td>InnoDB 페이지 압축</td><td>COMPRESSION='zlib' 등</td><td>페이지를 기록할 때 압축하고 파일시스템의 공간 반환 기능을 활용한다.</td></tr><tr><td>앱에서 값 압축</td><td>애플리케이션 코드</td><td>DB가 압축된 값 내부를 일반 SQL로 검색하기 어려워질 수 있다.</td></tr></tbody></table>
+<p>같은 ‘압축’이라는 이름 때문에 설정을 섞지 마세요. 테이블 압축은 압축 목표 페이지 크기와 인덱스 내부 관리가 중요합니다. 페이지 압축은 sparse file·hole punching 같은 파일시스템 기능의 지원과 할당 단위가 중요합니다. Docker에서 동작했다고 모든 운영 스토리지에서 같은 공간 절감이 생긴다고 보장할 수 없습니다.</p>
+<h2 id="section-2">3. 반복 데이터는 잘 줄고 무작위 데이터는 잘 안 줄어든다</h2>
+<p>‘서울센터 입고완료’라는 문장이 만 번 반복되면 반복 패턴으로 표현하기 쉽습니다. 반면 이미 압축된 이미지나 무작위에 가까운 암호문은 추가 압축 이득이 작을 수 있습니다. 따라서 테스트 데이터를 전부 같은 문자로 채우면 압축률이 지나치게 좋게 나옵니다. 실제 열 값의 분포와 길이, 이미 압축된 데이터 비율을 반영해야 합니다.</p>
+<p>테이블 압축은 행 본문뿐 아니라 인덱스 페이지에도 관련됩니다. 인덱스가 전체 공간의 큰 부분을 차지한다면 본문 크기만 보고 예상하면 틀릴 수 있습니다. 또 긴 VARCHAR·TEXT 값은 행 형식과 크기에 따라 외부 페이지에 저장될 수 있어 단순히 ‘행마다 압축팩 하나’로 이해하면 한계가 있습니다.</p>
+<h2 id="section-3">4. 압축된 페이지를 수정하면 무엇이 어려울까?</h2>
+<p>이미 꽉 찬 압축팩에 두꺼운 옷을 추가하면 다시 포장하거나 팩을 나누어야 합니다. 압축 페이지도 변경 후 목표 크기에 들어가지 않으면 재압축·페이지 분할 같은 작업이 필요할 수 있습니다. InnoDB는 작은 변경을 효율적으로 다루기 위한 관리 기법을 사용하지만 업데이트 비용이 사라지는 것은 아닙니다.</p>
+<p>압축된 페이지와 해제된 형태가 버퍼 풀에서 함께 관리되는 상황도 있습니다. 따라서 디스크가 절반으로 줄었다고 메모리도 자동으로 절반이면 된다고 계산하지 않습니다. 읽기 중심인지 쓰기 중심인지, 자주 쓰는 페이지인지에 따라 실제 이득이 달라집니다. 공식 모니터링 테이블의 압축 시도·성공·해제 카운터를 관찰하는 이유입니다.</p>
+<h2 id="section-4">5. 실습 A: 같은 내용을 다른 저장 형태로 만들기</h2>
+<p>기준 환경은 1편의 MySQL 8.0.36, 기본 16KiB 페이지, file-per-table입니다. 학습용 테이블만 생성합니다. 압축이 지원되지 않는 환경에서는 경고나 오류를 기록하고 전제를 확인합니다.</p>
+<pre><code>CREATE DATABASE IF NOT EXISTS mysql_school;
+USE mysql_school;
+SELECT @@innodb_page_size, @@innodb_file_per_table;
+DROP TABLE IF EXISTS compress_plain;
+DROP TABLE IF EXISTS compress_zip;
+CREATE TABLE compress_plain (
+ id INT PRIMARY KEY, payload VARCHAR(1000) NOT NULL
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+CREATE TABLE compress_zip (
+ id INT PRIMARY KEY, payload VARCHAR(1000) NOT NULL
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
+SHOW WARNINGS;
+INSERT INTO compress_plain
+WITH RECURSIVE seq AS (
+ SELECT 1 n UNION ALL SELECT n+1 FROM seq WHERE n&lt;1000
+)
+SELECT n,REPEAT(CONCAT('warehouse-',MOD(n,10),';'),60) FROM seq;
+INSERT INTO compress_zip SELECT * FROM compress_plain;
+ANALYZE TABLE compress_plain,compress_zip;
+SELECT COUNT(*),SUM(LENGTH(payload)) FROM compress_plain;
+SELECT COUNT(*),SUM(LENGTH(payload)) FROM compress_zip;
+SELECT TABLE_NAME,ROW_FORMAT,DATA_LENGTH,INDEX_LENGTH
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA='mysql_school'
+  AND TABLE_NAME IN ('compress_plain','compress_zip');</code></pre>
+<p>두 테이블의 행 수와 payload 바이트 합계가 같아야 합니다. 이 자료의 한 문자열은 12바이트 패턴을 60번 반복하므로 각 행 720바이트, 전체 합계 720000입니다. 이것은 학습용으로 잘 압축되는 데이터입니다. 실제 공간 비율은 할당 단위와 통계 갱신, 데이터 크기에 따라 달라지므로 특정 숫자를 정답으로 요구하지 않습니다.</p>
+<h2 id="section-5">6. 실습 B: 페이지 압축의 ‘겉보기 크기’와 ‘할당 크기’</h2>
+<pre><code>DROP TABLE IF EXISTS compress_page;
+CREATE TABLE compress_page (
+ id INT PRIMARY KEY, payload VARCHAR(1000) NOT NULL
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC COMPRESSION='zlib';
+SHOW WARNINGS;
+INSERT INTO compress_page SELECT * FROM compress_plain;
+SELECT NAME,FILE_SIZE,ALLOCATED_SIZE,FS_BLOCK_SIZE
+FROM information_schema.INNODB_TABLESPACES
+WHERE NAME='mysql_school/compress_page';</code></pre>
+<p>FILE_SIZE는 파일의 논리적 크기, ALLOCATED_SIZE는 실제 할당된 공간과 연결됩니다. sparse file은 중간 일부 공간을 실제로 할당하지 않을 수 있어 두 값이 다를 수 있습니다. 페이지가 아직 flush되지 않았거나 파일시스템이 지원하지 않으면 기대한 차이가 없을 수 있습니다. CREATE TABLE 성공 하나만으로 공간 절감이 검증되었다고 기록하지 않습니다.</p>
+<p>COMPRESSION 설정 변경은 기존 모든 페이지를 즉시 다시 쓰는 명령이 아닙니다. 이후 기록되는 페이지부터 달라질 수 있습니다. 전체 재작성에는 테이블 rebuild 같은 작업이 필요하며 큰 테이블에서는 공간·I/O·잠금 영향을 계획해야 합니다. 이 글은 운영 테이블에 OPTIMIZE를 일괄 실행하도록 권하지 않습니다.</p>
+<h2 id="section-6">7. 장애 시나리오: 용량은 줄었는데 야간 적재가 느리다</h2>
+<p>가정: 문서 이력 테이블에 압축을 적용한 뒤 저장공간은 줄었지만 배치 시간이 늘었습니다. 먼저 같은 입력량에서 CPU와 압축·해제 활동, redo·디스크 쓰기량, 페이지 분할 관련 현상을 비교합니다. 압축 전후 인덱스와 쿼리 계획도 동일한지 확인합니다. 데이터 크기만 줄어든 것이 성능 개선 증거는 아닙니다.</p>
+<p>자주 수정되는 현재 상태와 거의 바뀌지 않는 오래된 이력을 다른 테이블로 분리하면 서로 다른 저장 전략을 적용할 수 있습니다. 단, 업무 조회와 보존 정책이 복잡해지는 비용도 있습니다. 보관용 데이터라는 이유만으로 암호화·백업·복원 검증을 생략하지 않습니다.</p>
+<h2 id="section-7">8. 상세 면접 Q&amp;A</h2>
+<details><summary>압축하면 무조건 I/O가 줄고 빨라지나요?</summary><p>공간과 I/O 감소 가능성은 있지만 압축·해제 CPU 비용과 재압축·분할 비용이 있습니다. 저장장치가 병목인지 CPU가 병목인지에 따라 결과가 다릅니다. 대표 읽기·쓰기 부하와 p95/p99를 함께 측정합니다.</p></details>
+<details><summary>ROW_FORMAT=COMPRESSED와 COMPRESSION은 같은 옵션인가요?</summary><p>서로 다른 압축 방식에 해당합니다. 전자는 테이블 압축과 목표 페이지 크기, 후자는 페이지 기록과 파일시스템 공간 절감이 핵심입니다. 지원 제약과 모니터링 방법도 구분해서 사용해야 합니다.</p></details>
+<details><summary>파일 크기가 그대로면 압축이 실패한 건가요?</summary><p>페이지 압축에서는 논리 파일 크기와 실제 할당 공간이 다를 수 있습니다. ALLOCATED_SIZE나 적절한 파일시스템 도구로 확인합니다. 아직 flush되지 않았거나 지원 조건이 맞지 않는 경우도 있으므로 설정 성공과 공간 절감 결과를 나눠 봅니다.</p></details>
+<details><summary>반복 문자로 압축 테스트하면 충분한가요?</summary><p>기능 이해에는 좋지만 운영 압축률 예측에는 부적절합니다. 반복도가 높아 지나치게 좋은 결과를 만듭니다. 실제 길이·분포·이미 압축된 값 비율과 업데이트 패턴을 반영해야 합니다.</p></details>
+<details><summary>압축 설정을 켜면 기존 데이터도 즉시 모두 줄어드나요?</summary><p>페이지 압축 옵션 변경은 기존 페이지 전체를 즉시 재작성하지 않습니다. 새로 기록되는 페이지와 기존 페이지가 섞일 수 있습니다. 완전한 전환은 rebuild와 그 운영 비용을 별도 검토해야 합니다.</p></details>
+<details><summary>디스크 50% 절감이면 메모리도 50% 줄여도 되나요?</summary><p>자동으로 그렇지 않습니다. 압축·해제 형태 관리와 실제 작업 집합, 연결 메모리, 다른 엔진 구조의 사용량이 다릅니다. 버퍼 풀과 전체 프로세스 메모리를 실제 부하로 측정해야 합니다.</p></details>
+<h2 id="section-8">공식 문서</h2><ul><li><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-table-compression.html">테이블 압축</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-internals.html">압축 내부 원리</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-page-compression.html">페이지 압축·파일시스템 조건</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-usage.html">압축 테이블 생성</a></li></ul>
+<nav class="lesson-nav" aria-label="연재 이동"><a href="/learning/mysql/">전체 12편 학습 지도</a><a href="/posts/mysql-study-10.html">← 이전 편</a><a href="/posts/mysql-study-12.html">다음 편 →</a></nav></main><script src="/assets/study-tools.js"></script></body></html>

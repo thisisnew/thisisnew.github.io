@@ -1,0 +1,56 @@
+<h2>1. 데이터베이스는 거대한 엑셀이 아니라, 함께 쓰는 장부다</h2>
+<p>물류센터에서 사과 재고를 10개라고 적은 장부를 두 직원이 동시에 고친다고 생각해 봅시다. 한 사람은 3개를 출고하고 다른 사람은 4개를 출고합니다. 둘 다 먼저 10을 읽고 각각 7과 6을 적으면 마지막 숫자는 6이 될 수 있습니다. 실제 재고는 3인데 장부가 틀린 것입니다. 파일에 숫자를 저장하는 것만으로는 이 문제를 해결할 수 없습니다. 누가 어떤 값을 읽어도 되는지, 누가 먼저 고칠지, 중간에 전원이 꺼지면 무엇을 복원할지까지 정해야 합니다.</p>
+<p><strong>MySQL은 여러 프로그램이 데이터를 공유하도록 관리하는 서버이고, InnoDB는 그 안에서 행을 저장하고 트랜잭션·잠금·복구를 담당하는 저장 엔진입니다.</strong> 음식점에 비유하면 MySQL 서버 계층은 주문을 이해하고 순서를 계획하는 홀, InnoDB는 실제 재료와 조리 과정을 관리하는 주방입니다. 단, 한 SQL의 작업이 한 번만 주방에 전달되는 것은 아닙니다. 여러 행을 읽는 동안 서버와 엔진이 반복해서 협력합니다.</p>
+<h2>2. 다섯 가지 단어부터 정확히 구분하기</h2>
+<table><thead><tr><th>단어</th><th>정확한 의미</th><th>실습에서의 예</th></tr></thead><tbody><tr><td>서버</td><td>실행 중인 mysqld 프로세스. 연결과 데이터 요청을 처리한다.</td><td>Docker 안의 MySQL</td></tr><tr><td>클라이언트</td><td>서버에 요청하는 프로그램</td><td>mysql 명령어, DataGrip, Java 애플리케이션</td></tr><tr><td>데이터베이스·스키마</td><td>MySQL에서 테이블 등의 객체를 묶는 이름 공간</td><td>mysql_school</td></tr><tr><td>세션</td><td>하나의 연결이 가지는 상태. 기본 DB·격리 수준·트랜잭션 등이 연결된다.</td><td>터미널 A와 B는 서로 다른 세션</td></tr><tr><td>트랜잭션</td><td>함께 확정하거나 취소할 논리적 작업 단위</td><td>재고 차감과 출고 내역 기록</td></tr></tbody></table>
+<p>커넥션 풀은 연결을 재사용하는 애플리케이션 쪽 장치입니다. 풀 크기가 10이라고 해서 MySQL 전체가 SQL 10개만 처리하는 것은 아닙니다. 서버가 3대이고 각 서버의 풀이 10이면 최대 30개 연결을 사용할 수 있습니다. 풀을 기다리는 요청은 아직 DB에 SQL을 보내지도 못했을 수 있습니다. 따라서 API가 3초 걸렸다고 SQL도 3초 걸렸다고 판단하면 안 됩니다.</p>
+<h2>3. 로컬에 안전하게 실습 서버 만들기</h2>
+<p>이 시리즈는 MySQL <strong>8.0.36</strong>을 재현용 기준으로 사용합니다. 최신 운영 버전 추천이라는 뜻은 아닙니다. Docker가 설치된 Mac·Linux에서 아래 명령을 실행합니다. Apple Silicon에서는 ARM64 이미지 제공 여부를 먼저 확인하고, 사용할 수 없다면 실습에 한해 <code>--platform linux/amd64</code>를 추가할 수 있습니다. 에뮬레이션 결과로 성능을 비교하지는 마세요.</p>
+<pre><code>docker run --name mysql-school \
+  -e MYSQL_ROOT_PASSWORD=LocalStudyOnly_83 \
+  -p 127.0.0.1:3307:3306 \
+  -d mysql:8.0.36
+
+docker logs mysql-school
+# ready for connections가 나타난 뒤 접속
+# 아래 비밀번호는 로컬 학습 전용입니다.
+docker exec -it mysql-school mysql -uroot -p
+</code></pre>
+<p><code>3307:3306</code>은 내 컴퓨터의 3307번 문으로 들어온 요청을 컨테이너의 3306번 문으로 연결한다는 뜻입니다. 앞에 붙은 127.0.0.1은 로컬에서만 접근하도록 하는 바인딩입니다. 컨테이너 안에서 <code>docker exec</code>로 실행한 클라이언트는 이 포트 전달을 거치지 않습니다. 첫 접속이 실패하면 비밀번호를 바꾸기 전에 로그에서 서버 초기화 완료 여부를 확인합니다.</p>
+<pre><code>SELECT VERSION(), CONNECTION_ID(), @@autocommit,
+       @@transaction_isolation, @@innodb_page_size;
+CREATE DATABASE mysql_school CHARACTER SET utf8mb4;
+USE mysql_school;
+CREATE TABLE stock (
+  sku BIGINT PRIMARY KEY,
+  qty INT NOT NULL,
+  CHECK (qty &gt;= 0)
+) ENGINE=InnoDB;
+INSERT INTO stock VALUES (101, 10), (102, 20);
+SELECT * FROM stock ORDER BY sku;</code></pre>
+<p>성공하면 101의 수량은 10, 102의 수량은 20입니다. CHECK는 8.0.16부터 실제 제약을 검사합니다. 5.7에서 같은 문장이 허용되었다고 같은 보장이 있는 것이 아닙니다. 실습을 다시 할 때는 이미 테이블이 존재한다는 오류가 정상입니다. 기존 학습 데이터를 지워도 괜찮다면 <code>DROP TABLE stock;</code> 후 생성부터 반복합니다. 다른 편은 각자 별도의 테이블명을 사용합니다.</p>
+<h2>4. SELECT 한 줄이 결과가 되기까지</h2>
+<ol><li><strong>연결과 인증:</strong> 서버는 어떤 계정인지 확인하고 요청을 받을 세션을 유지합니다.</li><li><strong>문장 분석과 이름 해석:</strong> SQL 문법, 테이블·열 이름, 필요한 권한 등을 확인합니다. 단계의 세부 배치는 문장과 구현에 따라 달라질 수 있습니다.</li><li><strong>최적화:</strong> 가능한 접근 방법을 비교합니다. 모든 행을 읽을지, 인덱스로 후보를 찾을지, 조인을 어떤 순서로 할지 결정합니다.</li><li><strong>실행:</strong> 실행기가 계획에 따라 InnoDB에 레코드를 요청합니다. InnoDB는 페이지와 인덱스, 읽기 가시성 규칙을 사용합니다.</li><li><strong>결과 전달:</strong> 필터·집계·정렬 등 필요한 작업을 수행하고 클라이언트에 결과를 보냅니다.</li></ol>
+<p><code>SELECT qty FROM stock WHERE sku=101</code>에서 sku는 기본 키입니다. 원하는 행 하나로 찾아갈 수 있는 경로가 있습니다. 반면 인덱스 없는 qty 조건은 여러 행을 검사해야 할 수 있습니다. 결과가 한 행이라는 사실과 읽은 행이 한 개라는 사실은 다릅니다. 창고에서 빨간 상자 한 개를 찾았더라도 찾기 위해 선반 천 개를 열었을 수 있는 것과 같습니다.</p>
+<p>MySQL 8.0에는 과거의 Query Cache가 없습니다. 같은 SELECT가 두 번째에 빨라지는 것은 버퍼 풀·운영체제 캐시·실행 환경 등의 영향일 수 있습니다. “결과 전체가 MySQL Query Cache에 저장되었다”고 설명하면 버전상 잘못된 설명입니다. 데이터 페이지 재사용과 SQL 결과 재사용은 별개입니다.</p>
+<h2>5. 설정은 파일, 전역값, 세션값이 다를 수 있다</h2>
+<pre><code>SELECT @@GLOBAL.autocommit, @@SESSION.autocommit;
+SET SESSION autocommit = 0;
+UPDATE stock SET qty = qty - 1 WHERE sku = 101;
+ROLLBACK;
+SELECT qty FROM stock WHERE sku = 101;
+SET SESSION autocommit = 1;
+SHOW VARIABLES LIKE 'max_connections';</code></pre>
+<p>ROLLBACK 뒤 수량은 다시 10입니다. 세션 설정은 그 연결에만 적용됩니다. 전역 변수를 바꿔도 이미 연결된 세션의 대응 세션값이 자동으로 모두 바뀌는 것은 아닙니다. 또한 런타임 변경이 재시작 뒤 유지된다는 보장도 없습니다. 지원되는 변수에 대한 SET PERSIST와 설정 파일은 별도 관리 대상입니다. 실습에서 전역 설정을 무작정 바꾸지 않는 이유입니다.</p>
+<h2>6. 오류를 층별로 나누면 해결이 쉬워진다</h2>
+<table><thead><tr><th>증상</th><th>먼저 확인할 층</th><th>첫 확인</th></tr></thead><tbody><tr><td>Connection refused</td><td>프로세스·네트워크·포트</td><td>컨테이너 상태, 3307과 3306 구분</td></tr><tr><td>Access denied</td><td>인증·계정 매칭</td><td>사용자와 접속 호스트, 비밀번호</td></tr><tr><td>Unknown database/table</td><td>객체 이름·기본 스키마</td><td>SELECT DATABASE(), SHOW TABLES</td></tr><tr><td>SQL은 빠른데 API가 느림</td><td>애플리케이션·연결 풀·결과 전송</td><td>풀 대기시간, 매핑시간, 반환 행 수</td></tr></tbody></table>
+<p>연습 문제: 재고 두 행을 읽는 데 1ms인데 API가 2초라면 인덱스를 추가하는 것이 첫 해결책일까요? 아닙니다. 요청 전체를 연결 대기, SQL, 결과 읽기, 외부 호출로 나누어 시간을 측정해야 합니다. DB 튜닝의 출발점은 빠른 알고리즘을 외우는 것이 아니라 느린 구간을 정확히 찾는 것입니다.</p>
+<h2>7. 상세 면접 Q&amp;A</h2>
+<details><summary>MySQL과 InnoDB는 같은 것인가요?</summary><p>MySQL은 서버 전체이고 InnoDB는 저장 엔진입니다. SQL 분석·실행 계획과 실제 레코드 저장·잠금·복구는 서로 다른 책임입니다. 같은 MySQL 서버라도 테이블 엔진이 다르면 트랜잭션 성질이 달라질 수 있습니다. 따라서 “MySQL은 행 잠금”보다 “이 테이블은 InnoDB이고 해당 SQL은 이런 인덱스 레코드를 잠근다”가 정확합니다.</p></details>
+<details><summary>커넥션 풀을 10에서 100으로 키우면 10배 빨라지나요?</summary><p>아닙니다. 연결 대기를 줄일 수 있지만 CPU·I/O·잠금 경쟁이 병목이면 DB에 동시에 밀어 넣는 작업만 증가합니다. 평균 처리시간이 늘어나 전체 대기열이 악화될 수도 있습니다. 풀 사용률, 대기시간, DB 활성 세션과 자원 사용률을 함께 본 뒤 부하 실험으로 결정합니다.</p></details>
+<details><summary>autocommit이 켜져 있으면 트랜잭션이 없나요?</summary><p>아닙니다. InnoDB의 개별 문장도 트랜잭션으로 처리됩니다. 기본적으로 한 문장이 성공하면 자동 확정하는 것입니다. START TRANSACTION을 쓰면 여러 문장을 묶어 명시적으로 COMMIT 또는 ROLLBACK할 수 있습니다. “자동 확정”과 “원자성 없음”을 혼동하면 안 됩니다.</p></details>
+<details><summary>같은 쿼리가 두 번째에 빠른 이유를 어떻게 증명하나요?</summary><p>버퍼 풀의 물리 읽기 증가량, 실행 계획, 실제 실행시간을 함께 비교합니다. 단순히 두 번째 실행이 빠르다는 사실만으로 캐시 종류까지 확정할 수 없습니다. MySQL 8.0에서 제거된 Query Cache를 원인으로 들면 안 되고, 동시 부하와 클라이언트 초기화 비용도 분리해야 합니다.</p></details>
+<details><summary>설정을 바꿨는데 서비스가 그대로라면요?</summary><p>현재 세션값과 전역값, 실제 접속 서버를 확인합니다. 커넥션 풀이 오래된 세션을 재사용하거나 다른 인스턴스에 접속했을 수 있습니다. 설정이 동적으로 변경 가능한지, 새 연결에만 적용되는지, 재시작 후에도 유지되는지도 따로 확인합니다.</p></details>
+<details><summary>이 편을 이해했는지 스스로 어떻게 확인하나요?</summary><p>“클라이언트 연결 → 서버의 문장 처리 → InnoDB의 데이터 접근 → 결과 전송”을 자기 말로 설명하고, 접속 실패와 SQL 실행 지연을 구분해 보세요. 또 세션 두 개를 열어 CONNECTION_ID가 다르고 설정이 독립적인지 확인하면 추상적인 용어가 실제 동작으로 연결됩니다.</p></details>
+<h2>공식 문서와 다음 학습</h2>
+<ul><li><a href="https://dev.mysql.com/doc/refman/8.0/en/docker-mysql-getting-started.html">Docker 기반 서버 실행</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-introduction.html">InnoDB 소개</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html">서버·세션 시스템 변수</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/mysql-nutshell.html">8.0 기능 변경과 Query Cache 제거</a></li></ul>

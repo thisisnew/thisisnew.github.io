@@ -1,0 +1,71 @@
+{
+  "static": "passed",
+  "errors": [],
+  "pages": [
+    {
+      "file": "posts/mysql-study-07.html",
+      "questions": 6,
+      "text_chars": 5725
+    },
+    {
+      "file": "posts/mysql-study-08.html",
+      "questions": 6,
+      "text_chars": 6233
+    },
+    {
+      "file": "posts/mysql-study-06.html",
+      "questions": 6,
+      "text_chars": 6098
+    },
+    {
+      "file": "posts/mysql-study-12.html",
+      "questions": 6,
+      "text_chars": 6785
+    },
+    {
+      "file": "posts/mysql-study-02.html",
+      "questions": 6,
+      "text_chars": 6338
+    },
+    {
+      "file": "posts/mysql-study-01.html",
+      "questions": 6,
+      "text_chars": 6286
+    },
+    {
+      "file": "posts/mysql-study-11.html",
+      "questions": 6,
+      "text_chars": 6184
+    },
+    {
+      "file": "posts/mysql-study-03.html",
+      "questions": 6,
+      "text_chars": 6155
+    },
+    {
+      "file": "posts/mysql-study-05.html",
+      "questions": 6,
+      "text_chars": 5834
+    },
+    {
+      "file": "posts/mysql-study-04.html",
+      "questions": 6,
+      "text_chars": 5837
+    },
+    {
+      "file": "posts/mysql-study-10.html",
+      "questions": 6,
+      "text_chars": 5728
+    },
+    {
+      "file": "posts/mysql-study-09.html",
+      "questions": 6,
+      "text_chars": 6084
+    },
+    {
+      "file": "learning/mysql/index.html",
+      "questions": 0,
+      "text_chars": 2629
+    }
+  ]
+}
