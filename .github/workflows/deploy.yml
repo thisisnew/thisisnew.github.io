@@ -61,7 +61,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install MySQL test client
-        run: pip install PyMySQL==1.1.1
+        run: pip install 'PyMySQL[rsa]==1.1.1'
       - name: Start isolated MySQL 8.0.36 lab
         run: docker run -d --name mysql-school -e MYSQL_ROOT_PASSWORD=LocalStudyOnly_83 -e MYSQL_ROOT_HOST=% -p 127.0.0.1:3307:3306 mysql:8.0.36
       - name: Wait for MySQL
