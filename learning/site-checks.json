@@ -1,0 +1,320 @@
+{
+  "lessons": 35,
+  "pages": 40,
+  "errors": [],
+  "lessons_detail": [
+    {
+      "lesson": 1,
+      "bytes": 129537,
+      "text_chars": 64686,
+      "questions": 38,
+      "code_blocks": 54
+    },
+    {
+      "lesson": 2,
+      "bytes": 90351,
+      "text_chars": 45898,
+      "questions": 36,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 3,
+      "bytes": 78474,
+      "text_chars": 40907,
+      "questions": 29,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 4,
+      "bytes": 79466,
+      "text_chars": 41607,
+      "questions": 32,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 5,
+      "bytes": 79039,
+      "text_chars": 41514,
+      "questions": 32,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 6,
+      "bytes": 77381,
+      "text_chars": 40433,
+      "questions": 31,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 7,
+      "bytes": 75450,
+      "text_chars": 39524,
+      "questions": 29,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 8,
+      "bytes": 75252,
+      "text_chars": 39612,
+      "questions": 29,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 9,
+      "bytes": 74909,
+      "text_chars": 39592,
+      "questions": 29,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 10,
+      "bytes": 75632,
+      "text_chars": 39510,
+      "questions": 29,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 11,
+      "bytes": 84645,
+      "text_chars": 43805,
+      "questions": 37,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 12,
+      "bytes": 78716,
+      "text_chars": 42011,
+      "questions": 32,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 13,
+      "bytes": 77791,
+      "text_chars": 40755,
+      "questions": 32,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 14,
+      "bytes": 80311,
+      "text_chars": 42388,
+      "questions": 33,
+      "code_blocks": 13
+    },
+    {
+      "lesson": 15,
+      "bytes": 79151,
+      "text_chars": 41479,
+      "questions": 36,
+      "code_blocks": 13
+    },
+    {
+      "lesson": 16,
+      "bytes": 73173,
+      "text_chars": 38894,
+      "questions": 23,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 17,
+      "bytes": 72261,
+      "text_chars": 37911,
+      "questions": 23,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 18,
+      "bytes": 72103,
+      "text_chars": 38124,
+      "questions": 23,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 19,
+      "bytes": 71643,
+      "text_chars": 38068,
+      "questions": 23,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 20,
+      "bytes": 71511,
+      "text_chars": 38029,
+      "questions": 23,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 21,
+      "bytes": 71097,
+      "text_chars": 37633,
+      "questions": 23,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 22,
+      "bytes": 71079,
+      "text_chars": 37777,
+      "questions": 23,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 23,
+      "bytes": 71149,
+      "text_chars": 37664,
+      "questions": 23,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 24,
+      "bytes": 71011,
+      "text_chars": 37737,
+      "questions": 23,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 25,
+      "bytes": 70900,
+      "text_chars": 37797,
+      "questions": 23,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 26,
+      "bytes": 79037,
+      "text_chars": 41800,
+      "questions": 29,
+      "code_blocks": 13
+    },
+    {
+      "lesson": 27,
+      "bytes": 76401,
+      "text_chars": 40392,
+      "questions": 29,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 28,
+      "bytes": 76039,
+      "text_chars": 40032,
+      "questions": 29,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 29,
+      "bytes": 74244,
+      "text_chars": 38935,
+      "questions": 29,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 30,
+      "bytes": 73306,
+      "text_chars": 37919,
+      "questions": 28,
+      "code_blocks": 13
+    },
+    {
+      "lesson": 31,
+      "bytes": 72971,
+      "text_chars": 38241,
+      "questions": 28,
+      "code_blocks": 13
+    },
+    {
+      "lesson": 32,
+      "bytes": 78491,
+      "text_chars": 40757,
+      "questions": 30,
+      "code_blocks": 14
+    },
+    {
+      "lesson": 33,
+      "bytes": 72930,
+      "text_chars": 38120,
+      "questions": 28,
+      "code_blocks": 13
+    },
+    {
+      "lesson": 34,
+      "bytes": 72630,
+      "text_chars": 37562,
+      "questions": 28,
+      "code_blocks": 13
+    },
+    {
+      "lesson": 35,
+      "bytes": 72885,
+      "text_chars": 38002,
+      "questions": 28,
+      "code_blocks": 13
+    }
+  ],
+  "external_urls": [
+    "https://docs.spring.io/spring-kafka/reference/kafka/annotation-error-handling.html",
+    "https://docs.spring.io/spring-kafka/reference/kafka/receiving-messages/message-listener-container.html",
+    "https://github.com/thisisnew",
+    "https://github.com/thisisnew/thisisnew.github.io/actions",
+    "https://github.com/thisisnew/thisisnew.github.io/tree/main/examples/kafka-lab",
+    "https://kafka.apache.org/43/",
+    "https://kafka.apache.org/43/apis/",
+    "https://kafka.apache.org/43/configuration/admin-configs/",
+    "https://kafka.apache.org/43/configuration/broker-configs/",
+    "https://kafka.apache.org/43/configuration/configuration-providers/",
+    "https://kafka.apache.org/43/configuration/consumer-configs/",
+    "https://kafka.apache.org/43/configuration/group-configs/",
+    "https://kafka.apache.org/43/configuration/kafka-connect-configs/",
+    "https://kafka.apache.org/43/configuration/kafka-streams-configs/",
+    "https://kafka.apache.org/43/configuration/mirrormaker-configs/",
+    "https://kafka.apache.org/43/configuration/producer-configs/",
+    "https://kafka.apache.org/43/configuration/tiered-storage-configs/",
+    "https://kafka.apache.org/43/configuration/topic-configs/",
+    "https://kafka.apache.org/43/design/design/",
+    "https://kafka.apache.org/43/design/protocol/",
+    "https://kafka.apache.org/43/getting-started/compatibility/",
+    "https://kafka.apache.org/43/getting-started/introduction/",
+    "https://kafka.apache.org/43/getting-started/quickstart/",
+    "https://kafka.apache.org/43/getting-started/upgrade/",
+    "https://kafka.apache.org/43/getting-started/zk2kraft/",
+    "https://kafka.apache.org/43/implementation/log/",
+    "https://kafka.apache.org/43/implementation/message-format/",
+    "https://kafka.apache.org/43/implementation/messages/",
+    "https://kafka.apache.org/43/implementation/network-layer/",
+    "https://kafka.apache.org/43/kafka-connect/administration/",
+    "https://kafka.apache.org/43/kafka-connect/connector-development-guide/",
+    "https://kafka.apache.org/43/kafka-connect/overview/",
+    "https://kafka.apache.org/43/kafka-connect/user-guide/",
+    "https://kafka.apache.org/43/operations/basic-kafka-operations/",
+    "https://kafka.apache.org/43/operations/consumer-rebalance-protocol/",
+    "https://kafka.apache.org/43/operations/datacenters/",
+    "https://kafka.apache.org/43/operations/eligible-leader-replicas/",
+    "https://kafka.apache.org/43/operations/geo-replication-cross-cluster-data-mirroring/",
+    "https://kafka.apache.org/43/operations/hardware-and-os/",
+    "https://kafka.apache.org/43/operations/java-version/",
+    "https://kafka.apache.org/43/operations/kraft/",
+    "https://kafka.apache.org/43/operations/monitoring/",
+    "https://kafka.apache.org/43/operations/multi-tenancy/",
+    "https://kafka.apache.org/43/operations/tiered-storage/",
+    "https://kafka.apache.org/43/operations/transaction-protocol/",
+    "https://kafka.apache.org/43/security/authentication-using-sasl/",
+    "https://kafka.apache.org/43/security/authorization-and-acls/",
+    "https://kafka.apache.org/43/security/encryption-and-authentication-using-ssl/",
+    "https://kafka.apache.org/43/security/listener-configuration/",
+    "https://kafka.apache.org/43/security/security-overview/",
+    "https://kafka.apache.org/43/streams/architecture/",
+    "https://kafka.apache.org/43/streams/core-concepts/",
+    "https://kafka.apache.org/43/streams/developer-guide/config-streams/",
+    "https://kafka.apache.org/43/streams/developer-guide/datatypes/",
+    "https://kafka.apache.org/43/streams/developer-guide/dsl-api/",
+    "https://kafka.apache.org/43/streams/developer-guide/dsl-topology-naming/",
+    "https://kafka.apache.org/43/streams/developer-guide/interactive-queries/",
+    "https://kafka.apache.org/43/streams/developer-guide/memory-mgmt/",
+    "https://kafka.apache.org/43/streams/developer-guide/processor-api/",
+    "https://kafka.apache.org/43/streams/developer-guide/running-app/",
+    "https://kafka.apache.org/43/streams/developer-guide/security/",
+    "https://kafka.apache.org/43/streams/developer-guide/streams-rebalance-protocol/",
+    "https://kafka.apache.org/43/streams/developer-guide/testing/",
+    "https://kafka.apache.org/43/streams/developer-guide/write-streams-app/",
+    "https://kafka.apache.org/43/streams/introduction/",
+    "https://kafka.apache.org/43/streams/upgrade-guide/"
+  ]
+}

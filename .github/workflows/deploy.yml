@@ -1,30 +1,74 @@
-name: Deploy thisisnew blog
+name: Verify and deploy thisisnew blog
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
-  pages: write
-  id-token: write
 concurrency:
-  group: github-pages
+  group: github-pages-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify all static pages and local links
+        run: python tools/verify_site.py
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: examples/kafka-lab/pom.xml
+      - name: Compile Java and Spring examples and test topology and offset boundaries
+        run: mvn -B -f examples/kafka-lab/pom.xml test
+      - name: Start Kafka 4.3.1 single-broker lab
+        run: docker run -d --name kafka-study -p 9092:9092 apache/kafka:4.3.1
+      - name: Wait for broker readiness
+        run: |
+          for attempt in $(seq 1 60); do
+            if docker exec kafka-study /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs kafka-study
+          exit 1
+      - name: Produce consume commit and clean up real lab data
+        run: mvn -B -f examples/kafka-lab/pom.xml exec:java -Dexec.mainClass=study.Lab
+      - name: Verify Spring publisher listener and manual acknowledgment against Kafka
+        run: mvn -B -f examples/kafka-lab/pom.xml test -Dkafka.it=true
+      - name: Broker logs on failure
+        if: failure()
+        run: docker logs kafka-study || true
   deploy:
+    if: github.event_name != 'pull_request'
+    needs: verify
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-      - name: Upload site
-        uses: actions/upload-pages-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Prepare static files only
+        run: |
+          mkdir _site
+          cp index.html _site/
+          cp -r assets posts learning _site/
+      - uses: actions/upload-pages-artifact@v4
         with:
-          path: .
+          path: _site
       - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@v4

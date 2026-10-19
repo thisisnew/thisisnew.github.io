@@ -1,0 +1,18 @@
+/* Reading/accessibility additions; pixel-quest.css remains the visual skin. */
+main {max-width:960px;margin:auto;padding:30px 22px 100px}
+pre {overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere;padding:18px;line-height:1.65}
+code {font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.87em}
+table {width:100%;border-collapse:collapse;display:block;overflow:auto;margin:22px 0}
+th,td {border:1px solid #a69c80;padding:12px;vertical-align:top;min-width:130px}
+section {scroll-margin-top:24px}summary {cursor:pointer;min-height:44px}
+summary:focus-visible,a:focus-visible,button:focus-visible {outline:3px solid #287e61;outline-offset:4px}
+.study-actions {display:flex;flex-wrap:wrap;gap:10px;margin:24px 0}
+.study-actions button {cursor:pointer;padding:10px 14px}
+.study-toc {border:2px solid #a69c80;padding:18px;margin:24px 0;max-height:24rem;overflow:auto}
+.study-toc a {display:block;margin:6px 0;font-size:.92em}
+@media(max-width:600px){main{padding:20px 16px 80px}h1{overflow-wrap:anywhere}pre{font-size:13px}th,td{font-size:14px;padding:8px}}
+
+body:not(:has(.layout)) nav.study-toc{display:block;border:2px solid #a69c80!important;margin:24px 0;padding:18px}
+body:not(:has(.layout)) nav.study-toc a{display:block;box-shadow:none!important;border:0!important;background:transparent!important;padding:3px 0!important}
+
+main{min-width:0;overflow-wrap:anywhere}pre,.code,.codeblock{max-width:100%;overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere}table{max-width:100%}code{overflow-wrap:anywhere}

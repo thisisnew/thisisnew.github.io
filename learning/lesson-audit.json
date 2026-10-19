@@ -1,0 +1,359 @@
+[
+  {
+    "lesson": 1,
+    "bytes": 129537,
+    "topic_chars": 1532,
+    "source_urls": [
+      "https://kafka.apache.org/43/getting-started/introduction/",
+      "https://kafka.apache.org/43/getting-started/quickstart/",
+      "https://kafka.apache.org/43/apis/",
+      "https://kafka.apache.org/43/design/design/"
+    ]
+  },
+  {
+    "lesson": 2,
+    "bytes": 90351,
+    "topic_chars": 1417,
+    "source_urls": [
+      "https://kafka.apache.org/43/design/design/",
+      "https://kafka.apache.org/43/implementation/log/",
+      "https://kafka.apache.org/43/implementation/network-layer/"
+    ]
+  },
+  {
+    "lesson": 3,
+    "bytes": 78474,
+    "topic_chars": 1475,
+    "source_urls": [
+      "https://kafka.apache.org/43/implementation/network-layer/",
+      "https://kafka.apache.org/43/implementation/message-format/",
+      "https://kafka.apache.org/43/implementation/log/",
+      "https://kafka.apache.org/43/design/design/"
+    ]
+  },
+  {
+    "lesson": 4,
+    "bytes": 79466,
+    "topic_chars": 1522,
+    "source_urls": [
+      "https://kafka.apache.org/43/configuration/producer-configs/",
+      "https://kafka.apache.org/43/design/design/"
+    ]
+  },
+  {
+    "lesson": 5,
+    "bytes": 79039,
+    "topic_chars": 1542,
+    "source_urls": [
+      "https://kafka.apache.org/43/configuration/consumer-configs/",
+      "https://kafka.apache.org/43/operations/consumer-rebalance-protocol/",
+      "https://kafka.apache.org/43/design/design/"
+    ]
+  },
+  {
+    "lesson": 6,
+    "bytes": 77381,
+    "topic_chars": 1375,
+    "source_urls": [
+      "https://kafka.apache.org/43/configuration/topic-configs/",
+      "https://kafka.apache.org/43/configuration/group-configs/",
+      "https://kafka.apache.org/43/design/design/"
+    ]
+  },
+  {
+    "lesson": 7,
+    "bytes": 75450,
+    "topic_chars": 1413,
+    "source_urls": [
+      "https://kafka.apache.org/43/operations/basic-kafka-operations/",
+      "https://kafka.apache.org/43/operations/monitoring/",
+      "https://kafka.apache.org/43/operations/consumer-rebalance-protocol/"
+    ]
+  },
+  {
+    "lesson": 8,
+    "bytes": 75252,
+    "topic_chars": 1360,
+    "source_urls": [
+      "https://kafka.apache.org/43/operations/kraft/",
+      "https://kafka.apache.org/43/operations/tiered-storage/",
+      "https://kafka.apache.org/43/operations/transaction-protocol/",
+      "https://kafka.apache.org/43/operations/eligible-leader-replicas/"
+    ]
+  },
+  {
+    "lesson": 9,
+    "bytes": 74909,
+    "topic_chars": 1382,
+    "source_urls": [
+      "https://kafka.apache.org/43/operations/monitoring/",
+      "https://kafka.apache.org/43/configuration/consumer-configs/",
+      "https://kafka.apache.org/43/design/design/"
+    ]
+  },
+  {
+    "lesson": 10,
+    "bytes": 75632,
+    "topic_chars": 1306,
+    "source_urls": [
+      "https://kafka.apache.org/43/operations/java-version/",
+      "https://kafka.apache.org/43/operations/hardware-and-os/",
+      "https://kafka.apache.org/43/operations/monitoring/"
+    ]
+  },
+  {
+    "lesson": 11,
+    "bytes": 84645,
+    "topic_chars": 1544,
+    "source_urls": [
+      "https://kafka.apache.org/43/getting-started/upgrade/",
+      "https://kafka.apache.org/43/getting-started/zk2kraft/",
+      "https://kafka.apache.org/43/operations/kraft/",
+      "https://kafka.apache.org/43/getting-started/compatibility/"
+    ]
+  },
+  {
+    "lesson": 12,
+    "bytes": 78716,
+    "topic_chars": 1491,
+    "source_urls": [
+      "https://kafka.apache.org/43/apis/",
+      "https://kafka.apache.org/43/design/design/",
+      "https://kafka.apache.org/43/kafka-connect/overview/",
+      "https://kafka.apache.org/43/streams/introduction/"
+    ]
+  },
+  {
+    "lesson": 13,
+    "bytes": 77791,
+    "topic_chars": 1397,
+    "source_urls": [
+      "https://kafka.apache.org/43/configuration/broker-configs/",
+      "https://kafka.apache.org/43/operations/kraft/",
+      "https://kafka.apache.org/43/security/listener-configuration/"
+    ]
+  },
+  {
+    "lesson": 14,
+    "bytes": 80311,
+    "topic_chars": 1596,
+    "source_urls": [
+      "https://kafka.apache.org/43/configuration/kafka-connect-configs/",
+      "https://kafka.apache.org/43/kafka-connect/user-guide/",
+      "https://kafka.apache.org/43/kafka-connect/administration/"
+    ]
+  },
+  {
+    "lesson": 15,
+    "bytes": 79151,
+    "topic_chars": 1475,
+    "source_urls": [
+      "https://kafka.apache.org/43/configuration/kafka-streams-configs/",
+      "https://kafka.apache.org/43/streams/architecture/",
+      "https://kafka.apache.org/43/streams/developer-guide/config-streams/"
+    ]
+  },
+  {
+    "lesson": 16,
+    "bytes": 73173,
+    "topic_chars": 1447,
+    "source_urls": [
+      "https://kafka.apache.org/43/configuration/admin-configs/",
+      "https://kafka.apache.org/43/configuration/mirrormaker-configs/",
+      "https://kafka.apache.org/43/operations/geo-replication-cross-cluster-data-mirroring/",
+      "https://kafka.apache.org/43/apis/"
+    ]
+  },
+  {
+    "lesson": 17,
+    "bytes": 72261,
+    "topic_chars": 1424,
+    "source_urls": [
+      "https://kafka.apache.org/43/operations/tiered-storage/",
+      "https://kafka.apache.org/43/configuration/tiered-storage-configs/",
+      "https://kafka.apache.org/43/configuration/configuration-providers/"
+    ]
+  },
+  {
+    "lesson": 18,
+    "bytes": 72103,
+    "topic_chars": 1423,
+    "source_urls": [
+      "https://kafka.apache.org/43/design/protocol/",
+      "https://kafka.apache.org/43/implementation/network-layer/",
+      "https://kafka.apache.org/43/implementation/messages/"
+    ]
+  },
+  {
+    "lesson": 19,
+    "bytes": 71643,
+    "topic_chars": 1492,
+    "source_urls": [
+      "https://kafka.apache.org/43/design/protocol/",
+      "https://kafka.apache.org/43/configuration/consumer-configs/",
+      "https://kafka.apache.org/43/implementation/message-format/",
+      "https://kafka.apache.org/43/operations/transaction-protocol/"
+    ]
+  },
+  {
+    "lesson": 20,
+    "bytes": 71511,
+    "topic_chars": 1530,
+    "source_urls": [
+      "https://kafka.apache.org/43/design/protocol/",
+      "https://kafka.apache.org/43/operations/consumer-rebalance-protocol/",
+      "https://kafka.apache.org/43/configuration/consumer-configs/",
+      "https://kafka.apache.org/43/design/design/"
+    ]
+  },
+  {
+    "lesson": 21,
+    "bytes": 71097,
+    "topic_chars": 1308,
+    "source_urls": [
+      "https://kafka.apache.org/43/design/protocol/",
+      "https://kafka.apache.org/43/configuration/admin-configs/",
+      "https://kafka.apache.org/43/security/authorization-and-acls/"
+    ]
+  },
+  {
+    "lesson": 22,
+    "bytes": 71079,
+    "topic_chars": 1310,
+    "source_urls": [
+      "https://kafka.apache.org/43/design/protocol/",
+      "https://kafka.apache.org/43/getting-started/compatibility/",
+      "https://kafka.apache.org/43/getting-started/upgrade/"
+    ]
+  },
+  {
+    "lesson": 23,
+    "bytes": 71149,
+    "topic_chars": 1290,
+    "source_urls": [
+      "https://kafka.apache.org/43/operations/datacenters/",
+      "https://kafka.apache.org/43/operations/geo-replication-cross-cluster-data-mirroring/",
+      "https://kafka.apache.org/43/operations/multi-tenancy/",
+      "https://kafka.apache.org/43/design/design/"
+    ]
+  },
+  {
+    "lesson": 24,
+    "bytes": 71011,
+    "topic_chars": 1337,
+    "source_urls": [
+      "https://kafka.apache.org/43/security/listener-configuration/",
+      "https://kafka.apache.org/43/security/encryption-and-authentication-using-ssl/",
+      "https://kafka.apache.org/43/security/security-overview/"
+    ]
+  },
+  {
+    "lesson": 25,
+    "bytes": 70900,
+    "topic_chars": 1321,
+    "source_urls": [
+      "https://kafka.apache.org/43/security/authentication-using-sasl/",
+      "https://kafka.apache.org/43/security/security-overview/",
+      "https://kafka.apache.org/43/security/authorization-and-acls/"
+    ]
+  },
+  {
+    "lesson": 26,
+    "bytes": 79037,
+    "topic_chars": 1382,
+    "source_urls": [
+      "https://kafka.apache.org/43/security/authorization-and-acls/",
+      "https://kafka.apache.org/43/security/listener-configuration/"
+    ]
+  },
+  {
+    "lesson": 27,
+    "bytes": 76401,
+    "topic_chars": 1440,
+    "source_urls": [
+      "https://kafka.apache.org/43/kafka-connect/user-guide/",
+      "https://kafka.apache.org/43/kafka-connect/overview/",
+      "https://kafka.apache.org/43/kafka-connect/connector-development-guide/"
+    ]
+  },
+  {
+    "lesson": 28,
+    "bytes": 76039,
+    "topic_chars": 1382,
+    "source_urls": [
+      "https://kafka.apache.org/43/kafka-connect/connector-development-guide/",
+      "https://kafka.apache.org/43/kafka-connect/user-guide/"
+    ]
+  },
+  {
+    "lesson": 29,
+    "bytes": 74244,
+    "topic_chars": 1287,
+    "source_urls": [
+      "https://kafka.apache.org/43/kafka-connect/administration/",
+      "https://kafka.apache.org/43/kafka-connect/user-guide/",
+      "https://kafka.apache.org/43/configuration/kafka-connect-configs/"
+    ]
+  },
+  {
+    "lesson": 30,
+    "bytes": 73306,
+    "topic_chars": 1408,
+    "source_urls": [
+      "https://kafka.apache.org/43/streams/core-concepts/",
+      "https://kafka.apache.org/43/streams/architecture/",
+      "https://kafka.apache.org/43/streams/developer-guide/dsl-api/"
+    ]
+  },
+  {
+    "lesson": 31,
+    "bytes": 72971,
+    "topic_chars": 1498,
+    "source_urls": [
+      "https://kafka.apache.org/43/streams/developer-guide/write-streams-app/",
+      "https://kafka.apache.org/43/streams/developer-guide/config-streams/",
+      "https://kafka.apache.org/43/streams/developer-guide/running-app/"
+    ]
+  },
+  {
+    "lesson": 32,
+    "bytes": 78491,
+    "topic_chars": 1385,
+    "source_urls": [
+      "https://kafka.apache.org/43/streams/developer-guide/dsl-api/",
+      "https://kafka.apache.org/43/streams/core-concepts/",
+      "https://kafka.apache.org/43/streams/developer-guide/dsl-topology-naming/"
+    ]
+  },
+  {
+    "lesson": 33,
+    "bytes": 72930,
+    "topic_chars": 1476,
+    "source_urls": [
+      "https://kafka.apache.org/43/streams/developer-guide/processor-api/",
+      "https://kafka.apache.org/43/streams/developer-guide/datatypes/",
+      "https://kafka.apache.org/43/streams/developer-guide/testing/"
+    ]
+  },
+  {
+    "lesson": 34,
+    "bytes": 72630,
+    "topic_chars": 1405,
+    "source_urls": [
+      "https://kafka.apache.org/43/streams/developer-guide/testing/",
+      "https://kafka.apache.org/43/streams/developer-guide/interactive-queries/",
+      "https://kafka.apache.org/43/streams/developer-guide/memory-mgmt/"
+    ]
+  },
+  {
+    "lesson": 35,
+    "bytes": 72885,
+    "topic_chars": 1532,
+    "source_urls": [
+      "https://kafka.apache.org/43/streams/developer-guide/running-app/",
+      "https://kafka.apache.org/43/streams/developer-guide/security/",
+      "https://kafka.apache.org/43/streams/developer-guide/streams-rebalance-protocol/",
+      "https://kafka.apache.org/43/streams/upgrade-guide/"
+    ]
+  }
+]

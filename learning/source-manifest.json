@@ -1,0 +1,583 @@
+[
+  {
+    "url": "https://kafka.apache.org/43/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "7994731cdb7dc336c97994f2c35cb9fec876fa7ef3901cfa99b16c749e72e2cd",
+    "bytes": 57949
+  },
+  {
+    "url": "https://kafka.apache.org/43/_print/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "984c091bfb112b6ccc6529f7d9f49868a64a0563408f1937385fdec2c9622d68",
+    "bytes": 3450271
+  },
+  {
+    "url": "https://kafka.apache.org/43/apis/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "693f66bc1bb20d3751d60ce7a29bd8b087f5b5382c51e675e52ce9326bb4e21c",
+    "bytes": 68768
+  },
+  {
+    "url": "https://kafka.apache.org/43/configuration/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "4676846d51b33ff1018366c295f8c717e23df7315b5d08ed176b5f49b699a09c",
+    "bytes": 58937
+  },
+  {
+    "url": "https://kafka.apache.org/43/configuration/admin-configs/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "c2cebe84393cde758217eb5030cf2e1ff7fc55967aa00da34d5ff33cc8dcc8d6",
+    "bytes": 125848
+  },
+  {
+    "url": "https://kafka.apache.org/43/configuration/broker-configs/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "2dbcd0e7b61bf5c0d0d4befebd34437ee86e05799a06f742005ef4c72f7992f5",
+    "bytes": 302564
+  },
+  {
+    "url": "https://kafka.apache.org/43/configuration/configuration-providers/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "e7238fba61bf8bad983283411418209e3cceb960c0d4ba8826a4c15bc6af6de6",
+    "bytes": 71775
+  },
+  {
+    "url": "https://kafka.apache.org/43/configuration/consumer-configs/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "abf4310fd8bec0df3f1ddcae3a115faa509d98c5d5d8266e721db2965189cb17",
+    "bytes": 145719
+  },
+  {
+    "url": "https://kafka.apache.org/43/configuration/group-configs/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "0acdd0684e49d5008a8f7f79f69f8536eba800d967b0306faa70c28ca91f1923",
+    "bytes": 67305
+  },
+  {
+    "url": "https://kafka.apache.org/43/configuration/kafka-connect-configs/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "a5ce7713ac4268949110dfad6fc7a7da3b876c465904078f1acfa3c8314d040d",
+    "bytes": 182992
+  },
+  {
+    "url": "https://kafka.apache.org/43/configuration/kafka-streams-configs/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "dd4593ed2e4d29a4c1b50c7e8ca47fc5a072c1be8def482c4bc0fe3775ff0286",
+    "bytes": 107390
+  },
+  {
+    "url": "https://kafka.apache.org/43/configuration/mirrormaker-configs/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "f8b8dc52a9d8261d3eed1a8d5160b0693da62e32e64e7e35727a7571a3d29d2f",
+    "bytes": 143665
+  },
+  {
+    "url": "https://kafka.apache.org/43/configuration/producer-configs/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "9fff580cd4dbcc40003eea673f16e041cfee3ddc496e9a628b055b2bb4f03de1",
+    "bytes": 146845
+  },
+  {
+    "url": "https://kafka.apache.org/43/configuration/system-properties/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "48da1504b17f330951802eac664fb44c84b2f5c877d210850e4c8df0e8345f8e",
+    "bytes": 66795
+  },
+  {
+    "url": "https://kafka.apache.org/43/configuration/tiered-storage-configs/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "f5816b7a75574e778731932fabdd2405d6cb737e153dcacd256826089fd48f8b",
+    "bytes": 82854
+  },
+  {
+    "url": "https://kafka.apache.org/43/configuration/topic-configs/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "b8d7e230a706f528d9783723a02be27d8e8bd695f84d369fa67ccc66723a473d",
+    "bytes": 87498
+  },
+  {
+    "url": "https://kafka.apache.org/43/design/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "baf7c26062435089c3e7ad643113124b8a968c1c75465f778fa0c3dba1773b3d",
+    "bytes": 57425
+  },
+  {
+    "url": "https://kafka.apache.org/43/design/design/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "bcca1c2a60856d1be95d7774beb60e7ff5531ede367529becb787e5772531ef4",
+    "bytes": 146232
+  },
+  {
+    "url": "https://kafka.apache.org/43/design/protocol/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "02a355121d6a22b4e94d3af97cc108c3340aa637aa03218c37c68d0bf8a94f50",
+    "bytes": 837467
+  },
+  {
+    "url": "https://kafka.apache.org/43/getting-started/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "47148286b2bbbb3e5a2b493a2e60aa2077c00928013ae4263958349fd269ecf3",
+    "bytes": 58708
+  },
+  {
+    "url": "https://kafka.apache.org/43/getting-started/compatibility/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "a59192f5bab4a415e4284ebe1c7f1ea94905c6dd17afed90733fae89c06c3f6b",
+    "bytes": 65162
+  },
+  {
+    "url": "https://kafka.apache.org/43/getting-started/docker/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "7ab8ddb495dcc6aa27c7a15d81f77bbac3e44fcd471650630fbe2aea5fe2bdc2",
+    "bytes": 63757
+  },
+  {
+    "url": "https://kafka.apache.org/43/getting-started/ecosystem/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "12d206752a3e93db0fa7a99a589bc74dfe9c33d0a1ff1c050273e5bb6db7510c",
+    "bytes": 59545
+  },
+  {
+    "url": "https://kafka.apache.org/43/getting-started/introduction/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "6774ade173d6a1f1053e06440a80f89ad1fc77928e671492c50da27163c68587",
+    "bytes": 73550
+  },
+  {
+    "url": "https://kafka.apache.org/43/getting-started/quickstart/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "c8ef3ede29ad2373b896bd06263294b7ebc54795b74d861614f0b16d8a5fce6b",
+    "bytes": 86810
+  },
+  {
+    "url": "https://kafka.apache.org/43/getting-started/upgrade/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "0d922158998549324e3ee50f39447d78e120508d5e9f72093087ca8da9956e69",
+    "bytes": 124563
+  },
+  {
+    "url": "https://kafka.apache.org/43/getting-started/uses/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "e4932418f41341a9f0227a894cd057884c028b3b9e322e81fcef104bf6c7da53",
+    "bytes": 66504
+  },
+  {
+    "url": "https://kafka.apache.org/43/getting-started/zk2kraft/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "6376bb6743a8453d85b208d662e45ad94301718521217dc6cee12072957dc10c",
+    "bytes": 79638
+  },
+  {
+    "url": "https://kafka.apache.org/43/implementation/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "0dd2edc78174b541aa097feef326562faddbf0ff9d4833e75df6a5a8cd528d2a",
+    "bytes": 57955
+  },
+  {
+    "url": "https://kafka.apache.org/43/implementation/distribution/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "6622dd0af53bb697a460bd895d2ce18394d980abac67bd061c6e164adb496735",
+    "bytes": 60551
+  },
+  {
+    "url": "https://kafka.apache.org/43/implementation/log/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "26dc188027b86d0ad0e24cdb493c702ae1c2beef7c7e2fd6de4c19c702f6d173",
+    "bytes": 66848
+  },
+  {
+    "url": "https://kafka.apache.org/43/implementation/message-format/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "8e5db2755765fae5e9332f98ff2cc92beb48bd52f5a9406c8b8edae1bdea52b7",
+    "bytes": 66831
+  },
+  {
+    "url": "https://kafka.apache.org/43/implementation/messages/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "efa24448ee56a08ac1f400682a730dfd2ac18d17468b92df9b60ccc7884510f0",
+    "bytes": 59122
+  },
+  {
+    "url": "https://kafka.apache.org/43/implementation/network-layer/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "c4dc3b16a5f243af1ea0bb25acafc3036a4bf28581d3553bdc4968c961bf7a53",
+    "bytes": 59031
+  },
+  {
+    "url": "https://kafka.apache.org/43/kafka-connect/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "1092aa463ec033244c78280b0b7a5a19b8c61bb2a71e90c5477d519dbab69445",
+    "bytes": 57868
+  },
+  {
+    "url": "https://kafka.apache.org/43/kafka-connect/administration/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "19b331fca6236308e587173a17a74a1252395097fc47e0dbb97c41e1f5e06730",
+    "bytes": 68375
+  },
+  {
+    "url": "https://kafka.apache.org/43/kafka-connect/connector-development-guide/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "d0c4621a1019f2f69abf5a5c674afa79103e83cb80a51160b9f5ee951e8c1a96",
+    "bytes": 185887
+  },
+  {
+    "url": "https://kafka.apache.org/43/kafka-connect/overview/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "eaae05eb903bfc0f23fbc874348f5ccf4e0ccb7afd8e39d1f3cc6c14014677d2",
+    "bytes": 59815
+  },
+  {
+    "url": "https://kafka.apache.org/43/kafka-connect/user-guide/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "9107190ba816b2a29f32af57d502f1ddce3bc0d3faf11f330dd71cf15fdc49db",
+    "bytes": 159331
+  },
+  {
+    "url": "https://kafka.apache.org/43/operations/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "6eca1e6506a08d4a24a001b8b59444cc38928a3f23e08767f990f5c1dc2c07d5",
+    "bytes": 58807
+  },
+  {
+    "url": "https://kafka.apache.org/43/operations/basic-kafka-operations/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "628faee6697039f1bc1d8741e153ad8efd517f272b53dd25061f16f2e6d204a9",
+    "bytes": 153028
+  },
+  {
+    "url": "https://kafka.apache.org/43/operations/consumer-rebalance-protocol/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "96c6473fa6fe15df94903c11bc02bb81d636b02660d36a0b095aa49f2e914050",
+    "bytes": 66423
+  },
+  {
+    "url": "https://kafka.apache.org/43/operations/datacenters/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "e4f4551ed453273c580c2d94deb3c87639ee330c91037b1ec285999d01921e0e",
+    "bytes": 60605
+  },
+  {
+    "url": "https://kafka.apache.org/43/operations/eligible-leader-replicas/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "97115e3af5d651a1a50cac4c763bf55936ad264e80e3a158bee5f36ecc574735",
+    "bytes": 61209
+  },
+  {
+    "url": "https://kafka.apache.org/43/operations/geo-replication-cross-cluster-data-mirroring/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "83417166f8f941a7a70f605dcc39ef33246f7a44f0d2fd5164bc210dd9fc3e2c",
+    "bytes": 111399
+  },
+  {
+    "url": "https://kafka.apache.org/43/operations/hardware-and-os/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "65af6a4c8288757fa8c3244b5509ad23ed91180cfac98a65eaf80ff324640334",
+    "bytes": 76509
+  },
+  {
+    "url": "https://kafka.apache.org/43/operations/java-version/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "ac26e37f7bacf579bc2a6f72d1b1fcc76e547aafd7e8c09d334e59616991c902",
+    "bytes": 60581
+  },
+  {
+    "url": "https://kafka.apache.org/43/operations/kraft/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "f83646b4209656ab9dc323620f5432cd28e4de5c2bbd3d4cb469dd305d5e799f",
+    "bytes": 91275
+  },
+  {
+    "url": "https://kafka.apache.org/43/operations/monitoring/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "201a233824d934ee754e179236e36dd7b061cb3371e5431346da1fa621adbab3",
+    "bytes": 230949
+  },
+  {
+    "url": "https://kafka.apache.org/43/operations/multi-tenancy/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "ac44ccaa946325e2b12079cdaae0f3707ce0dae0fd7eb2e2734b4f8d4975e6ca",
+    "bytes": 73620
+  },
+  {
+    "url": "https://kafka.apache.org/43/operations/tiered-storage/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "5573127c038254e4a6e940e71715aa39c963592c08330309656a9a0d99bbab9e",
+    "bytes": 77359
+  },
+  {
+    "url": "https://kafka.apache.org/43/operations/transaction-protocol/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "c3d182016327cabbfcf23030cd7a9bdcac6061e64d09d5d178d40039c62dbe6d",
+    "bytes": 62348
+  },
+  {
+    "url": "https://kafka.apache.org/43/security/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "6d3f99240c2edebdf03f5685a20318b2d334770fa18624f940d80fcf0ce221d2",
+    "bytes": 58240
+  },
+  {
+    "url": "https://kafka.apache.org/43/security/authentication-using-sasl/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "732b18fda3171864b9f9e8bc7baf3e1a23fa3d6fff3a2d93dbad402cdcae6c87",
+    "bytes": 118996
+  },
+  {
+    "url": "https://kafka.apache.org/43/security/authorization-and-acls/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "e1c6f9221191e89e9243cbacf66ce91984b7a3e37a07f7b85eafc11834b7d1c4",
+    "bytes": 101809
+  },
+  {
+    "url": "https://kafka.apache.org/43/security/encryption-and-authentication-using-ssl/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "4d36b788e89da5c278738fb59f9d194ac72a2c3e7a4a88fe9456f868f0643cd9",
+    "bytes": 86601
+  },
+  {
+    "url": "https://kafka.apache.org/43/security/incorporating-security-features-in-a-running-cluster/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "cca4ec1d8ce1f2cbafc1de123d900d825e1a957f276cb18188a9ac68bdaab962",
+    "bytes": 62098
+  },
+  {
+    "url": "https://kafka.apache.org/43/security/listener-configuration/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "e36333764e0dc735b81abc777aad2b1cdede7b1d2619f2ca787d4036f4477dda",
+    "bytes": 65450
+  },
+  {
+    "url": "https://kafka.apache.org/43/security/security-overview/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "ce179c68c77bcf1d99a98b79438b30b6886a9013fa7d35e266eee31d04052329",
+    "bytes": 59446
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "4b9406b3fae50e0029c393b90d716c540e5183be328581da8d92a15b343be7cc",
+    "bytes": 57976
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/architecture/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "299d54cded7df8193265c35ae36e73d6235c7196ba2999fc390d932228e34ea8",
+    "bytes": 72668
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/core-concepts/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "2e9c06922566b2186b1262e4db6cd09945c2129886361a17f2d62482d81c05c6",
+    "bytes": 87942
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/developer-guide/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "660bb61082cc4a1208bb3f5499698298d03a5beb59d76a4fc5ce52c9dd5ea400",
+    "bytes": 59772
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/developer-guide/app-reset-tool/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "3e68f079bd731bf3ffbb86770297f21d4e52b0ebead57a79a3c8b3cf5806e94e",
+    "bytes": 69067
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/developer-guide/config-streams/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "30858ba364a9521c0cfacb82666aa902ed9188656dfbd8d72f29e4709a66ff53",
+    "bytes": 168821
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/developer-guide/datatypes/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "e8a4681f0e455f08f037eff6c5c36a7ab0a3e15479324fff7a3610a7e416f108",
+    "bytes": 75869
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/developer-guide/dsl-api/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "f59200a7c1812199fa592c6e6710a78dc23bd3cab9779ec7c7733011679764a1",
+    "bytes": 278341
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/developer-guide/dsl-topology-naming/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "2e570a12a614bed58a5879e2b673cfbf99b2b7842431bf7e9e1f85e05fd35608",
+    "bytes": 75298
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/developer-guide/interactive-queries/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "4e9c0c1064c43b5b8b228a4d8236bedae0dbbd9daed90741c5d41001e1d46cb2",
+    "bytes": 91383
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/developer-guide/kafka-streams-group-sh/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "4b1d9c444860c799175c1b47f3ca518318acfcc795dfe9fd3d91ac2dd499a405",
+    "bytes": 71890
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/developer-guide/manage-topics/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "b24b30c6adc4bbc983f6e63a9dc56d4462af6f77ccd682ae93c813c2ca5dfd29",
+    "bytes": 65307
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/developer-guide/memory-mgmt/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "6d85901aeab62b5e4223f7ca375ef236fa97f53c8167290aaff822a79e4dfba3",
+    "bytes": 80173
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/developer-guide/processor-api/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "edb61f852d23d97cdd2cc16f7b312156c9d88eb6c328d9259081969ab154d44e",
+    "bytes": 105199
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/developer-guide/running-app/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "d43122d187f01d91c0f981795c01d24ee253a02a76a717ffddcc15e9f5f95b63",
+    "bytes": 73065
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/developer-guide/scala-migration/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "dfce949c9bfdf1ed30a655d319d55c3211b3de7548813a65a083d1ed001f0353",
+    "bytes": 79634
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/developer-guide/security/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "49b5852ea9ed2eb24c7fe6a89197290e9a20747c73473b87c03dfbab2ed742cc",
+    "bytes": 71391
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/developer-guide/streams-rebalance-protocol/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "1a408c790de127b952049c9f7218a6bc0e6df5e3370140a4044d819503626321",
+    "bytes": 87197
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/developer-guide/testing/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "30678557c4b6c638f9aac0236e3cca2613ce59901d94668d550c8d27fc78e910",
+    "bytes": 76404
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/developer-guide/write-streams-app/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "1b41cae5cfb1bbac239da1e843bda2964bb836a33904c30843bd825c6cf97ac9",
+    "bytes": 68774
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/introduction/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "6b43a7fbae9096205a37c1b1031e9ceedc79ace09d7798f3b1e71805f935cd90",
+    "bytes": 106008
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/quickstart/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "ec4d57df807a877e1d93efa0defb91457dbbf83353444612a1cb0fe5bcf46dbe",
+    "bytes": 76497
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/tutorial/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "c8f9c9318fc0a49bdc6b26e4a06f0883654cc2070e202ab4115d1df7ce01243e",
+    "bytes": 87175
+  },
+  {
+    "url": "https://kafka.apache.org/43/streams/upgrade-guide/",
+    "http_status": 200,
+    "retrieved": "2026-10-19",
+    "sha256": "d6d9f8df1b44aa7801cd9691d86ffad3d1d5abe698ba414ff7d3bfcf18518d55",
+    "bytes": 166870
+  }
+]

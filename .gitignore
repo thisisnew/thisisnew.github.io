@@ -1,0 +1,4 @@
+examples/**/target/
+__pycache__/
+*.pyc
+_site/
