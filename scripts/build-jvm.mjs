@@ -25,5 +25,6 @@ const index=path.join(root,'index.html');let home=fs.readFileSync(index,'utf8');
 const cards=lessons.map(l=>`<a class="post" data-category="backend" href="posts/jvm-study-${String(l.n).padStart(2,'0')}.html"><div class="number">${String(l.n).padStart(2,'0')}</div><div><div class="tags">JAVA · JVM QUEST · ${l.n===0?'LEARNING MAP':`LESSON ${String(l.n).padStart(2,'0')}`}</div><h3>${esc(l.title)}</h3><p>${esc(l.desc)}</p><div class="date">2026.10.19 · Java 21 · ${l.n===0?'학습 안내':`연재 ${l.n}/16`}</div></div><div class="arrow">↗</div></a>`).join('\n');
 const block=`<!-- JVM-SERIES-START -->\n${cards}\n<!-- JVM-SERIES-END -->`;
 if(home.includes('<!-- JVM-SERIES-START -->'))home=home.replace(/<!-- JVM-SERIES-START -->[\s\S]*?<!-- JVM-SERIES-END -->/,block);else home=home.replace('<div id="articles">','<div id="articles">\n'+block);
+home=home.replace(/(<small id="count">)\d+/,(_,prefix)=>prefix+String((home.match(/class="post"/g)||[]).length).padStart(2,'0'));
 fs.writeFileSync(index,home);
 console.log(`Generated ${lessons.length} JVM pages and home cards.`);

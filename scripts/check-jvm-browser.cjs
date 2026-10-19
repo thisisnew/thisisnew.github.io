@@ -28,6 +28,8 @@ const root=path.resolve(__dirname,'..');
    if([0,5,13,16].includes(n))await page.screenshot({path:`/tmp/jvm-${n}-${width}.png`});
   }
   await page.goto('http://127.0.0.1:8877/',{waitUntil:'domcontentloaded'});
+  const cardCount=await page.locator('.post').count();
+  if(Number(await page.locator('#count').textContent())!==cardCount)errors.push(`initial count ${width}`);
   await page.locator('#search').fill('JVM');
   const found=await page.locator('.post:not([hidden])').count();
   if(found!==17)errors.push(`JVM search ${found}`);
