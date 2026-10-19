@@ -1,259 +1,376 @@
 {
   "lessons": 35,
-  "pages": 40,
+  "pages": 82,
   "errors": [],
   "lessons_detail": [
     {
       "lesson": 1,
-      "bytes": 129537,
-      "text_chars": 64686,
-      "questions": 38,
-      "code_blocks": 54
+      "bytes": 131862,
+      "text_chars": 65637,
+      "questions": 39,
+      "code_blocks": 28
     },
     {
       "lesson": 2,
-      "bytes": 90351,
-      "text_chars": 45898,
-      "questions": 36,
-      "code_blocks": 12
+      "bytes": 92595,
+      "text_chars": 46831,
+      "questions": 37,
+      "code_blocks": 13
     },
     {
       "lesson": 3,
-      "bytes": 78474,
-      "text_chars": 40907,
-      "questions": 29,
-      "code_blocks": 12
+      "bytes": 80800,
+      "text_chars": 41801,
+      "questions": 30,
+      "code_blocks": 13
     },
     {
       "lesson": 4,
-      "bytes": 79466,
-      "text_chars": 41607,
-      "questions": 32,
-      "code_blocks": 12
-    },
-    {
-      "lesson": 5,
-      "bytes": 79039,
-      "text_chars": 41514,
-      "questions": 32,
-      "code_blocks": 12
-    },
-    {
-      "lesson": 6,
-      "bytes": 77381,
-      "text_chars": 40433,
-      "questions": 31,
-      "code_blocks": 12
-    },
-    {
-      "lesson": 7,
-      "bytes": 75450,
-      "text_chars": 39524,
-      "questions": 29,
-      "code_blocks": 12
-    },
-    {
-      "lesson": 8,
-      "bytes": 75252,
-      "text_chars": 39612,
-      "questions": 29,
-      "code_blocks": 12
-    },
-    {
-      "lesson": 9,
-      "bytes": 74909,
-      "text_chars": 39592,
-      "questions": 29,
-      "code_blocks": 12
-    },
-    {
-      "lesson": 10,
-      "bytes": 75632,
-      "text_chars": 39510,
-      "questions": 29,
-      "code_blocks": 12
-    },
-    {
-      "lesson": 11,
-      "bytes": 84645,
-      "text_chars": 43805,
-      "questions": 37,
-      "code_blocks": 12
-    },
-    {
-      "lesson": 12,
-      "bytes": 78716,
-      "text_chars": 42011,
-      "questions": 32,
-      "code_blocks": 12
-    },
-    {
-      "lesson": 13,
-      "bytes": 77791,
-      "text_chars": 40755,
-      "questions": 32,
-      "code_blocks": 12
-    },
-    {
-      "lesson": 14,
-      "bytes": 80311,
-      "text_chars": 42388,
+      "bytes": 81732,
+      "text_chars": 42538,
       "questions": 33,
       "code_blocks": 13
     },
     {
-      "lesson": 15,
-      "bytes": 79151,
-      "text_chars": 41479,
-      "questions": 36,
+      "lesson": 5,
+      "bytes": 81298,
+      "text_chars": 42466,
+      "questions": 33,
       "code_blocks": 13
     },
     {
+      "lesson": 6,
+      "bytes": 79626,
+      "text_chars": 41366,
+      "questions": 32,
+      "code_blocks": 13
+    },
+    {
+      "lesson": 7,
+      "bytes": 77568,
+      "text_chars": 40405,
+      "questions": 30,
+      "code_blocks": 13
+    },
+    {
+      "lesson": 8,
+      "bytes": 77405,
+      "text_chars": 40447,
+      "questions": 30,
+      "code_blocks": 13
+    },
+    {
+      "lesson": 9,
+      "bytes": 76874,
+      "text_chars": 40387,
+      "questions": 30,
+      "code_blocks": 13
+    },
+    {
+      "lesson": 10,
+      "bytes": 77680,
+      "text_chars": 40316,
+      "questions": 30,
+      "code_blocks": 13
+    },
+    {
+      "lesson": 11,
+      "bytes": 86852,
+      "text_chars": 44692,
+      "questions": 38,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 12,
+      "bytes": 80895,
+      "text_chars": 42950,
+      "questions": 33,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 13,
+      "bytes": 79907,
+      "text_chars": 41623,
+      "questions": 33,
+      "code_blocks": 21
+    },
+    {
+      "lesson": 14,
+      "bytes": 82348,
+      "text_chars": 43255,
+      "questions": 34,
+      "code_blocks": 13
+    },
+    {
+      "lesson": 15,
+      "bytes": 81273,
+      "text_chars": 42308,
+      "questions": 37,
+      "code_blocks": 14
+    },
+    {
       "lesson": 16,
-      "bytes": 73173,
-      "text_chars": 38894,
-      "questions": 23,
+      "bytes": 75272,
+      "text_chars": 39751,
+      "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 17,
-      "bytes": 72261,
-      "text_chars": 37911,
-      "questions": 23,
+      "bytes": 74448,
+      "text_chars": 38765,
+      "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 18,
-      "bytes": 72103,
-      "text_chars": 38124,
-      "questions": 23,
+      "bytes": 74121,
+      "text_chars": 38947,
+      "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 19,
-      "bytes": 71643,
-      "text_chars": 38068,
-      "questions": 23,
+      "bytes": 73679,
+      "text_chars": 38940,
+      "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 20,
-      "bytes": 71511,
-      "text_chars": 38029,
-      "questions": 23,
+      "bytes": 73805,
+      "text_chars": 39028,
+      "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 21,
-      "bytes": 71097,
-      "text_chars": 37633,
-      "questions": 23,
+      "bytes": 73130,
+      "text_chars": 38417,
+      "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 22,
-      "bytes": 71079,
-      "text_chars": 37777,
-      "questions": 23,
+      "bytes": 73192,
+      "text_chars": 38629,
+      "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 23,
-      "bytes": 71149,
-      "text_chars": 37664,
-      "questions": 23,
+      "bytes": 73231,
+      "text_chars": 38479,
+      "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 24,
-      "bytes": 71011,
-      "text_chars": 37737,
-      "questions": 23,
+      "bytes": 72997,
+      "text_chars": 38519,
+      "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 25,
-      "bytes": 70900,
-      "text_chars": 37797,
-      "questions": 23,
+      "bytes": 72982,
+      "text_chars": 38613,
+      "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 26,
-      "bytes": 79037,
-      "text_chars": 41800,
-      "questions": 29,
-      "code_blocks": 13
-    },
-    {
-      "lesson": 27,
-      "bytes": 76401,
-      "text_chars": 40392,
-      "questions": 29,
-      "code_blocks": 12
-    },
-    {
-      "lesson": 28,
-      "bytes": 76039,
-      "text_chars": 40032,
-      "questions": 29,
-      "code_blocks": 12
-    },
-    {
-      "lesson": 29,
-      "bytes": 74244,
-      "text_chars": 38935,
-      "questions": 29,
-      "code_blocks": 12
-    },
-    {
-      "lesson": 30,
-      "bytes": 73306,
-      "text_chars": 37919,
-      "questions": 28,
-      "code_blocks": 13
-    },
-    {
-      "lesson": 31,
-      "bytes": 72971,
-      "text_chars": 38241,
-      "questions": 28,
-      "code_blocks": 13
-    },
-    {
-      "lesson": 32,
-      "bytes": 78491,
-      "text_chars": 40757,
+      "bytes": 81030,
+      "text_chars": 42607,
       "questions": 30,
       "code_blocks": 14
     },
     {
+      "lesson": 27,
+      "bytes": 78453,
+      "text_chars": 41225,
+      "questions": 30,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 28,
+      "bytes": 78052,
+      "text_chars": 40873,
+      "questions": 30,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 29,
+      "bytes": 76216,
+      "text_chars": 39749,
+      "questions": 30,
+      "code_blocks": 12
+    },
+    {
+      "lesson": 30,
+      "bytes": 75226,
+      "text_chars": 38681,
+      "questions": 29,
+      "code_blocks": 13
+    },
+    {
+      "lesson": 31,
+      "bytes": 74980,
+      "text_chars": 39033,
+      "questions": 29,
+      "code_blocks": 13
+    },
+    {
+      "lesson": 32,
+      "bytes": 80732,
+      "text_chars": 41584,
+      "questions": 31,
+      "code_blocks": 15
+    },
+    {
       "lesson": 33,
-      "bytes": 72930,
-      "text_chars": 38120,
-      "questions": 28,
+      "bytes": 74990,
+      "text_chars": 38956,
+      "questions": 29,
       "code_blocks": 13
     },
     {
       "lesson": 34,
-      "bytes": 72630,
-      "text_chars": 37562,
-      "questions": 28,
+      "bytes": 74681,
+      "text_chars": 38376,
+      "questions": 29,
       "code_blocks": 13
     },
     {
       "lesson": 35,
-      "bytes": 72885,
-      "text_chars": 38002,
-      "questions": 28,
+      "bytes": 74987,
+      "text_chars": 38815,
+      "questions": 29,
       "code_blocks": 13
     }
   ],
   "external_urls": [
+    "https://dev.mysql.com/doc/refman/8.0/en/account-names.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/caching-sha2-pluggable-authentication.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/derived-table-optimization.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/docker-mysql-getting-started.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/explain-output.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/explain.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/grant.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/hash-joins.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/index-condition-pushdown-optimization.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-adaptive-hash.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-auto-increment-handling.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-buffer-pool.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-change-buffer.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-internals.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-usage.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-consistent-read.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-data-encryption.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-deadlocks-handling.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-doublewrite-buffer.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-error-handling.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-index-types.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-introduction.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-multi-versioning.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-online-ddl-limitations.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-page-compression.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-physical-structure.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-redo-log.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-table-compression.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/innodb-undo-logs.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/internal-temporary-tables.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/keyring.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/multiple-column-indexes.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/mysql-indexes.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/mysql-nutshell.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/nested-loop-joins.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/optimizer-hints.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/optimizer-statistics.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/order-by-optimization.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/point-in-time-recovery.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/range-optimization.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/replication-options-binary-log.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/roles.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/server-status-variables.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/type-conversion.html",
+    "https://dev.mysql.com/doc/refman/8.0/en/using-encrypted-connections.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Class.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/ClassLoader.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/System.html#gc()",
+    "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/ref/WeakReference.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/specs/man/index.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/specs/man/javac.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/specs/man/javap.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/specs/man/jcmd.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/specs/man/jfr.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/specs/man/jlink.html",
+    "https://docs.oracle.com/en/java/javase/21/gctuning/garbage-first-g1-garbage-collector1.html",
+    "https://docs.oracle.com/en/java/javase/21/gctuning/garbage-first-garbage-collector-tuning.html",
+    "https://docs.oracle.com/en/java/javase/21/gctuning/index.html",
+    "https://docs.oracle.com/en/java/javase/21/troubleshoot/diagnostic-tools.html",
+    "https://docs.oracle.com/en/java/javase/21/troubleshoot/index.html",
+    "https://docs.oracle.com/en/java/javase/21/vm/compiler-control1.html",
+    "https://docs.oracle.com/en/java/javase/21/vm/error-reporting.html",
+    "https://docs.oracle.com/en/java/javase/21/vm/index.html",
+    "https://docs.oracle.com/en/java/javase/21/vm/java-hotspot-virtual-machine-performance-enhancements.html",
+    "https://docs.oracle.com/en/java/javase/21/vm/java-virtual-machine-technology-overview.html",
+    "https://docs.oracle.com/en/java/javase/21/vm/native-memory-tracking.html",
+    "https://docs.oracle.com/javase/specs/jls/se21/html/index.html",
+    "https://docs.oracle.com/javase/specs/jls/se21/html/jls-12.html#jls-12.2",
+    "https://docs.oracle.com/javase/specs/jls/se21/html/jls-12.html#jls-12.4",
+    "https://docs.oracle.com/javase/specs/jls/se21/html/jls-12.html#jls-12.4.1",
+    "https://docs.oracle.com/javase/specs/jls/se21/html/jls-17.html",
+    "https://docs.oracle.com/javase/specs/jls/se21/html/jls-17.html#jls-17.4.5",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/index.html",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-1.html#jvms-1.2",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.1",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.10",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.11",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.11.10",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.13",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.5",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.5.3",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.6",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.6.2",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.7",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-3.html#jvms-3.14",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-3.html#jvms-3.3",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-3.html#jvms-3.6",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-3.html#jvms-3.7",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.1",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.10",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.3",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.4",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.2",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.3",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.1",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.2",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.3",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.3.3",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.4",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.5",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.iadd",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.iload",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.new",
     "https://docs.spring.io/spring-kafka/reference/kafka/annotation-error-handling.html",
     "https://docs.spring.io/spring-kafka/reference/kafka/receiving-messages/message-listener-container.html",
+    "https://github.com/openjdk/jdk21u/blob/master/src/hotspot/share/gc/g1/g1CollectedHeap.hpp",
+    "https://github.com/openjdk/jdk21u/tree/master/src/hotspot/share/gc/g1",
+    "https://github.com/openjdk/jmh",
+    "https://github.com/openjdk/jmh/tree/master/jmh-samples",
     "https://github.com/thisisnew",
     "https://github.com/thisisnew/thisisnew.github.io/actions",
+    "https://github.com/thisisnew/thisisnew.github.io/actions/runs/39270953719",
     "https://github.com/thisisnew/thisisnew.github.io/tree/main/examples/kafka-lab",
     "https://kafka.apache.org/43/",
     "https://kafka.apache.org/43/apis/",
@@ -315,6 +432,27 @@
     "https://kafka.apache.org/43/streams/developer-guide/testing/",
     "https://kafka.apache.org/43/streams/developer-guide/write-streams-app/",
     "https://kafka.apache.org/43/streams/introduction/",
-    "https://kafka.apache.org/43/streams/upgrade-guide/"
+    "https://kafka.apache.org/43/streams/upgrade-guide/",
+    "https://openjdk.org/jeps/312",
+    "https://openjdk.org/jeps/439",
+    "https://openjdk.org/jeps/444",
+    "https://openjdk.org/jeps/491",
+    "https://thisisnew.github.io/posts/jvm-study-00.html",
+    "https://thisisnew.github.io/posts/jvm-study-01.html",
+    "https://thisisnew.github.io/posts/jvm-study-02.html",
+    "https://thisisnew.github.io/posts/jvm-study-03.html",
+    "https://thisisnew.github.io/posts/jvm-study-04.html",
+    "https://thisisnew.github.io/posts/jvm-study-05.html",
+    "https://thisisnew.github.io/posts/jvm-study-06.html",
+    "https://thisisnew.github.io/posts/jvm-study-07.html",
+    "https://thisisnew.github.io/posts/jvm-study-08.html",
+    "https://thisisnew.github.io/posts/jvm-study-09.html",
+    "https://thisisnew.github.io/posts/jvm-study-10.html",
+    "https://thisisnew.github.io/posts/jvm-study-11.html",
+    "https://thisisnew.github.io/posts/jvm-study-12.html",
+    "https://thisisnew.github.io/posts/jvm-study-13.html",
+    "https://thisisnew.github.io/posts/jvm-study-14.html",
+    "https://thisisnew.github.io/posts/jvm-study-15.html",
+    "https://thisisnew.github.io/posts/jvm-study-16.html"
   ]
 }

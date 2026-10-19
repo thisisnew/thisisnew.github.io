@@ -4,6 +4,7 @@ Existing URLs, skin, and original explanations are retained.
 from pathlib import Path
 import re, html, json
 from special_notes import SPECIAL
+from kafka_worked_cases import CASES
 ROOT=Path(__file__).resolve().parents[1]
 def esc(s):return html.escape(s,quote=True)
 def p(s):return '<p>'+s+'</p>'
@@ -464,6 +465,13 @@ def build_addition(n):
  p('처음 읽는다면 흐름의 화살표마다 입력, 실행 주체, 저장되는 결과, 다음 단계가 알 수 있는 사실을 구분해 보세요. 용어가 낯설면 아래 독립 학습용 공통 원리에서 로그·위치·복제·재시도를 먼저 확인한 뒤 돌아오면 됩니다. 기존 본문 뒤에도 코드와 실습, 심화 Q&A가 이어집니다.'),'revision-map')
  deep=section('개정 심화: 내부 원리와 설계 판단', '<h3>실제로 저장되고 이동하는 것은 무엇인가?</h3>'+p(t['mechanism'])+'<h3>설정을 선택할 때 따져야 할 경계</h3>'+p(t['decision'])+'<h3>가상 장애 사례: 증상에서 실패 구간으로</h3>'+p(t['incident'])+
  '<h3>이 주장을 반례로 검증해 보세요</h3>'+p('<strong>검증할 주장:</strong> “'+COUNTER[n][0]+'”')+p('<strong>반박과 확인할 증거:</strong> '+COUNTER[n][1]),'revision-internals')
+ c=CASES[n]
+ deep += section('단계별 해설: '+esc(c['title']),
+  '<h3>상황과 비유</h3>'+p(esc(c['setup']))+
+  '<h3>시간순으로 내부 동작 따라가기</h3>'+p(esc(c['trace']))+
+  '<h3>직접 확인할 실습과 판단 기준</h3>'+p(esc(c['check']))+
+  qa(c['question'],esc(c['answer']),'위 상황에서 성공했다고 판단한 시점을 하나 고르고, 그 직전에 프로세스가 종료되면 어떤 상태가 남는지 설명해 보세요. 답변은 실제 기록·업무 결과·재시작 위치를 구분해야 합니다.'),
+  'revision-worked-case')
  shell=f'''# Kafka 4.3.1 배포 디렉터리에서 실행. 평문 localhost 학습 환경.
 # 브로커는 별도 터미널: docker run --rm --name kafka-study -p 9092:9092 apache/kafka:4.3.1
 bin/kafka-topics.sh --bootstrap-server localhost:9092 --create \\
@@ -552,7 +560,7 @@ def render():
   if '/assets/study-tools.js' not in text:text=text.replace('</body>','<script src="/assets/study-tools.js" defer></script></body>')
   if '/assets/study-reading.css' not in text:text=text.replace('</head>','<link rel="stylesheet" href="/assets/study-reading.css"></head>')
   path.write_text(text)
-  rows.append(dict(lesson=n,bytes=len(text.encode()),topic_chars=sum(len(str(v)) for v in TOPICS[n].values()),source_urls=['https://kafka.apache.org/43/'+u.replace('ops/','operations/') for u in TOPICS[n]['source']]))
+  rows.append(dict(lesson=n,bytes=len(text.encode()),topic_chars=sum(len(str(v)) for v in TOPICS[n].values()),worked_case_chars=sum(len(v) for v in CASES[n].values()),source_urls=['https://kafka.apache.org/43/'+u.replace('ops/','operations/') for u in TOPICS[n]['source']]))
  (ROOT/'learning/lesson-audit.json').write_text(json.dumps(rows,ensure_ascii=False,indent=2))
  print(json.dumps({'lessons':len(rows),'min_bytes':min(r['bytes'] for r in rows),'max_bytes':max(r['bytes'] for r in rows)},ensure_ascii=False))
 if __name__=='__main__':render()

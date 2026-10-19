@@ -37,11 +37,12 @@ def verify():
   p=ROOT/f'posts/kafka-study-{n:02}.html'
   if p not in pages:errors.append(f'missing lesson {n}');continue
   x=pages[p];s=p.read_text()
-  for marker in ['revision-map','revision-internals','revision-lab','revision-code','revision-foundations','revision-interview','revision-sources','pixel-quest.css']:
+  for marker in ['revision-worked-case','revision-map','revision-internals','revision-lab','revision-code','revision-foundations','revision-interview','revision-sources','pixel-quest.css']:
    if marker not in s:errors.append(f'{n} missing {marker}')
+  if '~~~' in s:errors.append(f'{n} unrendered Markdown code fence')
   if x.details<15 or x.details!=x.summary:errors.append(f'{n} incomplete details/summary')
   if 'https://kafka.apache.org/43/' not in s:errors.append(f'{n} missing versioned source')
-  rows.append({'lesson':n,'bytes':len(s.encode()),'text_chars':len(''.join(x.text)),'questions':x.details,'code_blocks':x.code})
+  rows.append({'lesson':n,'bytes':len(s.encode()),'text_chars':len(''.join(x.text)),'questions':x.details,'code_blocks':s.count('<pre')})
  result={'lessons':len(rows),'pages':len(pages),'errors':errors,'lessons_detail':rows,'external_urls':sorted(externals)}
  (ROOT/'learning/site-checks.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
  print(json.dumps({k:v for k,v in result.items() if k not in ['lessons_detail','external_urls']},ensure_ascii=False,indent=2));return not errors
