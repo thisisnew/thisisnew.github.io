@@ -1,0 +1,171 @@
+{"n":16,"title":"JVM 장애 분석 도구: CPU·Heap·Native·종료 원인을 구분하기","desc":"jcmd·JFR·GC Log·Heap/Thread Dump·NMT·fatal error log를 실제 조사 흐름으로 연결한다"}
+
+## 1. 도구 이름보다 증상을 먼저 나누기
+
+환자가 열이 난다는 말만으로 같은 약을 쓰지 않듯이 “Java가 느리다”도 하나의 원인이 아닙니다. CPU를 많이 쓰는 계산, 락·DB 대기, GC 정지, Heap 누수, Native 메모리 증가, OS에 의한 종료는 관측 자료와 해결책이 다릅니다.
+
+첫 단계는 **언제부터, 무엇이, 어느 프로세스에서 변했는가**입니다. 배포 버전·JDK·시각·트래픽·CPU 제한·메모리 한도를 기록하고 지연의 평균뿐 아니라 p95·p99, 오류율, 스레드 수와 큐 길이를 비교합니다. 한 번의 스냅샷보다 시간축이 원인 구분에 중요합니다.
+
+## 2. 증상과 첫 관측 자료 연결하기
+
+| 관측 | 첫 확인 | 다음 가설을 검증할 자료 |
+|---|---|---|
+| CPU 높음 | CPU 사용 스레드·컨테이너 throttling | JFR 실행 표본, 반복 thread dump, GC CPU |
+| CPU 낮고 지연 높음 | 외부 대기·락·큐·풀 | thread dump, 락 이벤트, DB·HTTP 시간 |
+| Heap 지속 증가 | GC 후에도 남는 live set | 히스토그램, Heap dump의 유지 경로 |
+| Heap 안정·RSS 증가 | 스레드·버퍼·클래스·Native | NMT 차이, OS 메모리 맵·직접 버퍼 지표 |
+| OOMKilled·강제 종료 | 런타임·OS 이벤트와 제한 | cgroup 메모리·종료 사유·운영체제 로그 |
+| SIGSEGV 등 VM crash | hs_err_pid 파일 | problematic frame, 네이티브 라이브러리·JDK |
+
+이 표는 원인을 확정하는 사전이 아니라 조사 출발점입니다. 예를 들어 높은 CPU에는 업무 계산과 GC, JIT, 바쁜 재시도 루프가 섞일 수 있습니다. 같은 시간대의 자료를 모아 가설별로 확인해야 합니다.
+
+## 3. 로컬 진단 대상 프로그램
+
+```java
+// file: Lesson16.java
+import java.util.ArrayList;
+import java.util.List;
+
+public class Lesson16 {
+    static volatile long sink;
+    static final List<byte[]> retained = new ArrayList<>();
+    public static void main(String[] args) throws InterruptedException {
+        int seconds = args.length == 0 ? 2 : Integer.parseInt(args[0]);
+        if (seconds < 1 || seconds > 600) throw new IllegalArgumentException("1..600");
+        for (int i = 0; i < 8; i++) retained.add(new byte[256 * 1024]);
+        System.out.println("pid=" + ProcessHandle.current().pid());
+        System.out.flush();
+        long until = System.nanoTime() + seconds * 1_000_000_000L;
+        while (System.nanoTime() < until) {
+            for (int i = 0; i < 100_000; i++) sink += i;
+            Thread.sleep(20);
+        }
+        System.out.println("done");
+    }
+}
+```
+
+```sh
+javac --release 21 -g Lesson16.java
+java -Xms32m -Xmx64m -XX:NativeMemoryTracking=summary -Xlog:gc*,safepoint:file=gc16.log:time,uptime,level,tags Lesson16 120
+```
+
+현재 터미널에서 프로그램이 실행되는 동안 두 번째 터미널을 엽니다. 출력된 숫자를 PID에 넣습니다. 아래 `<PID>` 표기는 그대로 입력하는 문자열이 아니라 실제 프로세스 번호로 바꾸는 자리입니다. 프로그램은 최대 600초만 실행되도록 제한했습니다.
+
+```sh
+jcmd <PID> VM.version
+jcmd <PID> VM.command_line
+jcmd <PID> VM.flags
+jcmd <PID> help
+jcmd <PID> GC.heap_info
+jcmd <PID> Thread.print -l
+```
+
+jcmd는 대상 JVM과 같은 머신·적절한 사용자 권한 및 프로세스 네임스페이스에서 사용해야 합니다. 컨테이너 안팎의 PID는 다를 수 있습니다. 도구는 가능하면 실행 JDK에 맞추고, 실제 지원 명령과 영향도는 `jcmd PID help 명령`으로 확인합니다. PID 0처럼 전체 프로세스를 대상으로 하는 명령을 무심코 쓰지 마세요.
+
+## 4. CPU 문제: 누가 시간을 쓰는가
+
+JFR(Java Flight Recorder)은 JVM·애플리케이션의 여러 사건과 실행 표본을 수집합니다. 다음은 짧은 로컬 기록 예입니다. 경로는 대상 JVM이 쓰는 파일 시스템 기준이며 파일이 생성될 공간이 필요합니다.
+
+```sh
+jcmd <PID> JFR.start name=investigate settings=profile duration=30s filename=investigate.jfr
+jcmd <PID> JFR.check
+jfr summary investigate.jfr
+jfr print --events jdk.ExecutionSample investigate.jfr
+```
+
+30초 기록이 끝난 후 파일을 읽습니다. `profile`은 더 자세한 자료와 비용을 선택하는 설정이므로 운영에서는 필요한 기간·설정·이벤트를 정합니다. JDK Mission Control 같은 도구로 hot method, allocation, lock, GC를 시간축에서 볼 수 있습니다. 실행 표본은 통계적 자료이며 이벤트가 없다고 짧은 사건이 절대 없었다는 증명은 아닙니다.
+
+Linux에서는 `top -H -p PID` 등으로 높은 CPU의 OS 스레드를 찾고 thread dump의 native ID와 연결할 수 있습니다. 이 매칭은 플랫폼 스레드 진단 문맥이며 가상 스레드 하나가 항상 고정된 OS TID를 갖는다고 생각하면 안 됩니다. macOS와 Linux의 명령과 표시 형식도 구분하세요.
+
+## 5. 대기 문제: thread dump를 여러 번 보는 이유
+
+한 번의 dump는 우연히 정상 대기를 포착할 수 있습니다. 시간 간격을 두고 여러 번 보아 같은 락 소유자·대기자·호출 경로가 지속되는지 확인합니다. BLOCKED가 반복되면 어떤 모니터를 누가 보유하는지 추적하고, DB 풀 대기라면 풀 사용량·대기 수·쿼리 시간을 함께 봅니다.
+
+RUNNABLE 상태만 보고 CPU 병목이라 단정하지 않습니다. 네이티브 I/O 대기나 순간 상태가 섞일 수 있습니다. 반대로 WAITING이 많다는 것만으로 비정상도 아닙니다. 유휴 워커가 기다리는 것은 정상입니다. 요청 지연과 연결되는 스레드와 자원을 찾아야 합니다.
+
+Java 21의 많은 가상 스레드를 조사할 때는 기존 Thread.print만으로 모든 상황을 완전하게 본다고 가정하지 않습니다. 지원되는 `Thread.dump_to_file` 등 가상 스레드용 덤프 명령과 JFR 이벤트를 확인합니다. 정확한 인수는 실행 JVM의 help를 따릅니다.
+
+## 6. Heap 문제: 개수보다 유지 경로
+
+```sh
+jcmd <PID> GC.class_histogram
+jcmd <PID> GC.heap_dump /tmp/inbound-local.hprof
+```
+
+위 명령들은 로컬 실습용입니다. 히스토그램·Heap dump는 영향도가 클 수 있고, Heap dump는 기본 동작에서 Full GC를 요청할 수 있습니다. 큰 서비스에 무계획하게 반복하지 말고 크기·정지·디스크·접근 권한을 확인합니다. dump에는 요청 데이터·문자열 등 민감한 내용이 포함될 수 있으므로 관측 자료 자체도 보호합니다.
+
+히스토그램은 클래스별 객체 개수와 크기를 보는 데 유용합니다. 하지만 byte 배열이 크다는 사실만으로 누수 위치가 확정되지는 않습니다. Heap 분석기에서 **shallow size**와 **retained size**를 구분합니다. 전자는 그 객체 자체의 크기이고 후자는 해당 객체가 사라질 때 함께 도달 불가능해질 수 있는 유지 집합의 크기입니다.
+
+**Dominator**는 어떤 객체로 가는 루트 경로들이 특정 객체를 반드시 통과하는 관계를 활용한 분석입니다. **Path to GC Roots**는 왜 객체가 살아 있는지 조사하는 데 유용합니다. static 캐시·큐·리스너·ThreadLocal에서 응답 객체로 이어지는 경로를 찾아 업무상 보관 수명과 비교합니다. 단순히 가장 큰 클래스만 줄이면 안 됩니다.
+
+OOM 시 Heap 자료를 남기려면 시작 옵션을 사용할 수 있습니다.
+
+```sh
+java -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/inbound-oom.hprof -Xmx64m Lesson16 120
+```
+
+이 프로그램의 기본 동작은 OOM을 일부러 만들지 않습니다. 해당 옵션은 필요한 조건의 Heap dump를 남기는 준비이며, OS가 프로세스를 즉시 죽였을 때도 항상 실행되는 보장은 아닙니다. 경로 충돌과 디스크 여유도 고려합니다.
+
+## 7. Native 문제: NMT와 RSS를 비교하기
+
+```sh
+jcmd <PID> VM.native_memory summary scale=MB
+jcmd <PID> VM.native_memory baseline
+jcmd <PID> VM.native_memory summary.diff scale=MB
+```
+
+NMT(Native Memory Tracking)는 시작 시 활성화해야 합니다. 실행 중 jcmd로 꺼진 추적을 임의로 켜서 과거 내역을 복구할 수는 없습니다. baseline은 비교 출발점을 잡고 diff는 그 이후 변화를 보여 줍니다. Thread·Class·Code·GC 등 어느 범주가 증가했는지 봅니다.
+
+NMT는 HotSpot 내부 추적 범위를 보여 주는 도구이지 모든 네이티브 라이브러리 할당과 RSS를 완전하게 합산한 장부가 아닙니다. reserved·committed와 resident의 범위도 다릅니다. NMT 합계와 RSS가 다르다는 사실만으로 JVM 버그라고 결론 내리지 마세요. 직접 버퍼 풀 지표·스레드 수·OS 메모리 자료·라이브러리별 관측을 함께 사용합니다.
+
+## 8. OOME·OOMKilled·Fatal Error를 구분하기
+
+`OutOfMemoryError: Java heap space`는 JVM이 Heap 할당을 만족시키지 못한 상황과 연결됩니다. Metaspace·Direct buffer memory·unable to create native thread 같은 메시지는 다른 영역이나 제한을 조사하게 합니다. 모두를 Heap 누수 하나로 취급하지 않습니다.
+
+컨테이너의 OOMKilled나 OS OOM kill은 JVM 내부 예외 처리와 다른 계층입니다. exit code 137은 SIGKILL과 연결될 수 있지만 그것만으로 OOM이라고 확정할 수 없습니다. 운영체제·오케스트레이터의 종료 사유와 메모리 이벤트를 확인해야 합니다. SIGKILL에서는 JVM이 로그·JFR·Heap dump를 마무리할 기회를 얻지 못할 수 있습니다.
+
+SIGSEGV 같은 치명적 오류에서는 `hs_err_pid...log`가 중요합니다. JVM·OS 정보, problematic frame, 스레드 상태와 네이티브 라이브러리 등을 읽습니다. 한 프레임이 특정 라이브러리로 표시되었다고 곧바로 책임이 확정되지는 않습니다. 메모리 훼손의 원인과 관측된 크래시 위치가 다를 수 있어 재현·버전·코어 자료를 함께 봅니다. [공식 근거: Fatal Error Reporting](https://docs.oracle.com/en/java/javase/21/vm/error-reporting.html)
+
+## 9. GC 로그와 서비스 지연을 연결하기
+
+GC 로그에서 원인, 전후 Heap, 단계별 시간과 safepoint를 요청 시각에 맞춥니다. 정지가 20ms였는데 요청이 3초 느렸다면 GC만으로 전체 지연을 설명할 수 없습니다. DB·큐·락·재시도 등 나머지 시간을 조사해야 합니다. 반대로 짧은 정지가 누적되거나 여러 요청이 한 번에 밀리면 영향이 증폭될 수 있습니다.
+
+가상 장애 흐름을 예로 들면 DB 지연 → 요청 유지 증가 → 객체 승격 증가 → Old 여유 감소 → GC 비용 증가 → 처리량 저하로 이어질 수 있습니다. 이 화살표는 가설입니다. 각 구간의 지표와 타임라인으로 확인하고, 데이터 없이 원인을 단정하지 않습니다.
+
+## 더 깊이: 가설을 반박하는 타임라인 만들기
+
+장애 기록에는 시각, 요청량, 지연, CPU, Heap·RSS, GC, 스레드·풀 대기를 같은 간격으로 맞춰 둡니다. 배포 직후부터 모든 것이 변했다는 말보다 'DB 지연이 먼저 상승하고 그 뒤 대기 요청·Old 점유가 증가했다'는 순서가 더 유용합니다. 다만 시간상 앞섰다는 사실만으로 인과가 확정되는 것은 아니므로 쿼리·할당 경로 등의 추가 근거가 필요합니다.
+
+| 가설 | 맞다면 기대할 관측 | 반박에 도움이 되는 관측 |
+|---|---|---|
+| 업무 CPU 루프 | 같은 코드가 실행 표본에 반복 | CPU 대부분이 GC·컴파일 작업 |
+| 객체 유지 누수 | 비슷한 부하에서 GC 후 live set 상승 | 보관 상한 안에서 점유 안정 |
+| 모니터 병목 | 같은 소유자와 대기자 지속 | 대기 없이 외부 I/O만 길어짐 |
+| Native 증가 | Heap과 다른 RSS·범주 증가 | 증가가 OS 캐시 등 다른 범위 |
+
+조치도 실험으로 기록합니다. 동시 실행 수를 줄였을 때 오류와 지연, 처리량, 메모리가 각각 어떻게 달라졌는지 봅니다. 한 지표가 좋아졌다고 전체 결과가 좋아졌다고 결론 내리지 않습니다. 변경 시각과 배포 버전을 남기면 되돌리기와 재현이 쉬워집니다.
+
+<details class="question"><summary>심화 Q. 프로파일러에서 가장 위에 보이는 메서드를 고치면 되나요?</summary><div class="answer"><p>그 메서드가 실제 병목인지, 포함 시간과 자기 시간의 차이는 무엇인지, CPU 표본인지 wall-clock 대기인지부터 봅니다. 자주 호출되는 공통 프레임이 위에 있다고 그 프레임 자체가 비용의 원인은 아닐 수 있습니다.</p><p>대표 부하와 실제 요청 경로를 연결해 수정한 뒤 같은 조건에서 다시 측정합니다. 프로파일의 시각적 크기는 단서이며 업무 영향의 최종 증거는 아닙니다.</p></div></details>
+
+## 10. 상세 면접 Q&A
+
+<details class="question"><summary>Q1. CPU 100%면 바로 Heap dump를 뜨나요?</summary><div class="answer"><p>먼저 CPU를 쓰는 스레드와 실행 경로를 확인합니다. JFR 실행 표본과 OS CPU, GC 시간을 비교합니다. Heap dump는 참조 유지 분석에 유용하지만 CPU 계산 루프의 첫 관측 자료로 항상 적절한 것은 아닙니다.</p></div></details>
+<details class="question"><summary>Q2. Heap 사용이 안정적이면 메모리 문제가 없나요?</summary><div class="answer"><p>아닙니다. Native 스택·Metaspace·Code Cache·직접 버퍼·네이티브 라이브러리 등의 증가가 있을 수 있습니다. RSS와 컨테이너 메모리, NMT·스레드·버퍼 지표를 함께 봅니다. Heap 그래프는 프로세스 전체 그래프가 아닙니다.</p></div></details>
+<details class="question"><summary>Q3. NMT 총합이 RSS와 같아야 하나요?</summary><div class="answer"><p>측정 범위와 개념이 다르므로 같을 필요가 없습니다. NMT는 추적하는 내부 범주와 reserved·committed를 보고하고 RSS는 상주 메모리 관측입니다. 추적되지 않는 라이브러리 할당 등도 고려해야 합니다.</p></div></details>
+<details class="question"><summary>Q4. 히스토그램에서 byte[]가 크면 누수인가요?</summary><div class="answer"><p>큰 byte 배열이 실제로 필요한 데이터일 수도 있고 다른 객체가 붙잡는 중간 버퍼일 수도 있습니다. 시간에 따른 증가와 GC 이후 생존, retained size, 루트 경로를 확인해야 합니다. 타입별 크기는 출발점이며 원인 자체가 아닙니다.</p></div></details>
+<details class="question"><summary>Q5. exit 137이면 반드시 Heap OOM인가요?</summary><div class="answer"><p>아닙니다. SIGKILL로 종료되었을 가능성을 나타내는 단서이며 OOM kill 여부는 별도 근거가 필요합니다. JVM의 Java heap space와 OS·컨테이너 종료를 구분하고 종료 이벤트를 확인합니다.</p></div></details>
+<details class="question"><summary>Q6. thread dump 한 장으로 락 병목을 확정하나요?</summary><div class="answer"><p>순간 상태일 수 있으므로 간격을 둔 여러 자료와 지연 시각을 비교합니다. 같은 모니터의 소유자·대기자가 지속되는지, 소유자가 어떤 외부 자원을 기다리는지 조사합니다. 유휴 워커의 정상 대기를 병목으로 오해하지 않습니다.</p></div></details>
+<details class="question"><summary>Q7. HeapDumpOnOutOfMemoryError면 OOMKilled에서도 파일이 남나요?</summary><div class="answer"><p>항상 남는다고 보장할 수 없습니다. JVM 내부의 특정 OOME 처리와 OS 강제 종료는 다릅니다. SIGKILL은 JVM에 정리 기회를 주지 않을 수 있습니다. 사전 지표와 순환 JFR, 종료 사유도 확보해야 합니다.</p></div></details>
+<details class="question"><summary>Q8. 장애 도구를 실행할 때 가장 먼저 확인할 것은 무엇인가요?</summary><div class="answer"><p>대상 프로세스·사용자·JDK·컨테이너 네임스페이스를 확인하고 실제 명령 help와 영향도를 봅니다. 수집할 자료가 어떤 가설을 검증하는지도 정합니다. 도구 실행 자체가 목적이 되면 큰 dump만 남고 원인 타임라인은 놓칠 수 있습니다.</p></div></details>
+
+## 11. 공식 근거와 연재 최종 과제
+
+- [jcmd 명령·영향도](https://docs.oracle.com/en/java/javase/21/docs/specs/man/jcmd.html).
+- [JDK 21 진단 도구 가이드](https://docs.oracle.com/en/java/javase/21/troubleshoot/diagnostic-tools.html).
+- [NMT 공식 가이드](https://docs.oracle.com/en/java/javase/21/vm/native-memory-tracking.html).
+- [Fatal Error Reporting](https://docs.oracle.com/en/java/javase/21/vm/error-reporting.html).
+- [jfr 명령](https://docs.oracle.com/en/java/javase/21/docs/specs/man/jfr.html).
+- [JDK 21 Troubleshooting Guide](https://docs.oracle.com/en/java/javase/21/troubleshoot/index.html).
+
+최종 과제는 “입고 API가 느리고 메모리가 증가한다”는 보고를 받았다고 가정하는 것입니다. 어떤 자료부터 수집할지, 각 가설을 어떤 관측으로 반박할지 적어 보세요. JVM 구조를 배운 목적은 하나의 유행 옵션을 외우는 것이 아니라 실행과 증거를 연결해 문제를 좁히는 데 있습니다.

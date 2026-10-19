@@ -1,0 +1,92 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="this·인자·지역변수·반환·예외를 프레임으로 이해하고 StackOverflowError와 Xss를 연결한다"><title>JVM 04 · 스택과 스택 프레임: 메서드 호출을 한 칸씩 추적하기 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/jvm-study-04.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"></head><body><main><a href="/">← 전체 글</a> · <a href="/posts/jvm-study-00.html">JVM 학습 지도</a><header><p class="meta">JVM QUEST · 04 / 16 · JAVA 21 · 2026-10-19</p><h1>스택과 스택 프레임: 메서드 호출을 한 칸씩 추적하기</h1><p class="subtitle">this·인자·지역변수·반환·예외를 프레임으로 이해하고 StackOverflowError와 Xss를 연결한다</p><p class="note">기준: Java SE 21 사양과 HotSpot JDK 21. 첨부 자료의 JVMS 23·JDK 17 발췌는 이 기준으로 대조했습니다. 설명 속 장애 상황은 학습용 가상 사례입니다. 예제는 외부 라이브러리 없이 실행할 수 있습니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이 글에서 배울 것</h2><ol><li><a href="#section-1">1. 메서드 호출은 잠깐 맡긴 작업이다</a></li><li><a href="#section-2">2. 프레임 안의 세 가지 핵심 요소</a></li><li><a href="#section-3">3. this와 인자를 직접 추적하는 코드</a></li><li><a href="#section-4">4. 반환값과 예외는 어떻게 이동하는가</a></li><li><a href="#section-5">5. max_stack·max_locals를 잘못 읽지 않기</a></li><li><a href="#section-6">6. 재귀 장애를 이해하는 실험</a></li><li><a href="#section-7">7. 실무 연결: 스택이 끝났는데 왜 객체는 남는가</a></li><li><a href="#section-8">더 깊이: 반환 후에도 남는 값과 사라지는 실행 상태</a></li><li><a href="#section-9">8. 상세 면접 Q&amp;A</a></li><li><a href="#section-10">9. 공식 근거와 복습</a></li></ol></aside><article><h2 id="section-1">1. 메서드 호출은 잠깐 맡긴 작업이다</h2>
+<p>입고 담당자가 검수 담당자에게 계산을 맡기면, 자신이 하던 일을 표시해 두고 결과를 기다립니다. 검수 담당자가 다른 계산을 다시 맡기면 대기 중인 작업이 한 겹 더 생깁니다. 마지막에 맡긴 작업이 먼저 끝나는 구조가 스택입니다. 메서드 한 번의 호출에 필요한 상태 묶음을 **프레임(Frame)**이라고 합니다.</p>
+<p>JVM 사양의 실행 모델에서는 호출마다 새 프레임이 생기고, 정상 반환이나 처리되지 않은 예외로 메서드가 끝나면 프레임이 제거됩니다. 객체 하나당 프레임 하나가 아닙니다. 같은 객체의 메서드를 두 번 호출하면 두 번의 호출 상태가 필요합니다. 재귀 호출도 각각 별도 상태를 갖습니다. <a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.6">근거: JVMS §2.6</a></p>
+<h2 id="section-2">2. 프레임 안의 세 가지 핵심 요소</h2>
+<p><strong>지역변수 배열</strong>에는 인자와 지역값을 슬롯으로 저장합니다. 여기서 배열은 JVM의 실행 자료구조를 설명하는 말이며, Java에서 개발자가 만든 <code>Object[]</code>와 동일한 객체라는 뜻은 아닙니다. 인스턴스 메서드의 0번 슬롯에는 <code>this</code>가 들어가고, 명시적 인자는 1번부터 이어집니다. static 메서드는 this가 없어 인자가 0번부터 시작합니다.</p>
+<p><strong>피연산자 스택</strong>은 계산 중 값을 올렸다가 꺼내는 작업 공간입니다. 지역변수 배열에서 숫자를 읽어 올려 덧셈하고 결과를 반환합니다. <strong>런타임 상수 풀 참조</strong>는 현재 메서드 코드가 사용하는 클래스·필드·메서드 심벌 등을 연결하는 데 쓰입니다.</p>
+<p><code>long</code>과 <code>double</code>은 지역변수 배열에서 연속된 두 슬롯을 차지합니다. “64비트 JVM에서는 모든 슬롯이 객체 주소 크기다”라고 단정하지 마세요. 사양의 슬롯 계산과 실제 구현의 바이트 배치는 다릅니다.</p>
+<h2 id="section-3">3. this와 인자를 직접 추적하는 코드</h2>
+<pre><code class="language-java">// file: Lesson04.java
+public class Lesson04 {
+    int base = 10;
+    int add(int quantity) {
+        int result = base + quantity;
+        return result;
+    }
+    static int call(Lesson04 target) {
+        return target.add(32);
+    }
+    public static void main(String[] args) {
+        Lesson04 service = new Lesson04();
+        System.out.println(call(service));
+    }
+}
+</code></pre>
+<pre><code class="language-sh">javac --release 21 -g Lesson04.java
+java Lesson04
+javap -c -v -p Lesson04
+</code></pre>
+<p>출력은 <code>42</code>입니다. 호출 중인 한순간을 논리적으로 정리하면 다음과 같습니다. <code>println</code> 등 표준 라이브러리의 추가 호출은 표에서 생략했습니다.</p>
+<table>
+<thead>
+<tr>
+<th>프레임</th>
+<th>지역변수의 핵심</th>
+<th>맡긴 일</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>main</td>
+<td>0=args, 1=service 참조</td>
+<td>call 결과 대기</td>
+</tr>
+<tr>
+<td>call</td>
+<td>0=target 참조</td>
+<td>add 결과 대기</td>
+</tr>
+<tr>
+<td>add</td>
+<td>0=this, 1=quantity(32), 2=result(42)</td>
+<td>덧셈과 반환</td>
+</tr>
+</tbody></table>
+<p>service, target, this는 이름이 다르지만 같은 객체를 가리키는 참조 값일 수 있습니다. Java는 인자를 값으로 전달합니다. 객체 인자에서 전달하는 값은 참조입니다. 따라서 호출받은 쪽이 객체 필드를 바꾸면 호출자에게도 변화가 보일 수 있지만, 인자 변수에 다른 객체를 대입한다고 호출자의 지역변수 자체가 바뀌지는 않습니다.</p>
+<h2 id="section-4">4. 반환값과 예외는 어떻게 이동하는가</h2>
+<p><code>ireturn</code>은 현재 메서드의 정수 결과를 호출자에게 돌려주며 현재 프레임을 끝냅니다. 호출자는 그 결과를 자기 피연산자 스택에서 이어서 사용할 수 있습니다. 모든 지역변수 배열을 통째로 돌려주는 것이 아닙니다. 따라서 메서드가 끝난 뒤에도 객체가 필요하다면 반환값·필드·컬렉션 등 도달 가능한 참조로 유지되어야 합니다.</p>
+<p>예외가 발생하면 현재 메서드의 예외 처리 표에서 해당 명령 위치와 예외 타입에 맞는 핸들러를 찾습니다. 찾지 못하면 현재 호출이 비정상 종료되고 상위 호출로 전파됩니다. 스택 트레이스의 아래쪽은 먼저 시작한 호출, 위쪽은 예외가 발생한 쪽에 가깝습니다. <code>finally</code>와 자원 정리는 언어와 바이트코드의 처리 흐름으로 구현되며, 예외가 났다고 모든 프레임의 값이 한꺼번에 출력되는 것은 아닙니다.</p>
+<h2 id="section-5">5. max_stack·max_locals를 잘못 읽지 않기</h2>
+<p><code>javap -v</code>는 <code>Code</code>에 <code>stack</code>, <code>locals</code>, <code>args_size</code>를 보여 줍니다. stack은 해당 메서드 피연산자 스택의 최대 깊이이고 locals는 지역변수 슬롯 수입니다. 둘 다 전체 스레드 스택의 메모리 바이트 크기가 아닙니다. 프레임 크기는 구현 정보도 필요하며 JIT 실행에서 모습이 달라질 수 있습니다.</p>
+<p>한 메서드에 지역변수가 많으면 그 호출의 프레임 비용에 영향을 줄 수 있습니다. 재귀 깊이가 크면 여러 프레임이 누적됩니다. <code>-Xss</code>는 HotSpot의 스레드 스택 크기와 연결되는 옵션입니다. 하지만 Xss를 두 배로 늘리면 모든 코드의 안전 재귀 깊이가 정확히 두 배가 된다고 보장할 수 없습니다. 컴파일 상태와 메서드 모양, VM 내부 필요 공간도 영향을 줍니다.</p>
+<h2 id="section-6">6. 재귀 장애를 이해하는 실험</h2>
+<p>예제의 call을 자기 자신을 끝없이 호출하도록 바꾸면 종료 조건 없는 호출이 누적됩니다. 이는 작은 로컬 변형으로만 수행하세요. 정상 예제에는 무한 재귀를 넣지 않았습니다. 관찰 대상은 <code>StackOverflowError</code>와 반복되는 호출 위치입니다.</p>
+<pre><code class="language-sh">java -Xss512k Lesson04
+java -Xss1m Lesson04
+</code></pre>
+<p>정상 코드에서는 둘 다 42를 출력합니다. Xss는 정상 호출 결과를 바꾸는 옵션이 아닙니다. 무한 재귀 변형에서는 한도가 달라질 수 있어도 결국 실패합니다. 재귀적 DTO 변환, 양방향 연관관계의 <code>toString</code>, 순환 그래프 탐색 같은 사례에서는 무작정 Xss를 늘리기보다 종료 조건·방문 집합·반복문 전환을 확인해야 합니다.</p>
+<h2 id="section-7">7. 실무 연결: 스택이 끝났는데 왜 객체는 남는가</h2>
+<p>메서드 안에서 큰 조회 결과를 가져와 static 캐시에 넣었다고 가정합니다. 프레임이 끝나더라도 캐시가 객체를 참조하면 객체는 남을 수 있습니다. 프레임 제거는 호출 상태의 종료이고 Heap 객체 회수는 도달 가능성의 문제입니다. 스택 반환과 GC 회수는 다른 사건입니다.</p>
+<p>또한 Spring 요청을 처리하는 플랫폼 스레드는 요청마다 새로 만들어진다고 단정할 수 없습니다. 스레드 풀이 스레드를 재사용하면 ThreadLocal 값도 적절히 지우지 않는 한 다음 작업까지 남을 수 있습니다. 요청 프레임이 끝나는 것만으로 스레드가 가진 모든 참조가 사라지는 것은 아닙니다.</p>
+<h2 id="section-8">더 깊이: 반환 후에도 남는 값과 사라지는 실행 상태</h2>
+<p><code>return box</code>는 객체 전체를 프레임 바깥으로 복사하는 연산이 아닙니다. 객체를 가리키는 참조 값을 호출자에게 전달합니다. 호출자가 그 값을 보관하면 피호출자의 프레임이 사라져도 객체는 계속 도달 가능할 수 있습니다. 반면 반환하지도 공유하지도 않은 임시 객체는 다른 경로가 없다면 회수 후보가 될 수 있습니다.</p>
+<p>예외 전파도 &#39;반환이 없으니 프레임이 계속 남는다&#39;는 구조가 아닙니다. 처리할 핸들러를 찾지 못한 메서드는 비정상 완료하며 호출 상태가 풀립니다. 그러나 예외 객체가 저장한 메시지·원인·스택 정보나 애플리케이션이 예외에 붙인 데이터는 다른 참조를 통해 남을 수 있습니다. 호출 종료와 데이터 수명을 구분해야 합니다.</p>
+<p>스택 트레이스의 프레임 수와 실제 스택의 바이트 사용량도 일대일 관계가 아닙니다. 같은 깊이여도 메서드의 지역값·임시값과 JIT 형태가 다를 수 있습니다. 재귀 한계가 정확히 몇 회냐는 질문에는 메서드·JVM·옵션 조건을 먼저 제시해야 합니다.</p>
+<details class="question"><summary>심화 Q. 깊은 재귀를 반복문으로 바꾸면 무조건 메모리가 줄어드나요?</summary><div class="answer"><p>메서드 호출 프레임 누적은 줄일 수 있습니다. 하지만 재귀 상태를 명시적 Stack·Deque에 저장하면 Heap 객체와 참조 비용은 생깁니다. 핵심은 무제한 호출 깊이를 통제 가능한 자료구조로 옮기고 방문 상태·종료 조건을 명시하는 데 있습니다.</p><p>그래프 탐색이라면 순환 방문을 차단하지 않는 한 반복문으로 바꿔도 작업 큐가 끝없이 커질 수 있습니다. 구현 형태와 알고리즘 종료성을 함께 점검합니다.</p></div></details>
+
+<h2 id="section-9">8. 상세 면접 Q&amp;A</h2>
+<details class="question"><summary>Q1. JVM Stack과 피연산자 스택은 같은 것인가요?</summary><div class="answer"><p>JVM Stack은 스레드의 메서드 프레임들을 보관합니다. 피연산자 스택은 각 프레임 안에서 계산과 호출 인자를 위한 값을 다룹니다. “프레임의 스택”과 “계산값의 스택”은 포함 관계가 있는 다른 층위입니다.</p></div></details>
+<details class="question"><summary>Q2. static 메서드의 0번 슬롯에도 this가 있나요?</summary><div class="answer"><p>없습니다. static 메서드는 특정 수신 객체를 요구하지 않으므로 첫 명시적 인자가 0번부터 들어갑니다. 인스턴스 메서드에서는 this가 0번을 차지합니다. 이 차이 때문에 같은 덧셈 메서드라도 iload 인덱스가 달라질 수 있습니다.</p></div></details>
+<details class="question"><summary>Q3. Java는 객체를 참조로 전달하나요?</summary><div class="answer"><p>Java의 인자 전달은 값 전달입니다. 객체를 사용할 때 복사되는 값이 참조 값입니다. 메서드 안에서 box.quantity를 바꾸면 같은 객체의 상태가 바뀌지만, box 변수 자체에 new Box를 대입하면 호출자의 참조 변수는 바뀌지 않습니다.</p></div></details>
+<details class="question"><summary>Q4. StackOverflowError와 Heap OOM은 어떻게 다른가요?</summary><div class="answer"><p>전자는 호출 상태가 허용된 스택 한도를 넘는 상황과 연결되고, 후자는 Heap 할당을 만족시키지 못하는 상황입니다. 무한 재귀를 Xmx로 해결하려는 것은 영역을 잘못 고른 것입니다. 다만 스레드 생성·스택 확장 실패가 OutOfMemoryError로 보고될 수 있다는 사양의 조건도 구분해야 합니다.</p></div></details>
+<details class="question"><summary>Q5. 메서드 호출마다 실제 기계 스택에도 프레임 하나가 반드시 있나요?</summary><div class="answer"><p>JVM의 논리적 실행 모델에서는 프레임으로 설명합니다. 최적화된 기계 코드에서는 인라이닝 때문에 소스 메서드별 실제 호출 경계가 사라질 수 있습니다. JVM은 예외와 디버깅, 역최적화 등에 필요한 의미를 유지해야 하므로 논리 프레임과 물리 실행 배치를 구분합니다.</p></div></details>
+<details class="question"><summary>Q6. Xss를 크게 하면 어떤 비용이 있나요?</summary><div class="answer"><p>플랫폼 스레드별 스택 예약 예산이 커집니다. 많은 스레드가 존재하는 서비스에서는 전체 주소 공간과 Native 메모리 여유에 영향을 줍니다. 재귀 문제를 덮기보다 호출 깊이의 정상 범위와 스레드 수, 컨테이너 예산을 함께 확인해야 합니다.</p></div></details>
+
+<h2 id="section-10">9. 공식 근거와 복습</h2>
+<ul>
+<li><a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.6">JVMS §2.6 프레임과 지역변수</a>.</li>
+<li><a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-3.html#jvms-3.6">JVMS §3.6 인자 전달</a>.</li>
+<li><a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.10">JVMS §2.10 예외</a>.</li>
+<li><a href="https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html">java -Xss</a>.</li>
+</ul>
+<p>add의 인자를 <code>long</code>으로 바꾸고 locals와 반환 명령이 어떻게 바뀌는지 보세요. 05편에서는 프레임 안의 피연산자 스택을 명령 단위로 움직여 봅니다.</p>
+</article><nav aria-label="연재 이동"><a href="/posts/jvm-study-03.html">← JVM 메모리 영역: 공유 창고와 스레드별 작업대</a><a href="/posts/jvm-study-05.html">피연산자 스택과 바이트코드: 덧셈 한 줄을 해부하기 →</a></nav><footer>thisisnew · JVM 학습 연재 · 공식 사양과 구현을 구분해 읽기</footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

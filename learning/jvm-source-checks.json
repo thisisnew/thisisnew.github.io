@@ -1,0 +1,172 @@
+{
+  "date": "2026-10-19",
+  "source_policy": "Oracle Java SE 21 specifications, JDK 21 guides/APIs and OpenJDK official projects only",
+  "unique_pages": 40,
+  "link_targets": 68,
+  "checks": [
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Class.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/ClassLoader.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/System.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/ref/WeakReference.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/docs/specs/man/index.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/docs/specs/man/javac.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/docs/specs/man/javap.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/docs/specs/man/jcmd.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/docs/specs/man/jfr.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/docs/specs/man/jlink.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/gctuning/garbage-first-g1-garbage-collector1.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/gctuning/garbage-first-garbage-collector-tuning.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/gctuning/index.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/troubleshoot/diagnostic-tools.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/troubleshoot/index.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/vm/compiler-control1.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/vm/error-reporting.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/vm/index.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/vm/java-hotspot-virtual-machine-performance-enhancements.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/vm/java-virtual-machine-technology-overview.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/en/java/javase/21/vm/native-memory-tracking.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/javase/specs/jls/se21/html/index.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-12.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-17.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/javase/specs/jvms/se21/html/index.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-1.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-3.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html",
+      "method": "Official page retrieved through web research"
+    },
+    {
+      "url": "https://github.com/openjdk/jdk21u/tree/master/src/hotspot/share/gc/g1",
+      "method": "Official GitHub repository or directory inspected via GitHub connector"
+    },
+    {
+      "url": "https://github.com/openjdk/jmh",
+      "method": "Official GitHub repository or directory inspected via GitHub connector"
+    },
+    {
+      "url": "https://github.com/openjdk/jmh/tree/master/jmh-samples",
+      "method": "Official GitHub repository or directory inspected via GitHub connector"
+    },
+    {
+      "url": "https://openjdk.org/jeps/312",
+      "method": "Official indexed source found with web search; direct retrieval intermittently failed"
+    },
+    {
+      "url": "https://openjdk.org/jeps/439",
+      "method": "Official indexed source found with web search; direct retrieval intermittently failed"
+    },
+    {
+      "url": "https://openjdk.org/jeps/444",
+      "method": "Official indexed source found with web search; direct retrieval intermittently failed"
+    },
+    {
+      "url": "https://openjdk.org/jeps/491",
+      "method": "Official indexed source found with web search; direct retrieval intermittently failed"
+    },
+    {
+      "url": "https://github.com/openjdk/jdk21u/blob/master/src/hotspot/share/gc/g1/g1CollectedHeap.hpp",
+      "method": "Official GitHub source inspected: strict greater-than Humongous threshold comparison"
+    }
+  ],
+  "limitations": [
+    "This records content retrieval, not a claim that a direct HTTP HEAD request returned 200.",
+    "Local links and anchors in the site are checked separately; official section fragment names are matched to named JVMS/JLS sections."
+  ]
+}

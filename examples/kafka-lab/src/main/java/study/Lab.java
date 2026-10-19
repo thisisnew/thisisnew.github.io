@@ -22,6 +22,7 @@ public final class Lab {
         p.put("acks", "all");
         p.put("enable.idempotence", true);
         p.put("linger.ms", 5);
+        p.put("request.timeout.ms", 10000);
         p.put("delivery.timeout.ms", 30000);
         return p;
     }

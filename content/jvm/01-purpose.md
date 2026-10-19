@@ -1,0 +1,105 @@
+{"n":1,"title":"JVM은 왜 존재하는가: 운영체제와 Java 사이의 약속","desc":"JVM·JDK·JRE·HotSpot을 구분하고, 이식성이 성립하는 조건과 실행 환경의 책임을 이해한다"}
+
+## 1. CPU는 Java 문장을 읽지 못한다
+
+`System.out.println(3)`은 사람이 읽기 좋은 표기입니다. CPU가 실제로 수행하는 것은 자신이 이해하는 기계 명령입니다. ARM CPU와 x86 CPU는 사용하는 명령 체계가 다르고, macOS와 Linux는 실행 파일 형식과 운영체제 기능 호출 방식도 다릅니다. Java 소스를 각 환경의 실행 파일로만 미리 바꾸면 환경별 결과물을 관리해야 합니다.
+
+Java는 그 사이에 공통 실행 형식인 **class 파일**과 **JVM(Java Virtual Machine)**을 둡니다. 개발 도구가 소스를 class 파일로 만들고, 각 환경의 JVM이 그 형식에 정의된 동작을 수행합니다. JVMS가 정의하는 JVM은 추상적인 실행 기계입니다. 구현체가 바뀌어도 규정된 프로그램 의미는 유지되어야 합니다. [공식 근거: JVMS §1.2, §2.1](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-1.html#jvms-1.2)
+
+## 2. 공통 악보와 악기라는 비유
+
+같은 악보를 바이올린과 피아노로 연주할 수 있습니다. 악보에는 어떤 음을 어떤 순서로 낼지가 적혀 있고, 각 악기는 자기 구조로 소리를 만듭니다. class 파일은 악보, 각 OS·CPU의 JVM은 연주 장치에 가깝습니다. 같은 class 파일을 옮겨도 Linux용 JVM 실행 파일을 macOS에서 그대로 실행하는 것은 별개 문제입니다.
+
+다만 비유에는 한계가 있습니다. Java 프로그램은 운영체제 파일 경로, 외부 라이브러리, 네이티브 코드, 문자 인코딩, 시간대에 의존할 수 있습니다. 같은 악보라도 “이 장소의 특정 음향 장비를 사용하라”라는 조건이 붙으면 어느 공연장에서나 똑같이 연주할 수 없듯이, 이식성에는 환경 조건이 있습니다.
+
+## 3. Java를 설치한다는 말의 정확한 의미
+
+| 이름 | 하는 일 | 확인할 예 |
+|---|---|---|
+| Java 언어 | 소스 문법·타입·표현식·메모리 모델의 의미 | class, interface, synchronized |
+| JVMS | class 형식과 가상 기계 동작의 약속 | iadd, 프레임, 클래스 로딩 |
+| JVM 구현 | 약속을 실제 OS·CPU에서 수행 | HotSpot |
+| Java 표준 라이브러리 | 프로그램이 호출하는 공통 기능 | String, List, java.io |
+| JRE라는 개념 | JVM과 라이브러리 등 실행에 필요한 환경 | 프로그램 실행에 필요한 구성 |
+| JDK | 실행 환경과 개발·진단 도구 | java, javac, javap, jcmd |
+
+JDK는 개발 키트입니다. `javac`는 컴파일러이고 `java`는 Java 프로그램을 시작하는 런처입니다. HotSpot은 OpenJDK와 여러 JDK 배포판에서 사용하는 JVM 구현입니다. “Java 21”은 언어·플랫폼 버전을 가리키며, “HotSpot 21”이라는 말로 전체 플랫폼과 구현을 완전히 같은 개념으로 취급해서는 안 됩니다.
+
+과거에는 JDK 안에 별도 `jre` 디렉터리가 있는 그림이 널리 쓰였습니다. 현대 JDK는 모듈 구조를 사용하므로 그 디렉터리 그림을 JDK 21의 실제 배포 구조라고 외우지 마세요. 별도 JRE 상품 제공 여부는 배포판마다 다르며, `jlink`로 필요한 모듈을 담은 런타임 이미지를 만들 수도 있습니다. [공식 근거: jlink](https://docs.oracle.com/en/java/javase/21/docs/specs/man/jlink.html)
+
+## 4. JVM은 단순 번역기보다 많은 일을 한다
+
+첫째, class 바이트를 읽고 형식과 타입 사용을 검증합니다. 둘째, 클래스와 메서드가 참조하는 다른 요소들을 연결하고 초기화합니다. 셋째, 스레드가 메서드를 호출할 실행 상태와 객체를 담을 메모리를 관리합니다. 넷째, 더 이상 도달할 수 없는 객체의 공간을 GC로 회수합니다.
+
+HotSpot은 실행 중 자주 쓰이는 코드에 JIT 최적화도 적용합니다. 이때 바이트코드 한 줄이 항상 기계 명령 한 줄에 대응하는 것은 아닙니다. 메서드 호출이 인라이닝되어 사라지거나 계산이 합쳐져도, 관측 가능한 Java 프로그램의 의미는 보존해야 합니다. JVMS는 모든 구현에 특정 JIT나 GC 알고리즘을 강제하지 않습니다. [공식 근거: 공개 설계와 구현 자유](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.13)
+
+## 5. 첫 번째 실습: 실행 환경을 눈으로 확인하기
+
+아래 코드를 `Lesson01.java`에 저장합니다. 환경 값을 출력한 뒤 같은 컴파일 결과가 JVM에서 실행되는지 확인합니다. 외부 라이브러리는 필요 없습니다.
+
+```java
+// file: Lesson01.java
+public class Lesson01 {
+    public static void main(String[] args) {
+        System.out.println("java=" + System.getProperty("java.version"));
+        System.out.println("vm=" + System.getProperty("java.vm.name"));
+        System.out.println("os=" + System.getProperty("os.name"));
+        System.out.println("arch=" + System.getProperty("os.arch"));
+        System.out.println("sum=" + (20 + 22));
+    }
+}
+```
+
+```sh
+javac --release 21 Lesson01.java
+java Lesson01
+javap -verbose Lesson01
+```
+
+`sum=42`는 환경과 무관한 논리적 결과입니다. `os`와 `arch`는 머신에 따라 달라집니다. `javap`에서 major version 65를 확인하세요. ARM64 Mac과 x86 Linux에서 동일 class 파일을 실행할 수 있지만, 양쪽 모두 그 버전을 지원하는 JVM과 필요한 라이브러리를 갖추어야 합니다.
+
+`java -version`과 `javac -version`도 각각 확인하세요. PATH가 섞이면 컴파일은 21로 하고 실행은 17로 하는 상황이 생길 수 있습니다. 실행 중인 서비스의 JVM은 내 터미널의 JVM과 다를 수 있으므로 컨테이너 이미지와 프로세스 명령행도 확인해야 합니다.
+
+## 6. 이식성이 깨지는 네 가지 경계
+
+**버전:** JDK 21로 만든 일반 class 파일은 Java 17 JVM이 읽을 수 없습니다. 반대로 최신 JVM이 오래된 class 파일을 지원하는 경우가 많지만, 제거된 API나 달라진 실행 환경까지 자동 복구하지는 않습니다.
+
+**네이티브 의존성:** JNI로 연결하는 `.so`나 `.dylib`는 OS와 CPU에 맞아야 합니다. Java 코드가 이식 가능해도 연결된 네이티브 라이브러리가 x86 전용이면 ARM 실행이 막힐 수 있습니다.
+
+**환경 의존성:** 절대 경로, 기본 시간대, 파일 권한, 외부 시스템 응답은 JVM이 같아도 달라집니다. 입고 마감 시각을 서버 기본 시간대에 맡긴 코드는 배포 환경에서 다른 날짜를 만들 수 있습니다.
+
+**메모리·CPU 예산:** 프로그램의 의미가 같다는 것은 같은 지연 시간과 처리량을 보장한다는 뜻이 아닙니다. JVM이 정상 실행되어도 작은 컨테이너 메모리 한도를 초과하면 OS가 종료할 수 있습니다. 이 경계는 16편에서 진단합니다.
+
+## 7. 장애 사례: 배포하자마자 UnsupportedClassVersionError
+
+가정: 개발자는 JDK 21로 컴파일했고 서버 이미지는 Java 17입니다. 애플리케이션이 요청을 받기 전에 실패합니다. 이 에러는 “GC가 부족하다”나 “Spring Bean 설정이 틀렸다”로 접근할 문제가 아닙니다. 실행 JVM이 해당 클래스 파일 버전을 지원하는지부터 확인해야 합니다.
+
+확인 순서는 빌드 로그의 JDK 버전, 실제 컨테이너의 `java -version`, 문제가 된 class의 `javap -v` 출력입니다. 해결은 실행 환경을 의도한 JDK로 맞추거나, 소스와 모든 의존성이 지원하는 낮은 타깃으로 다시 빌드하는 것입니다. `--release 17`을 붙였다고 Java 21 전용 API와 21 전용 라이브러리가 갑자기 17과 호환되지는 않습니다. 공식 도구의 `--release` 범위를 확인하고 의존성도 함께 검사합니다.
+
+## 더 깊이: JVM과 Docker는 어떤 경계를 추상화하는가
+
+둘 다 가상화라는 단어와 연결되지만 추상화 대상이 다릅니다. JVM은 class 형식과 명령·메모리·객체·예외의 실행 의미를 제공합니다. Docker 컨테이너는 운영체제의 프로세스 격리와 자원 제한을 활용하는 실행 환경입니다. Linux 컨테이너 안에서도 Java 프로그램에는 JVM과 표준 라이브러리가 필요합니다. 반대로 JVM을 쓴다고 파일·네트워크·프로세스 권한이 컨테이너처럼 자동 격리되는 것은 아닙니다.
+
+Spring도 별도 층입니다. Spring은 JVM 위에서 실행되는 라이브러리·프레임워크이며 객체를 만들고 연결하고 요청을 처리하는 규칙을 제공합니다. Spring Bean을 GC가 아니라 Spring이 만들었다고 해서 Heap 밖의 특별한 메모리에 존재하는 것은 아닙니다. Bean 객체 역시 Java 객체이고, 컨테이너의 참조가 수명에 영향을 줄 수 있습니다.
+
+따라서 장애 질문을 계층별로 나누세요. class 버전 오류는 컴파일·JVM 버전, Bean 생성 실패는 애플리케이션 구성과 초기화, 파일 권한 오류는 OS·컨테이너 환경, 메모리 제한 종료는 프로세스 전체 자원이라는 단서입니다. 같은 'Java 서비스 시작 실패'라도 처음 실패한 계층이 다릅니다.
+
+<details class="question"><summary>심화 Q. JVM이 바이트코드를 검증하면 외부에서 받은 코드를 안전하게 실행할 수 있나요?</summary><div class="answer"><p>형식·타입 검증과 자원·권한 격리는 다른 문제입니다. 규칙에 맞는 코드도 끝없이 계산하거나 메모리를 소비하거나 허용된 파일·네트워크에 접근할 수 있습니다. 검증 통과를 신뢰되지 않은 프로그램의 완전한 격리 보장으로 설명해서는 안 됩니다.</p><p>예를 들어 무한 루프는 올바른 바이트코드일 수 있습니다. 실제 실행 권한과 자원 제한은 배포 환경과 별도 격리 설계에서 다루어야 합니다.</p></div></details>
+
+## 8. 상세 면접 Q&A
+
+<details class="question"><summary>Q1. JVM이 있는데 왜 운영체제별 JDK를 받아야 하나요?</summary><div class="answer"><p>공통인 것은 class 파일의 형식과 실행 의미입니다. 그 약속을 구현하는 JVM 자체는 네이티브 프로그램이므로 OS와 CPU에 맞게 만들어져야 합니다. Linux x86 JDK와 macOS ARM JDK는 같은 플랫폼 규칙을 다른 기계에서 구현합니다.</p><p>따라서 배포 대상을 확인할 때 Java 버전뿐 아니라 OS·아키텍처·네이티브 라이브러리 지원도 봅니다. class 파일의 이식성과 JVM 실행 파일의 이식성은 구분해서 답해야 합니다.</p></div></details>
+<details class="question"><summary>Q2. JDK·JRE·JVM의 포함 관계만 외우면 충분한가요?</summary><div class="answer"><p>개념적 역할을 이해하는 데는 도움이 되지만, 과거 디렉터리 구조를 현대 JDK에 그대로 대입하면 틀립니다. JVM은 실행 엔진의 구현이고 실행에는 라이브러리 등이 추가로 필요하며 JDK에는 개발 도구가 포함됩니다. 현대 JDK에서는 모듈과 jlink를 함께 설명하는 것이 정확합니다.</p></div></details>
+<details class="question"><summary>Q3. JVM은 반드시 인터프리터와 JIT를 모두 가져야 하나요?</summary><div class="answer"><p>JVMS는 특정 실행 최적화 방식을 강제하지 않습니다. HotSpot은 보통 인터프리터와 계층형 JIT를 사용하지만, 그것을 모든 JVM의 사양상 의무라고 말하면 안 됩니다. 구현은 최적화 방식이 달라도 명세된 동작을 지켜야 합니다.</p></div></details>
+<details class="question"><summary>Q4. Java의 플랫폼 독립성은 성능도 동일하다는 뜻인가요?</summary><div class="answer"><p>아닙니다. 의미와 형식의 이식성이 핵심입니다. CPU, 메모리, 운영체제 스케줄링, GC 선택, JIT 프로파일이 다르면 실행 시간은 달라집니다. 특정 머신에서 얻은 초당 처리량을 다른 환경의 보장값으로 제시할 수 없습니다.</p></div></details>
+<details class="question"><summary>Q5. Kotlin도 JVM에서 동작하는 이유는 무엇인가요?</summary><div class="answer"><p>JVM은 Java 소스만 읽도록 정의된 것이 아니라 class 파일 형식과 명령 실행을 규정합니다. Kotlin의 JVM 타깃 컴파일러가 이를 만족하는 결과를 생성하면 실행할 수 있습니다. 다만 언어별 런타임 라이브러리와 타깃 버전 등 추가 조건이 필요합니다.</p></div></details>
+<details class="question"><summary>Q6. 실제 서비스 JVM을 확인하려면 무엇부터 보나요?</summary><div class="answer"><p>실행 중인 프로세스와 컨테이너를 기준으로 버전, VM 이름, 명령행, 옵션을 확인합니다. 로컬 터미널의 java 명령만으로 서버 환경을 추정하지 않습니다. jcmd의 VM.version과 VM.command_line은 연결 권한과 도구 호환성이 확보된 환경에서 유용합니다.</p></div></details>
+
+## 9. 공식 문서와 다음 실험
+
+- [JVMS 21 §1.2 JVM](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-1.html#jvms-1.2): 가상 기계와 구현의 관계.
+- [JVMS 21 §2.1, §2.13](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.1): class 형식과 구현 자유.
+- [javac --release](https://docs.oracle.com/en/java/javase/21/docs/specs/man/javac.html): 컴파일 타깃.
+- [java 런처](https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html): 실행과 옵션.
+
+다음 실험에서는 숫자 덧셈을 별도 메서드로 옮깁니다. 소스·class·메서드 로딩·JIT·CPU를 한 흐름으로 연결하는 것이 02편의 목표입니다.

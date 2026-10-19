@@ -1,0 +1,102 @@
+{"n":10,"title":"객체와 메모리: 참조·할당·TLAB·압축 포인터·탈출 분석","desc":"new의 의미와 HotSpot의 실제 비용, 객체 크기와 최적화가 달라지는 조건을 이해한다"}
+
+## 1. 보관함과 보관함 번호표
+
+객체를 보관함, 참조를 보관함을 찾는 번호표라고 생각해 봅시다. 번호표를 두 장 만들었다고 보관함이 두 개가 되지는 않습니다. Java에서 `Box b = a`는 보통 a가 가진 참조 값을 b에 복사합니다. 두 변수로 같은 객체를 변경할 수 있습니다.
+
+참조는 JVM이 객체를 다루는 값입니다. Java 개발자가 임의 주소에 덧셈해 접근하는 C 포인터와 같은 권한을 주지는 않습니다. 실제 참조 표현과 객체 배치는 JVM 구현의 선택입니다. GC가 객체를 옮겨도 프로그램은 일관된 객체 정체성을 관찰해야 합니다. [근거: JVMS §2.4, §2.7](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.7)
+
+## 2. 값 복사와 상태 변경을 분리하는 코드
+
+```java
+// file: Lesson10.java
+public class Lesson10 {
+    static final class Box {
+        int quantity;
+        Box(int quantity) { this.quantity = quantity; }
+    }
+    static void change(Box box) {
+        box.quantity = 42;
+        box = new Box(99);
+    }
+    static int temporary(int value) {
+        Box box = new Box(value);
+        return box.quantity + 1;
+    }
+    public static void main(String[] args) {
+        Box first = new Box(1);
+        Box second = first;
+        change(second);
+        System.out.println(first.quantity);
+        System.out.println(first == second);
+        System.out.println(temporary(41));
+    }
+}
+```
+
+출력은 42, true, 42입니다. change의 첫 대입은 공유된 Box 상태를 바꿉니다. 두 번째 대입은 change 프레임 안의 참조 값만 바꿉니다. 호출자의 first·second는 여전히 원래 객체를 가리킵니다. 이 원리는 DTO 전달과 서비스 간 메서드 호출에서도 같습니다.
+
+## 3. new의 논리적 과정과 실제 할당
+
+사양상 `new`는 클래스 인스턴스를 위한 메모리와 기본 필드 상태를 준비하는 명령입니다. 생성자 `<init>` 호출은 별도입니다. HotSpot에서 실제 수행하는 빠른 경로에는 할당 위치 조정과 객체 초기 설정 등이 포함될 수 있습니다. 필드를 0·false·null 등 기본값으로 관찰할 수 있어야 한다는 언어 의미를 지킵니다.
+
+다만 “new를 한 번 쓰면 매번 물리 Heap 객체 하나가 반드시 남는다”고 단정하면 안 됩니다. JIT가 외부에서 관찰할 수 없는 임시 객체임을 증명하면 할당을 제거할 수 있습니다. 이때도 Java 프로그램의 결과와 예외·동기화 의미를 유지해야 합니다. 생성자에 외부 부수 효과가 있으면 그것까지 마음대로 없앨 수는 없습니다.
+
+## 4. TLAB은 공유 Heap 안의 개인 할당 구역
+
+TLAB(Thread Local Allocation Buffer)은 HotSpot에서 스레드가 빠르게 객체를 할당하도록 Heap의 일부를 스레드별로 배정하는 방식입니다. 같은 Heap을 매번 모든 스레드가 하나의 커서로 경쟁하는 비용을 줄일 수 있습니다. 사용 가능한 TLAB 공간에서 포인터를 전진시키는 빠른 경로를 생각하면 이해하기 쉽습니다.
+
+TLAB이 스레드 전용이라는 말은 객체가 영원히 그 스레드만 접근 가능하다는 뜻이 아닙니다. 객체 참조가 다른 스레드에 전달되면 공유될 수 있습니다. TLAB 자체는 Native 스택 안에 별도 객체 Heap을 만드는 기능도 아닙니다. 공간이 부족하거나 큰 객체 등 조건에 따라 다른 할당 경로와 GC가 필요할 수 있습니다.
+
+## 5. 객체 크기는 필드 크기의 합만이 아니다
+
+일반적인 HotSpot 객체에는 헤더 정보와 필드, 정렬을 위한 여백이 있습니다. 배열에는 길이 정보도 필요합니다. JVM 버전·옵션·아키텍처·정렬·압축 참조 설정에 따라 크기가 달라집니다. “빈 객체는 어느 환경에서도 정확히 몇 바이트” 같은 문장은 조건을 빼면 잘못입니다.
+
+Compressed Oops는 일반 객체 참조를 특정 방식으로 압축하여 메모리 사용을 줄이는 HotSpot 기법입니다. 객체 전체를 압축 파일처럼 줄이는 것은 아닙니다. 객체 헤더의 클래스 포인터 압축과도 구분해야 합니다. 흔히 약 32GiB 경계 이야기가 나오지만 실제 가능한 인코딩과 조건은 정렬·주소 공간 등에 의존하므로 단일 숫자로 모든 설정을 판정하지 않습니다. [구현 근거: 성능 향상 가이드](https://docs.oracle.com/en/java/javase/21/vm/java-hotspot-virtual-machine-performance-enhancements.html)
+
+## 6. Escape Analysis와 Scalar Replacement
+
+탈출 분석은 객체가 현재 메서드나 스레드의 범위를 넘어 관찰될 수 있는지 분석합니다. 그 결과를 활용해 할당이나 불필요한 동기화를 제거할 수 있습니다. Scalar Replacement는 객체를 실제 덩어리로 만들지 않고 필요한 필드 값들로 계산을 대체하는 최적화입니다.
+
+예제의 temporary는 이런 최적화를 설명하기 좋은 모양이지만, 이 코드만으로 특정 실행에서 최적화가 반드시 적용되었다고 증명할 수는 없습니다. 호출 빈도와 인라이닝, VM 버전 등 조건이 필요합니다. “HotSpot 탈출 분석은 객체를 전부 스택에 할당한다”는 표현은 피하세요. 공식 가이드의 설명에서도 할당 제거·스칼라 대체와 일반적인 스택 할당을 구분합니다.
+
+## 7. 실습과 성능 진단 연결
+
+```sh
+javac --release 21 -g Lesson10.java
+java Lesson10
+javap -c -p Lesson10
+java -XX:+UnlockDiagnosticVMOptions -XX:+PrintInlining Lesson10
+```
+
+짧은 실행에서는 원하는 메서드가 JIT될 만큼 호출되지 않을 수 있습니다. PrintInlining 출력이 없다고 탈출 분석이 지원되지 않는다는 뜻은 아닙니다. 14편의 반복 실행과 JMH 원칙으로 이어서 봅니다. 물리 할당량을 확인하려면 충분한 대표 부하와 JFR의 할당 표본 등을 함께 사용합니다.
+
+가상 사례로 초당 10만 개 DTO를 각각 약 1KiB씩 만든다고 가정하면 데이터 부분만 대략 초당 100MiB 규모의 할당이 됩니다. 이는 측정값이 아니라 산술 예입니다. 객체 헤더·연관 객체·복사본까지 포함하면 달라집니다. Heap 사용량이 안정적이어도 높은 할당률 때문에 CPU와 GC 비용이 클 수 있으므로 retained 크기와 allocation rate를 구분합니다.
+
+## 더 깊이: 객체 정체성·동등성·크기 측정
+
+`==`는 참조의 동일성을, equals는 해당 클래스가 정의한 동등성 계약을 사용합니다. 두 DTO의 필드 값이 같더라도 별도 new 객체라면 ==가 false일 수 있습니다. GC가 객체를 옮겼다고 그 객체의 정체성이 바뀌어 기존 참조 간 == 결과가 무작위로 달라지는 것은 아닙니다.
+
+`System.identityHashCode`도 실제 메모리 주소를 출력하는 계약이 아닙니다. 충돌 가능한 해시 값이며 객체 헤더·실행 중 상태 등 실제 관리 방식은 구현 사항입니다. toString의 @뒤 숫자도 일반적으로 주소라고 단정하지 마세요. 주소를 직접 보았다고 생각하면 이동 GC와 객체 동일성 설명이 충돌합니다.
+
+객체 크기를 계산할 때는 shallow 크기와 그래프 전체 비용을 나눕니다. Order 하나가 큰 byte 배열을 참조하면 Order 자체의 필드 공간은 작아도 그 객체가 붙잡는 데이터는 클 수 있습니다. 반대로 여러 Order가 같은 불변 문자열을 공유하면 각 객체에 문자열 전체 크기를 중복 합산하는 계산도 틀립니다. Heap 분석에서는 참조 공유와 지배 관계를 함께 봅니다.
+
+<details class="question"><summary>심화 Q. GC가 객체를 이동하면 Java 참조는 깨지지 않나요?</summary><div class="answer"><p>객체 이동과 참조 처리는 수집기 구현이 프로그램 의미를 유지하면서 수행해야 합니다. 애플리케이션은 임의의 원시 주소를 직접 관리하는 대신 JVM의 참조 모델을 사용합니다.</p><p>이동 방식과 barrier·참조 갱신의 시점은 수집기마다 다르므로 'Java 참조는 영원한 물리 주소'라는 가정으로 최적화를 설명하면 안 됩니다.</p></div></details>
+
+## 8. 상세 면접 Q&A
+
+<details class="question"><summary>Q1. 참조를 복사하면 객체도 복사되나요?</summary><div class="answer"><p>일반 대입은 참조 값만 복사합니다. 두 참조가 같은 객체를 가리키므로 필드 변경이 공유됩니다. 별도 객체를 만들려면 복사 생성·팩터리 등 명시적 작업이 필요하며 내부 참조까지 복사할지는 얕은 복사와 깊은 복사의 별도 문제입니다.</p></div></details>
+<details class="question"><summary>Q2. 모든 new는 Heap 할당을 유발하나요?</summary><div class="answer"><p>사양의 객체 모델과 최적화 후 실제 할당을 나누어 답합니다. HotSpot JIT가 관찰 가능한 의미를 보존하면서 할당을 제거할 수 있습니다. 다만 단지 지역변수라는 이유만으로 제거가 보장되는 것은 아닙니다.</p></div></details>
+<details class="question"><summary>Q3. TLAB에서 만든 객체는 스레드 안전한가요?</summary><div class="answer"><p>할당 경쟁을 줄이는 기법이지 객체 사용 전체의 동기화를 보장하는 기법이 아닙니다. 다른 스레드에 공개된 가변 객체에는 가시성·원자성 설계가 필요합니다. 할당 위치의 소유권과 참조 공개 이후의 공유를 구분합니다.</p></div></details>
+<details class="question"><summary>Q4. 압축 포인터는 객체 데이터를 압축하나요?</summary><div class="answer"><p>일반 객체를 가리키는 참조 표현을 압축하는 기법입니다. 객체의 문자열·배열 내용을 압축한다는 뜻이 아닙니다. 참조 크기가 줄면 Heap 사용과 캐시 효율에 영향을 줄 수 있지만 인코딩 조건과 비용을 함께 고려합니다.</p></div></details>
+<details class="question"><summary>Q5. 탈출 분석을 하면 객체는 스택으로 이동하나요?</summary><div class="answer"><p>HotSpot의 대표적 결과는 스칼라 대체와 할당 제거입니다. 객체를 완전한 형태로 스택에 그대로 옮기는 일반 해법이라고 설명하지 않습니다. 객체 자체를 만들 필요가 없어질 수 있다는 점이 핵심입니다.</p></div></details>
+<details class="question"><summary>Q6. 메모리 누수와 할당률이 높다는 말은 다른가요?</summary><div class="answer"><p>할당률은 단위 시간에 새로 만드는 양이고 누수는 불필요한 객체가 참조 때문에 계속 유지되는 문제입니다. 짧게 사는 객체를 많이 만들면 누수 없이도 GC CPU가 높을 수 있습니다. 두 경우는 해결책과 관측 자료가 다릅니다.</p></div></details>
+
+## 9. 공식 근거와 복습
+
+- [JVMS §2.7 객체 표현](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.7).
+- [JVMS new 명령](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.new).
+- [HotSpot 압축 참조·탈출 분석](https://docs.oracle.com/en/java/javase/21/vm/java-hotspot-virtual-machine-performance-enhancements.html).
+- [OpenJDK JMH](https://github.com/openjdk/jmh): 최적화에 속지 않는 측정 실습으로 연결.
+
+temporary가 만든 Box를 static 컬렉션에 저장하도록 바꾸면 왜 할당 제거 조건이 달라지는지 설명하세요. 다음 편은 남은 객체 중 무엇을 회수할지 판단하는 GC 이야기입니다.

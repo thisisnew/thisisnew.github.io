@@ -1,0 +1,1 @@
+{"name":"thisisnew-engineering-notes","private":true,"type":"module","scripts":{"build:jvm":"node scripts/build-jvm.mjs","check:jvm":"python3 scripts/check-jvm.py"},"devDependencies":{"marked":"15.0.12"}}

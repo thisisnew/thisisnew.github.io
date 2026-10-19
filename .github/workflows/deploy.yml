@@ -26,6 +26,11 @@ jobs:
           java-version: '21'
           cache: maven
           cache-dependency-path: examples/kafka-lab/pom.xml
+      - name: Verify JVM series links, content, and Java 21 examples
+        run: |
+          python scripts/check-jvm.py
+          python scripts/check-jvm-java.py
+          python scripts/check-jvm-diagnostics.py
       - name: Compile Java and Spring examples and test topology and offset boundaries
         run: mvn -B -f examples/kafka-lab/pom.xml test
       - name: Start Kafka 4.3.1 single-broker lab

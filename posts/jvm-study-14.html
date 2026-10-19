@@ -1,0 +1,104 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="C1·C2·계층형 컴파일·OSR·Code Cache와 마이크로벤치마크의 함정을 이해한다"><title>JVM 14 · 인터프리터와 JIT: 워밍업·인라이닝·역최적화 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/jvm-study-14.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"></head><body><main><a href="/">← 전체 글</a> · <a href="/posts/jvm-study-00.html">JVM 학습 지도</a><header><p class="meta">JVM QUEST · 14 / 16 · JAVA 21 · 2026-10-19</p><h1>인터프리터와 JIT: 워밍업·인라이닝·역최적화</h1><p class="subtitle">C1·C2·계층형 컴파일·OSR·Code Cache와 마이크로벤치마크의 함정을 이해한다</p><p class="note">기준: Java SE 21 사양과 HotSpot JDK 21. 첨부 자료의 JVMS 23·JDK 17 발췌는 이 기준으로 대조했습니다. 설명 속 장애 상황은 학습용 가상 사례입니다. 예제는 외부 라이브러리 없이 실행할 수 있습니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이 글에서 배울 것</h2><ol><li><a href="#section-1">1. 처음부터 모든 길을 고속도로로 만들지 않는다</a></li><li><a href="#section-2">2. C1·C2와 Tiered Compilation</a></li><li><a href="#section-3">3. 인라이닝은 호출 비용만 줄이는 것이 아니다</a></li><li><a href="#section-4">4. 추측 최적화와 Deoptimization</a></li><li><a href="#section-5">5. JIT를 관찰하는 실행 예제</a></li><li><a href="#section-6">6. Code Cache와 Compiler Control</a></li><li><a href="#section-7">7. 손으로 잰 벤치마크가 거짓말하는 다섯 이유</a></li><li><a href="#section-8">8. 장애 사례: 배포 직후 CPU가 높고 곧 안정됨</a></li><li><a href="#section-9">더 깊이: 워밍업을 측정 설계에 반영하기</a></li><li><a href="#section-10">9. 상세 면접 Q&amp;A</a></li><li><a href="#section-11">10. 공식 문서와 복습</a></li></ol></aside><article><h2 id="section-1">1. 처음부터 모든 길을 고속도로로 만들지 않는다</h2>
+<p>처음 가는 길은 지도를 보고 이동하지만 매일 반복하는 길은 익숙한 경로로 빠르게 움직입니다. HotSpot도 처음에는 실행 정보를 모으고, 자주 실행되는 부분에 최적화 비용을 집중할 수 있습니다. 실행 중 번역하는 컴파일이 **JIT(Just-In-Time)**입니다.</p>
+<p>이 비유에서 익숙한 길이 영원히 같다는 보장은 없습니다. 새로운 구현 타입이 들어오거나 실행 패턴이 바뀌면 기존 최적화 가정이 깨질 수 있습니다. JVM은 최적화를 취소·교체하면서도 프로그램 의미를 유지해야 합니다. 이 적응형 특성을 이해해야 배포 직후와 안정 상태 성능 차이를 설명할 수 있습니다.</p>
+<h2 id="section-2">2. C1·C2와 Tiered Compilation</h2>
+<table>
+<thead>
+<tr>
+<th>실행 형태</th>
+<th>대표 역할</th>
+<th>비용·조건</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Interpreter</td>
+<td>바이트코드 해석, 프로파일 수집</td>
+<td>낮은 준비 비용, 반복 해석 비용</td>
+</tr>
+<tr>
+<td>C1</td>
+<td>빠른 컴파일과 프로파일링 단계</td>
+<td>기동·중간 성능 개선</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>더 강한 최적화</td>
+<td>분석·컴파일 시간과 메모리 필요</td>
+</tr>
+<tr>
+<td>OSR</td>
+<td>실행 중인 긴 루프를 컴파일 코드로 전환</td>
+<td>메서드 진입만 기다리지 않음</td>
+</tr>
+</tbody></table>
+<p>일반적인 HotSpot 계층형 컴파일은 0~4 수준으로 설명합니다. 0은 인터프리터, 중간 수준은 C1의 프로파일링 강도 차이, 4는 C2와 관련됩니다. 모든 메서드가 0→1→2→3→4를 빠짐없이 정확히 순서대로 거치는 것은 아닙니다. 호출·루프 빈도, 프로파일 상태, 큐와 자원 등에 따라 경로가 달라집니다.</p>
+<p>OSR(On-Stack Replacement)은 메서드가 한 번 호출되어 오래 도는 경우에도 루프 내부에서 최적화된 실행으로 넘어갈 수 있게 합니다. “JIT는 메서드 호출 횟수만 센다”는 설명이 불완전한 이유입니다. <a href="https://docs.oracle.com/en/java/javase/21/vm/java-hotspot-virtual-machine-performance-enhancements.html">구현 근거: 계층형 컴파일</a></p>
+<h2 id="section-3">3. 인라이닝은 호출 비용만 줄이는 것이 아니다</h2>
+<p>작은 메서드를 호출하는 대신 그 동작을 호출자의 최적화 범위에 넣는 것이 인라이닝입니다. 호출 경계가 없어지면 상수 전파·불필요 분기 제거·탈출 분석 등을 더 넓게 수행할 수 있습니다. 결과적으로 객체 할당까지 사라질 수 있습니다.</p>
+<p>반면 모든 메서드를 무한히 인라이닝하면 코드 크기가 커지고 컴파일 비용과 명령 캐시 부담이 생깁니다. 메서드 크기, 호출 빈도, 타입 프로파일 등 판단 요소가 있습니다. “private면 무조건 인라이닝”이나 “메서드가 한 줄이면 반드시 인라이닝” 같은 규칙은 보장이 아닙니다.</p>
+<h2 id="section-4">4. 추측 최적화와 Deoptimization</h2>
+<p>인터페이스 호출이 지금까지 한 구현체로만 들어왔다면 JIT는 그 패턴을 활용할 수 있습니다. 하지만 나중에 다른 타입이 들어올 수 있으므로 가드와 대체 경로, 필요 시 **역최적화(Deoptimization)**가 필요합니다. 더 이상 유효하지 않은 코드에서 안전한 실행 상태로 되돌아가고 재컴파일할 수 있습니다.</p>
+<p>따라서 실행 중 인터페이스를 쓰면 항상 느리다거나 final을 붙이면 항상 빨라진다고 단정할 수 없습니다. 실제 타입 분포와 인라이닝 결과가 중요합니다. 구현을 두 개에서 여러 개로 바꿨을 때 프로파일이 달라져 성능이 변할 수 있지만, 그 크기는 측정해야 합니다.</p>
+<h2 id="section-5">5. JIT를 관찰하는 실행 예제</h2>
+<pre><code class="language-java">// file: Lesson14.java
+public class Lesson14 {
+    interface Price { int apply(int value); }
+    static final class PlusOne implements Price {
+        public int apply(int value) { return value + 1; }
+    }
+    static final class PlusTwo implements Price {
+        public int apply(int value) { return value + 2; }
+    }
+    static volatile long sink;
+    static long run(Price price, int n) {
+        long sum = 0;
+        for (int i = 0; i &lt; n; i++) sum += price.apply(i);
+        return sum;
+    }
+    public static void main(String[] args) {
+        for (int i = 0; i &lt; 40; i++) sink = run(new PlusOne(), 100_000);
+        System.out.println(run(new PlusOne(), 100));
+        System.out.println(run(new PlusTwo(), 100));
+    }
+}
+</code></pre>
+<pre><code class="language-sh">javac --release 21 -g Lesson14.java
+java -XX:+PrintCompilation Lesson14
+java -XX:+UnlockDiagnosticVMOptions -XX:+PrintInlining Lesson14
+java -Xint Lesson14
+</code></pre>
+<p>논리적 결과는 5050과 5150입니다. PrintCompilation 로그에는 다른 표준 라이브러리 메서드도 섞입니다. <code>%</code> 같은 표식은 OSR 컴파일을 읽는 단서가 될 수 있습니다. 로그 형식과 발생 시점은 버전·환경에 따라 달라집니다. 결과가 “not entrant”로 바뀌는 상태도 정상적인 코드 교체의 일부일 수 있습니다.</p>
+<p><code>-Xint</code>는 해석 실행을 관찰하기 위한 로컬 비교 옵션입니다. 이 짧은 실험을 Stopwatch로 재서 운영 환경에서 몇 배 빠르다고 발표하는 용도로 쓰지 않습니다. 원하는 메서드가 실제 컴파일되었는지와 프로그램 의미가 유지되는지를 관찰하는 것이 목표입니다.</p>
+<h2 id="section-6">6. Code Cache와 Compiler Control</h2>
+<p>JIT가 생성한 기계 코드는 <strong>Code Cache</strong>에 저장됩니다. Heap과 별도 예산을 사용하며 컴파일 코드와 VM 코드 등 수명이 다른 항목을 관리합니다. 계층형 컴파일과 분할된 Code Cache는 코드 종류별 관리를 돕습니다. 메서드를 바꾸지 않아도 JVM이 실행 중 여러 버전의 코드를 만들고 교체할 수 있습니다.</p>
+<p>Compiler Control은 특정 메서드의 컴파일·인라이닝 등에 대한 진단·제어를 제공하는 HotSpot 기능입니다. 일반 서비스의 첫 성능 해결책으로 지시문을 무작정 추가하지 마세요. 프로파일에서 확인한 경로를 제한된 실험으로 검증할 때 사용하며, VM 버전과 사용한 지시문을 기록합니다. <a href="https://docs.oracle.com/en/java/javase/21/vm/compiler-control1.html">공식 근거: Compiler Control</a></p>
+<p>Code Cache 부족이 보이면 공간만 늘리기 전에 코드 생성량, 동적 클래스, 배포·플러그인 수명과 실제 컴파일 상태를 확인합니다. <code>jcmd PID Compiler.codecache</code>와 JFR 등이 조사에 도움이 됩니다.</p>
+<h2 id="section-7">7. 손으로 잰 벤치마크가 거짓말하는 다섯 이유</h2>
+<p>첫째, 결과를 사용하지 않으면 dead code elimination으로 계산이 사라질 수 있습니다. 둘째, 입력을 상수로 고정하면 constant folding으로 미리 계산될 수 있습니다. 셋째, 워밍업 전후 실행 형태가 다릅니다. 넷째, 같은 프로세스에서 실험 순서가 프로파일과 캐시에 영향을 줄 수 있습니다. 다섯째, GC·OS·타이머·백그라운드 작업이 짧은 측정을 흔듭니다.</p>
+<p>JMH는 워밍업·측정 반복·fork·결과 소비 등 JVM 벤치마크를 위한 도구를 제공합니다. 그렇다고 JMH 사용만으로 잘못된 입력 모델과 비대표 부하가 자동 교정되지는 않습니다. 실제 서비스 처리량·지연은 DB·네트워크·락을 포함한 대표 부하에서 별도로 검증해야 합니다. <a href="https://github.com/openjdk/jmh">공식 프로젝트</a></p>
+<h2 id="section-8">8. 장애 사례: 배포 직후 CPU가 높고 곧 안정됨</h2>
+<p>클래스 로딩과 초기화, 캐시 적재, 커넥션 생성, JIT 컴파일이 기동 근처에 몰릴 수 있습니다. Compiler Thread가 CPU를 쓴다고 무조건 오류는 아닙니다. 그러나 작은 CPU 제한 아래 반복 재시작이 발생하면 워밍업을 끝내지 못하는 악순환이 생길 수 있습니다.</p>
+<p>JFR에서 실행 표본·컴파일·할당·GC를 나눠 보고 readiness와 트래픽 유입 시점을 비교합니다. 무조건 대기 시간을 길게 고정하기보다 실제 준비 조건과 대표 경로 예열을 검증합니다. 스케일아웃 직후 p99와 CPU를 안정 상태와 따로 측정하면 이 효과를 놓치지 않을 수 있습니다.</p>
+<h2 id="section-9">더 깊이: 워밍업을 측정 설계에 반영하기</h2>
+<p>워밍업 전 결과와 안정 상태 결과는 서로 다른 질문에 답합니다. 단발성 명령 도구나 짧은 배치에서는 기동·초기 실행 비용이 중요할 수 있고, 장시간 서버에서는 안정 상태 처리량이 중요할 수 있습니다. 무조건 워밍업을 길게 해 기동 비용을 지우는 것도 목적에 따라 잘못된 측정입니다.</p>
+<p>JMH에서 warmup·measurement·fork를 정할 때는 어떤 상태를 측정하는지 먼저 적습니다. 입력을 한 값으로 고정하지 않고 실제 범위에 맞추며 결과를 소비하고, 실험 대상 밖에서 데이터를 준비할지 여부도 의도해야 합니다. 측정 구간 안에서 매번 데이터를 만들면 자료구조 연산과 할당 비용이 섞일 수 있습니다.</p>
+<p>성능 차이가 보여도 &#39;왜&#39;는 별도 증거가 필요합니다. 컴파일 로그·인라이닝·할당·GC·CPU 표본을 통해 가설을 확인하세요. 결과를 소비하는 코드와 volatile 접근 같은 측정 장치 자체가 성능을 지배하는지도 점검합니다. 수치 하나보다 실험 조건과 재현 가능성이 더 중요한 경우가 많습니다.</p>
+<details class="question"><summary>심화 Q. 운영 서버를 오래 켜면 언제나 더 빨라지나요?</summary><div class="answer"><p>워밍업과 캐시 적재로 좋아질 수 있지만 누수·커진 live set·Code Cache·프로파일 변화·외부 자원 상태 때문에 나빠질 수도 있습니다. 시간 경과 자체를 성능 향상의 보장으로 보지 않습니다.</p><p>기동 직후와 안정 구간, 장기 실행 구간을 따로 관측하고 각각 어떤 비용이 변하는지 확인해야 합니다.</p></div></details>
+
+<h2 id="section-10">9. 상세 면접 Q&amp;A</h2>
+<details class="question"><summary>Q1. JIT는 정확히 몇 번 호출하면 시작하나요?</summary><div class="answer"><p>단일 고정 횟수로 모든 메서드를 설명할 수 없습니다. 호출과 루프 빈도, 계층형 정책, 프로파일·컴파일 큐·자원 조건 등이 영향을 줍니다. 임계값 하나를 언어의 보장값처럼 외우지 말고 실제 로그로 확인합니다.</p></div></details>
+<details class="question"><summary>Q2. 인라이닝하면 스택 트레이스가 전부 사라지나요?</summary><div class="answer"><p>실제 호출 경계가 최적화되어도 JVM은 Java의 예외·디버깅·역최적화 등에 필요한 정보를 유지해야 합니다. 소스의 논리적 호출과 실제 기계 프레임을 구분합니다. 인라이닝을 단순한 텍스트 복붙으로만 이해하면 이 부분을 설명하기 어렵습니다.</p></div></details>
+<details class="question"><summary>Q3. Deoptimization은 JVM 오류인가요?</summary><div class="answer"><p>추측 최적화 가정이 바뀔 때 안전한 실행 상태로 돌아가는 정상 메커니즘일 수 있습니다. 잦은 역최적화가 성능에 영향을 줄 수는 있으므로 원인을 관측해야 하지만 발생 사실만으로 버그라고 하지 않습니다.</p></div></details>
+<details class="question"><summary>Q4. 반환값을 출력하면 마이크로벤치마크 문제가 모두 해결되나요?</summary><div class="answer"><p>계산 제거 일부를 막는 데 도움이 될 수 있어도 상수 전파·프로파일 오염·워밍업·측정 오버헤드 등은 남습니다. 출력 자체가 병목이 될 수도 있습니다. JMH의 결과 소비·상태·fork·측정 구조를 목적에 맞게 사용합니다.</p></div></details>
+<details class="question"><summary>Q5. Code Cache는 Xmx 안에 포함되나요?</summary><div class="answer"><p>일반 Java Heap과 별도입니다. 따라서 Xmx만으로 전체 JVM 메모리 예산을 설명할 수 없습니다. 컴파일 코드와 Metaspace·스레드·버퍼 등 다른 영역까지 고려해야 합니다.</p></div></details>
+<details class="question"><summary>Q6. OSR이 왜 필요한가요?</summary><div class="answer"><p>메서드가 한 번만 호출되어도 내부 루프가 매우 오래 실행될 수 있습니다. 다음 메서드 호출만 기다리면 현재 긴 실행을 최적화하지 못합니다. OSR은 실행 중인 루프에서 컴파일된 경로로 전환하는 데 쓰입니다.</p></div></details>
+
+<h2 id="section-11">10. 공식 문서와 복습</h2>
+<ul>
+<li><a href="https://docs.oracle.com/en/java/javase/21/vm/java-virtual-machine-technology-overview.html">HotSpot 기술 개요</a>.</li>
+<li><a href="https://docs.oracle.com/en/java/javase/21/vm/java-hotspot-virtual-machine-performance-enhancements.html">계층형 컴파일·Code Cache·탈출 분석</a>.</li>
+<li><a href="https://docs.oracle.com/en/java/javase/21/vm/compiler-control1.html">Compiler Control</a>.</li>
+<li><a href="https://github.com/openjdk/jmh/tree/master/jmh-samples">OpenJDK JMH 및 예제</a>.</li>
+</ul>
+<p>PlusOne만 반복하는 경우와 두 구현을 번갈아 호출하는 경우를 비교하세요. 실행 시간 숫자보다 인라이닝 로그와 실제 타입 분포가 어떻게 연결되는지 먼저 설명해 보세요.</p>
+</article><nav aria-label="연재 이동"><a href="/posts/jvm-study-13.html">← G1 GC 내부 동작: Region부터 Mixed와 Full GC까지</a><a href="/posts/jvm-study-15.html">스레드·모니터·Safepoint: 대기와 정지를 구분하기 →</a></nav><footer>thisisnew · JVM 학습 연재 · 공식 사양과 구현을 구분해 읽기</footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

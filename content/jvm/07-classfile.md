@@ -1,0 +1,100 @@
+{"n":7,"title":"클래스 파일과 상수 풀: JVM이 읽는 설계도","desc":"ClassFile·descriptor·상수 풀·Code·StackMapTable·런타임 상수 풀의 관계를 연결한다"}
+
+## 1. class 파일은 명령어만 모은 파일이 아니다
+
+조립 지시서에는 작업 순서뿐 아니라 부품 번호, 부품 규격, 연결 대상도 필요합니다. class 파일에도 클래스 이름, 상위 타입, 필드, 메서드, 상수 풀, 여러 속성이 함께 들어 있습니다. JVM은 바이트코드만 읽는 것이 아니라 이 구조 전체를 해석합니다.
+
+class 형식의 여러 바이트 데이터는 big-endian으로 저장됩니다. 시작의 magic 값은 `0xCAFEBABE`이고, minor·major version이 뒤따릅니다. 이 정보는 해당 JVM이 파일 형식을 지원하는지 판단하는 출발점입니다. 단순히 확장자가 `.class`라는 이유로 유효한 클래스가 되는 것은 아닙니다. [근거: JVMS §4.1](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.1)
+
+## 2. ClassFile의 큰 구조
+
+| 구성 | 의미 | javap에서 볼 단서 |
+|---|---|---|
+| magic·version | 형식과 지원 버전 | major version: 65 |
+| constant_pool | 상수·타입·필드·메서드 등의 참조 표 | #번호와 태그 |
+| access_flags·this_class·super_class | 접근 속성과 타입 관계 | public, super 등 |
+| interfaces·fields·methods | 구현 인터페이스와 멤버 구조 | descriptor, flags |
+| attributes | 확장 정보 | Code, Signature, SourceFile 등 |
+
+u1·u2·u4는 사양이 이진 구조를 설명하기 위한 부호 없는 1·2·4바이트 자료형입니다. 이진 포맷의 모든 비트를 외우기보다 “이 정보가 어떤 역할을 하는가?”를 먼저 익히세요. 데이터 길이와 타입 규칙을 무시하면 class 형식을 올바르게 읽을 수 없습니다.
+
+## 3. 직접 상수 풀을 만들어 관찰하기
+
+```java
+// file: Lesson07.java
+public class Lesson07 {
+    static final int LIMIT = 42;
+    static final String LABEL = "inbound";
+    static String label(int count) {
+        return LABEL + ":" + count;
+    }
+    public static void main(String[] args) {
+        System.out.println(label(LIMIT));
+        System.out.println("inbound" == LABEL);
+    }
+}
+```
+
+```sh
+javac --release 21 -g Lesson07.java
+java Lesson07
+javap -v -p Lesson07
+```
+
+출력은 `inbound:42`, `true`입니다. `ConstantValue`, `Utf8`, `String`, `NameAndType`, `Methodref`, `InvokeDynamic`, `BootstrapMethods` 등을 찾아봅니다. 숫자 42가 쓰였다는 사실만으로 모든 사용 위치가 상수 풀의 Integer 항목을 참조해야 하는 것은 아닙니다. 작은 정수는 즉시값 명령으로 표현될 수 있습니다.
+
+## 4. #번호를 이름과 타입으로 따라가기
+
+상수 풀의 `#17` 같은 표기는 해당 파일 안의 인덱스입니다. 메모리 주소가 아니며 다른 class 파일의 같은 번호가 같은 내용을 의미하지도 않습니다. Methodref는 클래스 참조와 NameAndType을 연결하고, NameAndType은 이름과 descriptor를 연결하는 식으로 여러 항목이 이어집니다.
+
+descriptor는 JVM 수준의 타입 표현입니다. `I`는 int, `J`는 long, `Ljava/lang/String;`은 String 참조, `[I`는 int 배열입니다. `(I)Ljava/lang/String;`은 int 인자를 받고 String을 반환하는 메서드입니다. 생성자의 descriptor 반환 부분은 `V`입니다. JVM 메서드 descriptor에는 반환 타입도 포함되지만 Java 소스에서 반환 타입만 다른 오버로딩을 허용한다는 뜻은 아닙니다.
+
+제네릭의 `List<String>` 같은 추가 타입 정보는 일반 descriptor와 `Signature` 속성을 구분해 읽습니다. 타입 소거 후 실행에 필요한 타입과 소스 수준의 제네릭 정보가 같은 방식으로 기록되는 것은 아닙니다. [근거: descriptor](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.3)
+
+## 5. 상수 풀은 문자열 저장소가 아니다
+
+상수 풀에는 문자열뿐 아니라 숫자, 클래스, 필드·메서드 심벌, 메서드 핸들, 동적 상수 등의 여러 종류가 있습니다. Utf8 항목은 이름과 descriptor 등 문자열 데이터를 표현하는 데 쓰이며, 모든 Utf8 항목이 Java의 String 객체 하나라는 뜻은 아닙니다. `CONSTANT_String` 항목과 그것이 참조하는 Utf8 항목도 구분합니다.
+
+**class 파일 상수 풀**은 디스크·전송 바이트의 표이고, **런타임 상수 풀**은 클래스가 만들어질 때 JVM이 구성하는 런타임 표현입니다. **String intern pool**은 같은 내용의 문자열에 대한 정규화와 관련됩니다. 숫자·심벌 해석까지 다루는 런타임 상수 풀 전체가 intern pool이라고 생각하면 잘못입니다.
+
+예제의 `"inbound" == LABEL`이 true인 것은 문자열 리터럴과 상수 표현식의 규칙으로 설명합니다. 모든 String이 자동으로 같은 객체가 되는 것은 아닙니다. `new String("inbound")`와 비교하면 내용은 같아도 참조 동일성은 다를 수 있습니다.
+
+## 6. Code 속성이 담는 것
+
+일반적인 구체 메서드의 Code에는 `max_stack`, `max_locals`, 바이트코드, 예외 처리 표와 추가 속성들이 들어 있습니다. abstract·native 메서드에는 일반 Java 바이트코드 본문을 위한 Code가 없습니다. “모든 method_info에는 실행할 바이트코드가 있다”는 설명은 정확하지 않습니다.
+
+StackMapTable은 특정 바이트코드 위치의 지역변수·피연산자 스택에 대해 검증에 필요한 타입 상태를 표현합니다. 런타임에 매번 실제 스택 내용을 복제해 둔 스냅샷이 아닙니다. LineNumberTable·LocalVariableTable은 디버깅 연결을 돕고, JVM의 프로그램 의미를 결정하는 명령 자체와는 구별됩니다.
+
+## 7. 장애 사례: ClassFormatError·VerifyError·버전 오류
+
+class 바이트가 훼손되거나 포맷 규칙을 어기면 형식 관련 오류가 날 수 있습니다. 바이트코드의 타입·제어 흐름 제약을 위반하면 검증 오류로 이어질 수 있습니다. 지원하지 않는 major version은 또 다른 문제입니다. 세 현상을 모두 “자바 설치 문제”로 뭉뚱그리면 조사 방향을 놓칩니다.
+
+컴파일러가 생성한 정상 파일을 쓰더라도 에이전트·바이트코드 변환 도구·음영 처리 도구가 결과를 변경할 수 있습니다. 처음 실패한 클래스, 생성·변환 단계, 실행 JDK, 실제 배포 바이트의 해시를 확인하세요. 원본 소스가 정상이라는 사실만으로 최종 class가 정상임을 보장하지 않습니다.
+
+## 더 깊이: 이름·descriptor·Signature는 서로 다른 정보다
+
+class 파일 내부에서 일반적인 클래스 이름은 `java/lang/String`처럼 슬래시 구분 형태로 나타납니다. 개발자가 Class.forName에 주는 `java.lang.String` 같은 이진 이름 표기와 무조건 같은 문자열은 아닙니다. 배열에는 `[Ljava.lang.String;` 같은 별도 이름 표현도 있어 API가 요구하는 형식을 확인해야 합니다.
+
+필드 descriptor는 실행에 필요한 타입을 나타내며 generic Signature는 더 풍부한 제네릭 정보를 보존할 수 있습니다. 예를 들어 List<String>과 List<Integer>가 descriptor에서는 같은 원시 List 타입으로 보일 수 있습니다. 그래서 javap에서 descriptor만 보고 두 소스의 제네릭 선언이 동일했다고 확정할 수 없습니다.
+
+메서드의 선언 예외를 나타내는 Exceptions 속성과 실제 try/catch 범위의 Code 예외 표도 구분합니다. 전자는 throws 선언과 관련된 타입 목록, 후자는 어느 명령 범위에서 어떤 핸들러로 제어를 옮길지에 관한 정보입니다. 이름이 비슷해도 조사 목적이 다릅니다.
+
+<details class="question"><summary>심화 Q. class 파일에 제네릭 정보가 남는다면 타입 소거가 없는 것 아닌가요?</summary><div class="answer"><p>실행 descriptor의 소거된 타입과 반사·도구를 위한 Signature 정보의 보존은 양립합니다. 소스 수준의 일부 정보를 속성으로 보관한다고 런타임 객체가 모든 제네릭 타입 인자를 동일한 방식으로 검증한다는 뜻은 아닙니다.</p><p>실제 캐스트 명령이나 브리지 메서드가 생성될 수도 있으므로 선언 정보·실행 타입·컴파일러 보조 코드를 나누어 읽어야 합니다.</p></div></details>
+
+## 8. 상세 면접 Q&A
+
+<details class="question"><summary>Q1. 상수 풀의 상수는 수정 불가능한 값만 뜻하나요?</summary><div class="answer"><p>일반적인 상수 변수의 의미보다 넓습니다. class 형식의 constant_pool에는 런타임에 해석할 클래스·필드·메서드의 심벌 참조도 들어갑니다. static final 필드만 보관하는 장소가 아닙니다.</p></div></details>
+<details class="question"><summary>Q2. 런타임 상수 풀과 String pool은 왜 다른가요?</summary><div class="answer"><p>런타임 상수 풀은 클래스별 상수 표의 실행 표현으로 심벌 참조 등도 담습니다. String pool은 문자열 intern 규칙과 관련됩니다. 문자열 객체는 Heap에서 관리될 수 있고 클래스 메타데이터의 모든 내용과 동일하지 않습니다.</p></div></details>
+<details class="question"><summary>Q3. Java 21의 major version은 얼마인가요?</summary><div class="answer"><p>일반 Java 21 class 파일은 65입니다. Java 17은 61, Java 23은 67입니다. preview 기능을 사용한 파일은 minor version과 실행 옵션 조건도 확인해야 하므로 major만 보고 모든 실행 조건을 판정하지 않습니다.</p></div></details>
+<details class="question"><summary>Q4. 메서드 반환 타입만 바꾸면 JVM에서 무슨 차이가 있나요?</summary><div class="answer"><p>class 파일의 메서드 descriptor에는 반환 타입이 포함됩니다. 컴파일된 호출자가 기대하는 descriptor와 실제 대상이 다르면 바이너리 호환 문제가 생길 수 있습니다. Java 소스의 오버로딩 허용 규칙과 바이너리의 식별 정보를 구분해야 합니다.</p></div></details>
+<details class="question"><summary>Q5. StackMapTable은 스택 트레이스인가요?</summary><div class="answer"><p>아닙니다. 바이트코드 검증용 타입 상태 정보입니다. 장애 시의 메서드 호출 목록을 나타내는 스택 트레이스와 역할이 다릅니다. 이름에 Stack이 들어간다는 이유로 같은 것으로 묶지 마세요.</p></div></details>
+<details class="question"><summary>Q6. javap의 #번호가 바뀌면 프로그램 의미도 바뀌나요?</summary><div class="answer"><p>인덱스 자체는 파일 내부 참조 번호입니다. 컴파일러 버전이나 작은 코드 변경으로 순서가 달라져도 같은 의미일 수 있습니다. 번호 자체를 비교하기보다 참조가 가리키는 이름·타입·상수와 명령의 의미를 봐야 합니다.</p></div></details>
+
+## 9. 공식 문서와 복습
+
+- [JVMS §4.1 ClassFile](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.1).
+- [JVMS §4.4 상수 풀](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.4).
+- [JVMS §4.7.3 Code, §4.7.4 StackMapTable](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.3).
+- [JVMS §5.1 런타임 상수 풀](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.1).
+
+LABEL을 일반 static 필드로 바꾸고 ConstantValue와 필드 접근 명령이 어떻게 변하는지 보세요. 이 차이는 09편의 초기화 트리거로 이어집니다.

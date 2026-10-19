@@ -1,0 +1,109 @@
+{"n":3,"title":"JVM 메모리 영역: 공유 창고와 스레드별 작업대","desc":"Heap·JVM Stack·Method Area·PC·Native Stack과 HotSpot의 실제 메모리 예산을 구분한다"}
+
+## 1. 메모리를 왜 여러 이름으로 나누는가
+
+물류센터에 상품을 보관하는 공용 창고와 직원마다 사용하는 작업대가 있다고 생각해 봅시다. 같은 상품을 여러 직원이 확인할 수 있어도 각 직원이 지금 처리 중인 순서는 다릅니다. JVM에서도 객체를 공유하는 공간과 각 스레드의 실행 상태를 보관하는 공간의 수명과 접근 범위가 다릅니다.
+
+여기서 영역은 우선 **논리적인 역할 구분**입니다. 사양의 그림을 운영체제 메모리 지도에 그대로 겹쳐서는 안 됩니다. JVMS는 모든 영역이 하나씩 연속된 물리 메모리 덩어리라고 요구하지 않습니다. 최적화된 실행에서는 지역변수가 CPU 레지스터 등에 놓일 수도 있습니다. [근거: JVMS §2.5](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.5)
+
+## 2. 다섯 영역을 역할과 수명으로 읽기
+
+| 영역 | 공유 범위 | 무엇을 설명하는가 | 연결되는 문제 |
+|---|---|---|---|
+| Heap | JVM 스레드 간 공유 | 인스턴스와 배열을 위한 메모리 | Java heap space, 과도한 할당 |
+| JVM Stack | 스레드별 | 메서드 호출의 프레임 | StackOverflowError |
+| Method Area | 스레드 간 공유 | 클래스별 구조, 코드, 런타임 상수 풀 | 클래스 메타데이터 부족 |
+| PC register | 스레드별 | 현재 실행 중인 JVM 명령 위치 | 실행 상태 추적 |
+| Native Method Stack | 구현에 따라 제공, 보통 스레드별 | 네이티브 실행 지원 | 네이티브 스택·스레드 자원 |
+
+PC는 프로그램 카운터입니다. 스레드가 번갈아 실행되어도 각각 어디를 실행하던 중인지 구분할 상태가 필요합니다. native 메서드 실행 중에는 JVM의 PC 값이 명세상 정의되지 않습니다. 이 PC를 곧바로 특정 CPU 레지스터 하나와 동일시하면 안 됩니다.
+
+JVM Stack에는 프레임이 쌓입니다. 프레임에는 지역변수 배열과 피연산자 스택 등이 있습니다. `int n`과 `Order order`가 모두 지역변수여도 n에는 숫자 값이, order에는 객체를 가리키는 참조 값이 들어갑니다. 객체 자체가 order라는 지역변수 안에 들어 있는 것은 아닙니다.
+
+## 3. 코드 한 조각을 영역에 배치하기
+
+```java
+// file: Lesson03.java
+public class Lesson03 {
+    static final class Box {
+        int quantity;
+    }
+    static final Box shared = new Box();
+    static int inspect(Box box) {
+        int adjustment = 2;
+        return box.quantity + adjustment;
+    }
+    public static void main(String[] args) {
+        Box localRef = shared;
+        localRef.quantity = 40;
+        System.out.println(inspect(localRef));
+        System.out.println(shared == localRef);
+    }
+}
+```
+
+`java Lesson03`의 출력은 `42`, `true`입니다. `localRef`는 main 프레임의 지역 참조이고 `shared`는 클래스의 static 필드입니다. 두 참조가 같은 Box를 가리킵니다. inspect를 호출하면 별도 프레임의 인자 슬롯에 참조 값이 복사됩니다. `adjustment`는 그 프레임의 지역 숫자입니다.
+
+지역 참조가 있는 스택은 스레드별이어도, 그 참조가 가리키는 객체는 다른 스레드와 공유될 수 있습니다. “스택은 안전하므로 지역변수가 가리키는 객체도 항상 스레드 안전하다”는 추론은 성립하지 않습니다. 동시 접근이 일어나면 공유 객체의 변경 규칙을 별도로 정해야 합니다.
+
+## 4. Method Area와 Metaspace를 구분하기
+
+Method Area는 JVM 사양의 개념입니다. HotSpot JDK 21은 클래스 메타데이터를 Native 메모리 기반의 Metaspace에서 관리합니다. 그렇다고 모든 클래스 관련 요소가 Metaspace 한 곳에 있다고 말할 수는 없습니다. Java의 `Class` 객체와 static 필드의 저장, 문자열 객체, JIT 기계 코드의 Code Cache는 구분해야 합니다.
+
+특히 런타임 상수 풀과 String intern pool을 같은 것으로 외우지 마세요. 전자는 클래스별 심벌과 상수의 런타임 표현이고, 후자는 문자열 정규화에 관한 구조입니다. Method Area의 사양상 책임을 HotSpot의 특정 영역 명칭 하나로 완전히 치환하면 Heap·Native 진단에서 혼란이 생깁니다.
+
+Metaspace가 무한하다는 표현도 부정확합니다. 명시적 상한을 두지 않아도 실제 프로세스와 운영체제·컨테이너의 메모리 예산은 유한합니다. 클래스 로더가 계속 남고 동적 클래스가 증가하면 메타데이터 사용이 커질 수 있습니다. [구현 근거: NMT](https://docs.oracle.com/en/java/javase/21/vm/native-memory-tracking.html)
+
+## 5. Xmx는 전체 프로세스 한도가 아니다
+
+`-Xmx`는 최대 Java Heap 크기를 설정합니다. 프로세스에는 Heap 외에도 플랫폼 스레드 스택, Metaspace, Code Cache, GC 자료구조, 직접 버퍼, 네이티브 라이브러리 등의 메모리가 필요합니다. 따라서 컨테이너 한도가 2GiB일 때 `-Xmx2g`를 넣으면 전체 예산을 맞춘 것이 아닙니다.
+
+스레드 수와 `-Xss`를 곱한 값은 스택의 예약 규모를 이해하는 거친 출발점입니다. 예를 들어 플랫폼 스레드 500개에 스택 1MiB라면 약 500MiB의 주소 공간 예약을 생각할 수 있습니다. 실제 RSS가 반드시 그만큼 즉시 늘어나는 것은 아닙니다. reserved, committed, resident는 서로 다른 관측값입니다.
+
+가상 스레드는 플랫폼 스레드마다 동일한 OS 스택을 하나씩 추가하는 모델과 다릅니다. Java 21 가상 스레드의 스택은 Heap의 스택 청크로 관리될 수 있으므로, 플랫폼 스레드 산식을 가상 스레드 개수에 그대로 곱하지 마세요. 구체적 동작은 15편에서 다룹니다.
+
+## 6. 실습: 메모리 관측값의 의미
+
+```sh
+javac --release 21 -g Lesson03.java
+java -Xms64m -Xmx64m -XshowSettings:vm Lesson03
+javap -c -v Lesson03
+```
+
+`-XshowSettings:vm`에 표시되는 최대 Heap 정보와 OS 프로세스 모니터의 메모리가 같아야 한다고 기대하지 마세요. JVM이 보고하는 Heap과 프로세스 전체 메모리는 측정 범위가 다릅니다. `javap -v`의 `locals`는 지역변수 슬롯의 개수이지 JVM 전체 스택 메모리 크기가 아닙니다.
+
+오래 실행되는 실험 프로세스에서는 `jcmd PID GC.heap_info`와 `VM.native_memory summary`를 비교할 수 있습니다. NMT는 시작 시 `-XX:NativeMemoryTracking=summary`가 필요하며, 그 결과도 프로세스 전체 Native 할당을 빠짐없이 나타내지는 않습니다. 16편의 실습 프로그램으로 이어서 확인하세요.
+
+## 7. 장애 사례: Heap 그래프는 안정적인데 프로세스가 종료됨
+
+입고 API의 Heap 사용률은 50%인데 컨테이너가 메모리 부족으로 종료됐다고 가정합니다. Heap 누수만 찾으면 원인을 놓칩니다. 스레드 폭증, 직접 버퍼 증가, 메타데이터 증가, 네이티브 할당과 컨테이너 한도를 함께 확인해야 합니다.
+
+우선 종료 이유와 운영체제 이벤트를 확인합니다. 다음으로 시간대별 Heap, RSS, 스레드 수, 클래스 수, 직접 버퍼 지표를 비교합니다. NMT가 활성화되어 있다면 기준 시점과 증가량도 봅니다. Heap dump는 Heap 참조를 조사하는 도구이므로 Native 전체 문제를 단독으로 설명하지 못합니다. 이처럼 “어떤 영역이 커졌는가?”가 도구 선택보다 먼저입니다.
+
+## 더 깊이: 기본형·참조형과 저장 위치는 다른 축이다
+
+'int는 스택, 객체는 Heap'으로만 외우면 객체의 int 필드를 설명할 수 없습니다. `Box.quantity`라는 int 값은 Box 객체의 상태입니다. Box가 Heap 객체로 실제 할당된다면 그 필드도 객체 저장의 일부로 이해합니다. 반대로 참조 값은 지역변수뿐 아니라 다른 객체 필드, static 필드, 배열 원소에도 저장될 수 있습니다.
+
+`Box[] boxes = new Box[100]`은 Box 객체 100개를 만든 것과 다릅니다. 먼저 참조 원소 100개를 가진 배열 하나가 생기고 각 원소의 초기값은 null입니다. 원소마다 new Box를 대입해야 별도 Box가 만들어집니다. `int[100]`은 숫자 원소를 직접 갖는 기본형 배열이므로 객체 그래프와 메모리 비용이 다릅니다.
+
+이 차이는 대량 조회에서도 중요합니다. DTO 목록 100만 건은 리스트 객체 하나만의 비용이 아닙니다. 내부 참조 배열, 각 DTO, 문자열과 관련 배열 등으로 그래프가 이어질 수 있습니다. '한 컬렉션'이라는 소스 표현만 보고 메모리 비용을 한 객체로 계산하면 실제 크기를 크게 낮춰 잡게 됩니다.
+
+<details class="question"><summary>심화 Q. new Box[100]이면 생성자는 몇 번 실행되나요?</summary><div class="answer"><p>그 표현만으로 Box 생성자는 실행되지 않습니다. 만들어지는 것은 배열이며 원소는 null입니다. 별도 루프에서 각 원소에 new Box를 넣으면 그때 각 객체의 생성자가 호출됩니다.</p><p>그래서 배열 길이가 100이라는 것과 살아 있는 Box 수가 100이라는 것은 다른 주장입니다. Heap 분석에서 배열과 원소 객체를 나누어 세는 이유도 같습니다.</p></div></details>
+
+## 8. 상세 면접 Q&A
+
+<details class="question"><summary>Q1. 지역변수는 스택, 객체는 Heap이라고 말하면 항상 정확한가요?</summary><div class="answer"><p>학습용 논리 모델로는 유용합니다. 다만 참조 변수와 객체를 구분해야 하며, HotSpot 최적화로 지역값이 레지스터에 놓이거나 객체 할당이 제거될 수 있습니다. JVMS의 실행 의미와 실제 최적화된 메모리 배치를 나누어 설명합니다.</p></div></details>
+<details class="question"><summary>Q2. Method Area는 곧 Metaspace인가요?</summary><div class="answer"><p>같은 수준의 개념이 아닙니다. Method Area는 사양의 책임 구분이고 Metaspace는 HotSpot의 클래스 메타데이터 관리 영역입니다. Class 객체·static 필드·문자열·JIT 코드를 모두 Metaspace에 넣는 그림은 피해야 합니다.</p></div></details>
+<details class="question"><summary>Q3. Xmx를 늘리면 모든 OutOfMemoryError가 해결되나요?</summary><div class="answer"><p>아닙니다. Heap 부족에는 도움이 될 수 있어도 Metaspace 부족, 스레드 생성 실패, Native 자원 부족은 원인이 다릅니다. 전체 메모리 한도 안에서 Heap을 늘리면 다른 영역의 여유가 줄어 오히려 프로세스 종료가 쉬워질 수도 있습니다.</p></div></details>
+<details class="question"><summary>Q4. 스택의 참조를 다른 스레드가 직접 읽을 수 없는데 왜 공유 문제가 생기나요?</summary><div class="answer"><p>각 스레드는 자기 지역변수에 별도의 참조 값을 가질 수 있고, 그 두 값이 같은 Heap 객체를 가리킬 수 있습니다. 프레임의 소유권과 객체의 공유 여부는 다릅니다. 예제의 Box를 두 스레드에 전달하면 이 차이를 확인할 수 있습니다.</p></div></details>
+<details class="question"><summary>Q5. reserved와 committed는 무엇이 다른가요?</summary><div class="answer"><p>예약은 주소 공간을 확보하는 범위이고 committed는 JVM이 사용할 수 있도록 확보한 메모리의 범위입니다. OS가 실제로 상주시킨 물리 페이지를 나타내는 RSS와도 같지 않습니다. 도구 간 숫자를 비교할 때 먼저 측정 범위를 맞춥니다.</p></div></details>
+<details class="question"><summary>Q6. 스레드 수가 급증하면 어떤 메모리를 봐야 하나요?</summary><div class="answer"><p>플랫폼 스레드라면 네이티브 스택과 OS 스레드 자원, 각 스레드가 보관하는 객체와 ThreadLocal 등을 봅니다. 대기 요청 증가가 Heap 객체 유지도 늘릴 수 있습니다. 스택만의 문제로 단정하지 말고 스레드 수·대기 원인·전체 메모리를 연결합니다.</p></div></details>
+
+## 9. 공식 근거와 복습
+
+- [JVMS §2.5 런타임 데이터 영역](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.5).
+- [JVMS §2.6 프레임](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.6).
+- [HotSpot Native Memory Tracking](https://docs.oracle.com/en/java/javase/21/vm/native-memory-tracking.html).
+- [java의 메모리 옵션](https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html).
+
+예제에서 `localRef = new Box()`로 바꿔 두 출력이 왜 달라지는지 설명하세요. 참조의 위치와 객체의 정체성을 구분하는 연습입니다.

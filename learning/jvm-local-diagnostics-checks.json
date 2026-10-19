@@ -1,0 +1,25 @@
+{
+  "checks": 4,
+  "mode": "startup-only; attach checks run in CI",
+  "results": [
+    {
+      "check": "GC log lesson 11",
+      "passed": true,
+      "bytes": 4584
+    },
+    {
+      "check": "GC log lesson 12",
+      "passed": true,
+      "bytes": 46985
+    },
+    {
+      "check": "GC log lesson 13",
+      "passed": true,
+      "bytes": 222514
+    },
+    {
+      "check": "Startup JFR recording and binary reader",
+      "passed": true
+    }
+  ]
+}

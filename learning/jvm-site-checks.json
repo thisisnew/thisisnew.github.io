@@ -1,0 +1,158 @@
+{
+  "pages": 17,
+  "questions": 114,
+  "errors": [],
+  "lessons": [
+    {
+      "lesson": 0,
+      "text_chars": 4331,
+      "questions": 0
+    },
+    {
+      "lesson": 1,
+      "text_chars": 6804,
+      "questions": 7
+    },
+    {
+      "lesson": 2,
+      "text_chars": 6136,
+      "questions": 7
+    },
+    {
+      "lesson": 3,
+      "text_chars": 6494,
+      "questions": 7
+    },
+    {
+      "lesson": 4,
+      "text_chars": 5959,
+      "questions": 7
+    },
+    {
+      "lesson": 5,
+      "text_chars": 5596,
+      "questions": 7
+    },
+    {
+      "lesson": 6,
+      "text_chars": 6053,
+      "questions": 7
+    },
+    {
+      "lesson": 7,
+      "text_chars": 6054,
+      "questions": 7
+    },
+    {
+      "lesson": 8,
+      "text_chars": 6535,
+      "questions": 7
+    },
+    {
+      "lesson": 9,
+      "text_chars": 6296,
+      "questions": 7
+    },
+    {
+      "lesson": 10,
+      "text_chars": 5809,
+      "questions": 7
+    },
+    {
+      "lesson": 11,
+      "text_chars": 6529,
+      "questions": 7
+    },
+    {
+      "lesson": 12,
+      "text_chars": 6241,
+      "questions": 7
+    },
+    {
+      "lesson": 13,
+      "text_chars": 7028,
+      "questions": 7
+    },
+    {
+      "lesson": 14,
+      "text_chars": 6545,
+      "questions": 7
+    },
+    {
+      "lesson": 15,
+      "text_chars": 7535,
+      "questions": 7
+    },
+    {
+      "lesson": 16,
+      "text_chars": 9230,
+      "questions": 9
+    }
+  ],
+  "sources": [
+    "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Class.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/ClassLoader.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/System.html#gc()",
+    "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/ref/WeakReference.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/specs/man/index.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/specs/man/javac.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/specs/man/javap.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/specs/man/jcmd.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/specs/man/jfr.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/specs/man/jlink.html",
+    "https://docs.oracle.com/en/java/javase/21/gctuning/garbage-first-g1-garbage-collector1.html",
+    "https://docs.oracle.com/en/java/javase/21/gctuning/garbage-first-garbage-collector-tuning.html",
+    "https://docs.oracle.com/en/java/javase/21/gctuning/index.html",
+    "https://docs.oracle.com/en/java/javase/21/troubleshoot/diagnostic-tools.html",
+    "https://docs.oracle.com/en/java/javase/21/troubleshoot/index.html",
+    "https://docs.oracle.com/en/java/javase/21/vm/compiler-control1.html",
+    "https://docs.oracle.com/en/java/javase/21/vm/error-reporting.html",
+    "https://docs.oracle.com/en/java/javase/21/vm/index.html",
+    "https://docs.oracle.com/en/java/javase/21/vm/java-hotspot-virtual-machine-performance-enhancements.html",
+    "https://docs.oracle.com/en/java/javase/21/vm/java-virtual-machine-technology-overview.html",
+    "https://docs.oracle.com/en/java/javase/21/vm/native-memory-tracking.html",
+    "https://docs.oracle.com/javase/specs/jls/se21/html/index.html",
+    "https://docs.oracle.com/javase/specs/jls/se21/html/jls-12.html#jls-12.2",
+    "https://docs.oracle.com/javase/specs/jls/se21/html/jls-12.html#jls-12.4",
+    "https://docs.oracle.com/javase/specs/jls/se21/html/jls-12.html#jls-12.4.1",
+    "https://docs.oracle.com/javase/specs/jls/se21/html/jls-17.html",
+    "https://docs.oracle.com/javase/specs/jls/se21/html/jls-17.html#jls-17.4.5",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/index.html",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-1.html#jvms-1.2",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.1",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.10",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.11",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.11.10",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.13",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.5",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.5.3",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.6",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.6.2",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.7",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-3.html#jvms-3.14",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-3.html#jvms-3.3",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-3.html#jvms-3.6",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-3.html#jvms-3.7",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.1",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.10",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.3",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.4",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.2",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.3",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.1",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.2",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.3",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.3.3",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.4",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.5",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.iadd",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.iload",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.new",
+    "https://openjdk.org/jeps/312",
+    "https://openjdk.org/jeps/439",
+    "https://openjdk.org/jeps/444",
+    "https://openjdk.org/jeps/491"
+  ]
+}

@@ -2,3 +2,8 @@ examples/**/target/
 __pycache__/
 *.pyc
 _site/
+node_modules/
+*.class
+*.hprof
+*.jfr
+*.log
