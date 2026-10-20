@@ -60,6 +60,55 @@ private subnet의 EC2에서 S3 요청이 timeout이라고 해 봅시다. 먼저 
 <details><summary>Q. 보안 그룹과 NACL을 모두 설정해야 하나요?</summary><p>둘은 적용 범위와 상태 추적 방식이 다릅니다. 기본적인 워크로드 접근 제어는 보안 그룹으로 세밀하게 구성하고, NACL은 서브넷 수준의 추가 제어가 필요한지 판단합니다. 무조건 규칙을 늘리면 안전해진다기보다 반환 트래픽 차단과 운영 복잡성이 증가할 수 있습니다.</p></details>
 <details><summary>Q. Direct Connect 한 회선이면 안정적인가요?</summary><p>공용 인터넷과 다른 경로 특성을 제공하지만 회선·장비·접속 위치가 고장 날 수 있습니다. 요구하는 가용성에 맞춰 이중 회선·위치 분리·VPN 백업과 라우팅을 설계하고 실제 전환을 테스트해야 합니다. 정상 연결 속도만 측정해서는 복원력을 증명할 수 없습니다.</p></details>
 
+## 깊이 읽기: 패킷 한 개를 목적지까지 보내 보기
+
+### 주소를 찾는 일과 연결하는 일을 나누기
+
+사용자가 `api.example.com`에 접속하면 먼저 DNS로 연결할 주소를 찾습니다. 주소를 알면 TCP 같은 전송 연결을 만들고 HTTPS라면 TLS 절차를 수행합니다. 그 다음 HTTP 요청이 전달됩니다. 이 순서 덕분에 장애도 나누어 볼 수 있습니다. 이름을 못 찾으면 DNS, 연결이 시간 초과되면 경로·방화벽·서버 상태, 인증서 오류면 TLS, HTTP 403이면 접근 권한 또는 애플리케이션 정책처럼 조사 범위를 좁힙니다. 단, 오류 하나만으로 원인을 확정하지는 않습니다.
+
+DNS는 전화번호부, 라우팅은 도로 안내, 보안 그룹은 출입 심사에 가깝습니다. 번호가 맞아도 도로가 없을 수 있고, 도착해도 출입이 거절될 수 있습니다. 이를 하나의 “네트워크 설정 문제”로 뭉뚱그리지 않는 것이 디버깅의 출발점입니다.
+
+### 사설 서버가 외부 API에 나가는 경로
+
+전통적인 AZ 단위 public NAT gateway 구성을 예로 듭니다. 사설 서브넷의 서버가 IPv4 외부 API로 연결하려면 목적지에 맞는 라우트가 필요합니다. 기본 경로를 NAT gateway로 보내고, NAT가 있는 public subnet은 인터넷 게이트웨이로 나갈 경로를 가집니다. NAT는 주소·포트를 변환하여 응답이 원래 서버로 돌아가도록 연결 상태를 관리합니다. 인터넷에서 새로 시작하는 임의 연결을 사설 서버로 포워딩하는 장치로 보아서는 안 됩니다.
+
+모든 인터넷 트래픽이 반드시 NAT를 거치는 것은 아닙니다. public IPv4와 적절한 경로를 가진 인스턴스, IPv6 구조, 서비스별 private endpoint 등은 경로가 다릅니다. NAT 비용과 장애 영향을 논할 때는 실제로 어떤 경로를 이용하는지 먼저 그립니다. 특히 S3 같은 서비스에 접근할 때 지원되는 VPC endpoint를 쓰는 선택지와 인터넷 출구 경로를 비교할 수 있습니다.
+
+### 보안 그룹의 stateful이 의미하는 것
+
+허용된 연결의 응답 트래픽을 연결 상태에 따라 취급한다는 뜻입니다. 모든 반대 방향의 새 연결을 허용한다는 뜻이 아닙니다. 앱에서 DB로 연결하도록 허용했다고 DB에서 앱의 임의 포트로 새로운 연결을 시작할 권한까지 생기는 것은 아닙니다. 보안 그룹은 허용 규칙 중심이고 규칙 번호에 따른 명시적 deny 목록처럼 읽지 않습니다.
+
+NACL은 서브넷 경계에서 상태를 기억하지 않는 규칙 평가를 하므로 응답 경로도 고려해야 합니다. 클라이언트는 서버의 고정 서비스 포트에 접속하지만 자기 쪽에는 임시 포트를 씁니다. 응답은 그 임시 포트로 돌아옵니다. 그래서 요청 방향만 허용해 놓고 응답 임시 포트 범위를 막으면 연결이 성립하지 않을 수 있습니다. 필요한 범위는 OS·장치·트래픽 경로에 맞게 확인합니다.
+
+### ALB 뒤의 애플리케이션까지 TLS가 이어지는가
+
+브라우저와 ALB 사이가 HTTPS라고 ALB와 target 사이도 자동으로 HTTPS가 되는 것은 아닙니다. 각 구간의 프로토콜과 인증서 처리 방식을 따로 설정하고 검토합니다. TLS가 끝나는 지점에서는 HTTP 내용을 볼 수 있어 경로 기반 라우팅 같은 처리가 가능해집니다. 전송 암호화 요구가 내부 구간에도 적용된다면 그 구간을 포함한 설계가 필요합니다.
+
+또한 로드 밸런서는 처리할 수 없는 target을 피하도록 도와주지만 잘못된 업무 결과까지 항상 알아내지는 못합니다. `/health`가 항상 200을 반환하고 실제 주문 API만 실패하면 target이 정상으로 남을 수 있습니다. 헬스 체크는 너무 얕으면 장애를 놓치고 너무 넓으면 공통 의존성 장애로 모든 target을 제외할 수 있습니다. 준비 상태를 무엇으로 판단할지 애플리케이션과 함께 정합니다.
+
+### 장애 조사용 기록표
+
+| 관찰 | 다음 확인 | 성급히 하면 안 되는 결론 |
+|---|---|---|
+| DNS 해석 실패 | 레코드·resolver·private zone 연결 | 앱 서버가 죽었다 |
+| TCP timeout | 라우트·SG·NACL·대상 포트·흐름 로그 | IAM 권한만 늘리면 해결 |
+| TLS 실패 | 이름·인증서·유효기간·클라이언트 신뢰 | 네트워크 자체가 모두 차단 |
+| HTTP 403 | 발생 계층·인증·정책·요청 ID | 항상 보안 그룹 문제 |
+| 502/504 | LB 로그·target 상태·앱 지연·연결 종료 | 무조건 서버 대수 부족 |
+
+## 더 깊은 면접 Q&A: 경로와 권한을 혼동하지 않기
+
+<details><summary>Q. Public subnet에 있으면 모든 EC2가 인터넷에서 접근 가능한가요?</summary><p><strong>답변:</strong> 인터넷 게이트웨이로 향하는 라우트가 있다는 사실만으로 개별 인스턴스 접근이 완성되지는 않습니다. 주소 구성, 보안 그룹, NACL, OS 방화벽, 애플리케이션 listen 상태를 함께 확인해야 합니다.</p><p><strong>꼬리 질문:</strong> public이라는 이름을 보안 등급처럼 쓰지 않습니다. 필요한 경로와 접근 규칙을 실제로 검토합니다. 반대로 private subnet이어도 내부 서비스나 탈취된 권한을 통한 위험은 남습니다.</p></details>
+<details><summary>Q. VPC endpoint를 만들면 해당 AWS 서비스의 모든 접근이 허용되나요?</summary><p><strong>답변:</strong> 접근 경로를 제공하는 것과 API 권한을 주는 것은 별개입니다. endpoint 유형에 따른 DNS·라우트·보안 그룹, endpoint 정책, 호출자 IAM 정책, 리소스 정책을 나누어 봅니다. 암호화된 데이터라면 키 권한도 별도로 필요할 수 있습니다.</p><p><strong>조사 순서:</strong> 실제 해석된 주소와 통신 경로를 확인한 뒤, 그 경로로 보낸 API 요청의 principal·action·resource를 확인합니다. endpoint가 존재한다는 사실만 보고 원래 인터넷 경로를 쓰고 있지 않은지도 점검합니다.</p></details>
+<details><summary>Q. CDN과 로드 밸런서는 둘 다 분산하니 같은 역할인가요?</summary><p><strong>답변:</strong> CDN은 사용자 가까운 위치에서 캐시 등으로 전달 경로를 최적화하고 원본 요청을 줄일 수 있습니다. 로드 밸런서는 준비된 여러 target으로 요청을 배분하는 역할입니다. 함께 쓰일 수 있으며 서로의 모든 책임을 대체하지 않습니다.</p><p><strong>주의:</strong> 개인별 응답을 잘못 캐시하면 정보 노출이 생길 수 있습니다. cache key, 쿠키·헤더 전달, TTL을 응답의 성질에 맞춰 정합니다. 캐시 적중률을 높이는 것보다 올바른 사용자에게 올바른 데이터를 주는 것이 먼저입니다.</p></details>
+<details><summary>Q. 네트워크 지연이 20ms면 API도 20ms 정도 걸리나요?</summary><p><strong>답변:</strong> 아닙니다. DNS·연결·TLS·요청과 응답 왕복, 애플리케이션 처리, DB와 외부 API 호출, 큐 대기가 더해집니다. 특히 순차적인 원격 호출이 여러 번이면 왕복 시간이 누적됩니다.</p><p><strong>예:</strong> 한 요청에서 순차로 10번 원격 조회하고 각 왕복이 20ms라면 그 부분만 단순 합산으로 200ms입니다. 배치 조회나 중복 호출 제거가 서버 CPU 확장보다 효과적일 수 있습니다. 실제 계산에서는 병렬 구간과 순차 구간을 구분합니다.</p></details>
+
+## 직접 풀어 보기: S3 읽기 실패를 어느 계층부터 볼까
+
+사설 서브넷의 앱에서만 S3 파일 읽기가 실패합니다. 개발자 노트북에서는 성공합니다. 앱의 오류가 연결 timeout인지 HTTP AccessDenied인지 아직 모릅니다. “보안 그룹을 전부 열자”는 제안 전에 필요한 증거를 순서대로 적어 보세요.
+
+<details><summary>해설 펼치기 — 판단 과정과 조건을 바꾼 경우</summary><p><strong>오류 구분:</strong> 먼저 SDK 오류 코드·HTTP 응답·요청 ID·시간을 확인합니다. 연결 단계에서 도달하지 못한 경우와 서비스에 도착해 인가가 거부된 경우의 조사 경로가 다릅니다.</p><p><strong>통신 경로:</strong> DNS 결과와 endpoint 설정, 라우트, NAT 또는 private endpoint, 적용 보안 규칙을 확인합니다. 노트북과 앱이 같은 네트워크를 쓰지 않으므로 한쪽 성공이 다른 쪽 경로를 증명하지 않습니다.</p><p><strong>호출 신원:</strong> 앱은 노트북과 다른 role·session으로 호출할 수 있습니다. 객체 action·ARN·bucket policy·endpoint policy·KMS 권한 등 실제 요청에 적용되는 조건을 확인합니다.</p><p><strong>수정 범위:</strong> 원인을 찾은 계층의 필요한 규칙만 수정하고 정상·거부되어야 할 접근을 다시 검사합니다. 광범위한 허용으로 증상을 없애면 원인과 보안 경계를 함께 잃을 수 있습니다.</p></details>
+
 ## 공식 문서
 
 - [VPC 라우트 테이블](https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Route_Tables.html)
@@ -67,3 +116,7 @@ private subnet의 EC2에서 S3 요청이 timeout이라고 해 봅시다. 먼저 
 - [CloudFront 캐시 이해](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Expiration.html)
 - [PrivateLink](https://docs.aws.amazon.com/vpc/latest/privatelink/what-is-privatelink.html)
 - [App Mesh 지원 종료 공지](https://docs.aws.amazon.com/app-mesh/latest/userguide/what-is-app-mesh.html)
+
+- [보안 그룹의 연결 상태 추적](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html)
+
+- [NACL의 상태 없는 규칙 평가](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-network-acls.html)

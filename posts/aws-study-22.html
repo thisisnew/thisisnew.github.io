@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="COST 5~11: TCO·rightsizing·가격 모델·전송 경로·큐·동적 공급·지속 개선·운영 자동화"><title>AWS 22 · 비용 심화 2: 자원·약정·데이터 전송·수요를 함께 최적화하기 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/aws-study-22.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/aws-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="aws"><main><a href="/">← 전체 글</a> · <a href="/posts/aws-study-00.html">AWS 학습 지도</a><header><p class="meta">AWS QUEST · 22 / 22 · DEEP DIVE · 2026-10-20</p><h1>비용 심화 2: 자원·약정·데이터 전송·수요를 함께 최적화하기</h1><p class="subtitle">COST 5~11: TCO·rightsizing·가격 모델·전송 경로·큐·동적 공급·지속 개선·운영 자동화</p><p class="note">첨부 공부팩 D09_비용최적화_리소스_수요관리_지속최적화.pdf (56쪽)의 주제를 재구성한 해설입니다. 공식 문서 확인일: 2026-10-20. 장애 사례와 수치는 학습용 가정이며 AWS 실계정 실험 결과가 아닙니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. 할인받은 빈 창고도 비용이다</a></li><li><a href="#section-2">2. COST 5: 모든 구성 요소의 총비용</a></li><li><a href="#section-3">3. COST 6: 유형·크기·수량의 조합</a></li><li><a href="#section-4">4. COST 7: 가격 모델을 구성 요소마다</a></li><li><a href="#section-5">5. COST 8: 바이트가 어떤 경로를 지나는가</a></li><li><a href="#section-6">6. COST 9: 큐는 수요를 시간으로 이동시킨다</a></li><li><a href="#section-7">7. COST 10: 정기 검토와 새로운 서비스 평가</a></li><li><a href="#section-8">8. COST 11: 사람의 반복 작업도 비용</a></li><li><a href="#section-9">9. 종합 실습: 비용 개선 순서 정하기</a></li><li><a href="#section-10">10. 상세 면접 Q&amp;A</a></li><li><a href="#section-11">공식 문서</a></li></ol></aside><article><h2 id="section-1">1. 할인받은 빈 창고도 비용이다</h2>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="COST 5~11: TCO·rightsizing·가격 모델·전송 경로·큐·동적 공급·지속 개선·운영 자동화"><title>AWS 22 · 비용 심화 2: 자원·약정·데이터 전송·수요를 함께 최적화하기 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/aws-study-22.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/aws-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="aws"><main><a href="/">← 전체 글</a> · <a href="/posts/aws-study-00.html">AWS 학습 지도</a><header><p class="meta">AWS QUEST · 22 / 22 · DEEP DIVE · 2026-10-20</p><h1>비용 심화 2: 자원·약정·데이터 전송·수요를 함께 최적화하기</h1><p class="subtitle">COST 5~11: TCO·rightsizing·가격 모델·전송 경로·큐·동적 공급·지속 개선·운영 자동화</p><p class="note">첨부 공부팩 D09_비용최적화_리소스_수요관리_지속최적화.pdf (56쪽)의 주제를 재구성한 해설입니다. 공식 문서 확인일: 2026-10-20. 장애 사례와 수치는 학습용 가정이며 AWS 실계정 실험 결과가 아닙니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. 할인받은 빈 창고도 비용이다</a></li><li><a href="#section-2">2. COST 5: 모든 구성 요소의 총비용</a></li><li><a href="#section-3">3. COST 6: 유형·크기·수량의 조합</a></li><li><a href="#section-4">4. COST 7: 가격 모델을 구성 요소마다</a></li><li><a href="#section-5">5. COST 8: 바이트가 어떤 경로를 지나는가</a></li><li><a href="#section-6">6. COST 9: 큐는 수요를 시간으로 이동시킨다</a></li><li><a href="#section-7">7. COST 10: 정기 검토와 새로운 서비스 평가</a></li><li><a href="#section-8">8. COST 11: 사람의 반복 작업도 비용</a></li><li><a href="#section-9">9. 종합 실습: 비용 개선 순서 정하기</a></li><li><a href="#section-10">10. 상세 면접 Q&amp;A</a></li><li><a href="#section-11">깊이 읽기: 비용 구조를 바꾸는 설계와 할인 구매를 구분하기</a></li><li><a href="#section-12">더 깊은 면접 Q&amp;A: 전체 비용으로 답하기</a></li><li><a href="#section-13">직접 풀어 보기: 저장 비용을 줄였더니 검색 비용이 늘었다</a></li><li><a href="#section-14">공식 문서</a></li></ol></aside><article><h2 id="section-1">1. 할인받은 빈 창고도 비용이다</h2>
 <p>월 임대료를 30% 할인받았어도 절반이 비어 있으면 좋은 선택인지 다시 봐야 합니다. 클라우드도 같은 순서가 필요합니다. 먼저 필요 없는 일을 줄이고, 필요한 일을 적절한 자원으로 처리하고, 남은 안정적 사용량에 맞는 구매 옵션을 선택합니다. 원문의 COST 5~11은 서비스 선택에서 운영 자동화까지 비용을 구조적으로 다룹니다.</p>
 <h2 id="section-2">2. COST 5: 모든 구성 요소의 총비용</h2>
 <p>비즈니스 비용 목표, 모든 구성 요소 분석, 상세 평가, 라이선스, 우선순위, 시간별 사용 변화를 검토하는 것이 COST05-BP01~06입니다. 앱 서버만 계산하고 DB·로드 밸런서·NAT·전송·로그·백업·키 API·지원·인력 비용을 빼면 비교가 왜곡됩니다. 직접 운영 브로커와 관리형 큐의 비교에는 설치·패치·당직·장애 복구 시간도 포함해야 합니다.</p>
@@ -72,7 +72,68 @@
 <details class="question"><summary>Q. 자동화는 언제 하지 않는 것이 낫나요?</summary><div class="answer"><p>일회성이거나 절차가 자주 바뀌고 실패 영향이 크며 유지 비용이 이득보다 큰 경우에는 우선 표준화와 관찰부터 할 수 있습니다. 반복 빈도·시간 절약·오류 감소·제작 및 유지 비용을 비교해 범위를 정합니다.</p></div></details>
 <details class="question"><summary>Q. 비용을 줄인 뒤 무엇을 확인해야 하나요?</summary><div class="answer"><p>동일한 업무량 기준의 비용, 성공률·지연·복구 여유·보안·운영 작업량을 확인합니다. 총 청구가 낮아졌다는 사실만으로 성공을 선언하지 않습니다. 절감이 실제 구조 개선인지 수요 감소인지도 분리합니다.</p></div></details>
 
-<h2 id="section-11">공식 문서</h2>
+<h2 id="section-11">깊이 읽기: 비용 구조를 바꾸는 설계와 할인 구매를 구분하기</h2>
+<h3>절감 순서는 낭비 제거에서 시작하기</h3>
+<p>쓰지 않는 창고를 할인 계약으로 빌려도 비용은 낭비입니다. 먼저 필요한 업무와 자원을 구분하고, 사용하지 않는 실행·데이터·전송을 줄이고, 적정 크기와 스케줄을 맞춘 뒤 안정적인 사용량의 가격 모델을 검토합니다. 이 순서가 무조건 모든 상황의 절차는 아니지만 불필요한 사용량을 장기 약정하는 실수를 줄여 줍니다.</p>
+<p>비용 구조를 바꾸는 예로 같은 파일을 반복 변환하지 않도록 결과를 재사용하거나, 전체 데이터를 매번 읽는 분석을 증분 처리로 바꾸거나, 빈 polling을 줄이는 방법이 있습니다. 할인은 동일 사용량의 단가를 줄이지만 설계 개선은 사용량 자체를 줄일 수 있습니다. 다만 재사용한 결과의 최신성·무효화와 증분 처리의 정합성이라는 새 책임이 생깁니다.</p>
+<h3>네트워크 비용을 화살표별로 계산하기</h3>
+<p>앱→외부 API, 앱→S3, AZ 간 통신, 리전 간 복제, 인터넷 다운로드를 각각 나눕니다. 바이트가 어느 서비스를 통과하는지에 따라 전송 비용과 처리 비용이 함께 발생할 수 있습니다. NAT를 거치는 경로와 지원되는 VPC endpoint 경로는 요금 구조·가용성·관리 방식이 다를 수 있으므로 “private이면 무료”라고 단정하지 않습니다.</p>
+<p>가상 비용 모델을 <code>고정 시간 비용 + 처리 GB × 단가 + 전송 GB × 단가</code>로 적어 보면 비교가 쉬워집니다. 여기에는 실제 가격을 넣지 않습니다. 리전·서비스·방향·계층에 따라 공식 요금을 확인해야 합니다. 적은 데이터에서는 고정 비용이 크고 많은 데이터에서는 바이트 단가가 중요할 수 있습니다. 보안과 장애 목표를 만족하는 후보 사이에서 비교합니다.</p>
+<h3>배치 크기를 늘렸을 때의 세 가지 변화</h3>
+<p>메시지를 1건씩 호출하던 것을 여러 건으로 묶으면 호출 오버헤드를 줄일 수 있습니다. 하지만 배치를 채우는 동안 첫 항목이 기다리고, 한 번에 필요한 메모리가 늘고, 실패 시 재처리 범위가 달라집니다. 일부 항목만 실패했을 때 구별해서 재처리할 수 있는지도 확인합니다. 처리량·지연·오류 비용을 함께 봐야 합니다.</p>
+<p>업무가 5분 내 완료되면 되는 야간 집계라면 어느 정도 모아 처리하는 것이 유리할 수 있습니다. 즉시 결과가 필요한 결제 요청에는 같은 설정이 맞지 않습니다. 비용 절감을 위해 완료 시간을 바꾸면 요구 변경임을 명시해야 합니다. “응답은 빨리 주고 실제 처리는 나중에”도 사용자가 동의한 비동기 계약일 때 의미가 있습니다.</p>
+<h3>Spot·On-Demand·약정을 역할별로 배치하기</h3>
+<p>안정적인 기준 부하, 예측 가능한 피크, 중단 가능한 재처리 작업을 나누어 봅니다. 약정은 확실히 지속될 적격 사용량에서 검토하고, 변동성 높은 부하는 유연성을 남기며, 재시도와 체크포인트가 가능한 작업은 Spot을 후보로 둘 수 있습니다. 하나의 가격 모델로 모든 workload를 설명하지 않습니다.</p>
+<p>Spot 단가만 비교하면 중단으로 다시 한 작업, 체크포인트 저장, 대체 용량 확보와 완료 기한 영향을 놓칠 수 있습니다. 반대로 약정을 피하느라 계속 안정적인 장기 부하를 비효율적으로 구매할 수도 있습니다. 가격 할인과 실제 업무 완료당 비용을 함께 계산합니다. 용량 확보 보장과 할인 약정도 동일한 의미가 아니므로 해당 상품의 조건을 확인합니다.</p>
+<h3>자동화에도 투자 회수와 실패 비용이 있다</h3>
+<p>매주 반복하는 작업을 자동화하면 사람 시간을 줄이고 일관성을 높일 수 있습니다. 그러나 구현·검증·권한 관리·유지보수 비용이 들고 잘못된 자동화는 빠르게 많은 자원을 건드릴 수 있습니다. 작업 빈도와 절약 시간, 변경 가능성, 실패 영향, 검증 방법을 기준으로 선택합니다.</p>
+<p>가상으로 매주 2시간 작업을 30분으로 줄이면 주당 1.5시간을 절약합니다. 구현과 검증에 30시간이 들었다면 유지비를 제외한 단순 회수 기간은 20주입니다. 실제 의사결정에는 오류 감소·담당자 의존 감소·온콜 영향도 포함합니다. 사람 시간의 가치까지 고려하는 것이 총소유비용이며, 단순 월 서비스 요금과는 다른 관점입니다.</p>
+<h3>개선안을 비교하는 작은 실험</h3>
+<table>
+<thead>
+<tr>
+<th>개선 후보</th>
+<th>비용 이점의 근거</th>
+<th>반드시 지켜야 할 조건</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>캐시 도입</td>
+<td>원본 조회·전송 감소</td>
+<td>최신성·장애 시 부하</td>
+</tr>
+<tr>
+<td>파일 압축</td>
+<td>저장·전송 감소</td>
+<td>CPU·조회 성능·호환성</td>
+</tr>
+<tr>
+<td>증분 처리</td>
+<td>반복 전체 스캔 감소</td>
+<td>누락·수정·삭제 반영</td>
+</tr>
+<tr>
+<td>비업무 시간 중지</td>
+<td>실행 시간 감소</td>
+<td>재시작 준비·야간 의존 작업</td>
+</tr>
+<tr>
+<td>약정 구매</td>
+<td>적격 사용량 단가 감소</td>
+<td>지속 사용량·유연성</td>
+</tr>
+</tbody></table>
+<h2 id="section-12">더 깊은 면접 Q&amp;A: 전체 비용으로 답하기</h2>
+<details class="question"><summary>Q. NAT 비용이 커서 하나만 쓰면 되나요?</summary><div class="answer"><p><strong>답변:</strong> 검토하는 NAT 형태와 경로, AZ 간 통신, 장애 시 출구 의존성, 실제 데이터량을 함께 봅니다. 단순히 개수만 줄이면 고정 비용은 줄어도 다른 전송 비용이나 장애 영향이 늘 수 있습니다.</p><p><strong>대안:</strong> 어떤 트래픽이 출구를 사용하는지 분류하고 지원되는 서비스 endpoint나 불필요한 전송 제거를 검토합니다. 네트워크 비용 최적화는 화살표와 바이트를 추적하는 일입니다.</p></div></details>
+<details class="question"><summary>Q. 서버리스는 사용한 만큼 내니 항상 저렴한가요?</summary><div class="answer"><p><strong>답변:</strong> 유휴 시간이 긴 작업에는 유리할 수 있지만 높은 지속 부하, 많은 호출, 긴 실행, 주변 서비스·로그·전송 비용에 따라 달라집니다. 운영 인력과 기능 제약도 총비용에 포함합니다.</p><p><strong>비교:</strong> 같은 지연·오류·복구 요구에서 한 달 예상 사용량을 모델링하고 실험값으로 보정합니다. 실행 서비스 한 항목의 단가만 비교하면 전체 구조를 놓칩니다.</p></div></details>
+<details class="question"><summary>Q. 재처리 가능한 작업은 모두 Spot으로 옮겨도 되나요?</summary><div class="answer"><p><strong>답변:</strong> 재처리 가능하더라도 완료 기한과 대체 용량, 중단 시 잃는 계산량, 데이터 저장·복원 비용을 봐야 합니다. 재처리가 오래 걸려 약속한 기한을 넘기면 요구를 만족하지 못합니다.</p><p><strong>설계:</strong> 작업을 작은 단위로 나누고 안전한 checkpoint와 멱등 출력을 준비하며 필요하면 다른 용량으로 넘어가는 정책을 검토합니다. 할인률이 아닌 성공 완료당 비용을 평가합니다.</p></div></details>
+<details class="question"><summary>Q. 비용을 줄이려고 로그 보존을 짧게 하면 문제가 있나요?</summary><div class="answer"><p><strong>답변:</strong> 로그 종류와 조사·감사·업무 요구에 따라 달라집니다. 자주 조회할 기간과 장기 보관이 필요한 범위를 나누고 민감정보·접근 권한도 관리합니다. 모든 로그를 같은 기간 비싼 조회 계층에 둘 필요는 없을 수 있습니다.</p><p><strong>검증:</strong> 사고를 뒤늦게 발견했을 때 필요한 증거가 남는지, 장기 보관에서 검색 가능한지 확인합니다. 저장 비용만 줄여 장애 분석과 대응 시간을 크게 늘리는 선택은 총비용을 악화시킬 수 있습니다.</p></div></details>
+
+<h2 id="section-13">직접 풀어 보기: 저장 비용을 줄였더니 검색 비용이 늘었다</h2>
+<p>자주 읽는 작은 파일을 낮은 저장 단가의 계층으로 옮겼더니 총비용이 증가했습니다. 저장 GB 단가만 비교한 분석에서 무엇이 빠졌을까요?</p>
+<details class="question"><summary>해설 펼치기 — 판단 과정과 조건을 바꾼 경우</summary><div class="answer"><p><strong>총비용:</strong> 저장량 외에 요청·검색·전환 비용, 최소 보관 기간과 최소 과금 크기 같은 조건을 확인합니다. 정확한 항목은 선택한 저장 클래스와 리전의 공식 요금에 따릅니다.</p><p><strong>사용 패턴:</strong> 읽기 빈도와 파일 수·크기·보존 기간을 실제 데이터로 확인합니다. 큰 장기 보관 파일에 유리한 모델이 작은 반복 조회 파일에도 유리하다고 일반화할 수 없습니다.</p><p><strong>품질:</strong> 검색 지연이 늘어 사용자 응답 목표를 깨거나 추가 캐시·재처리를 만들었다면 그 비용도 포함합니다. 저장 계층 변경은 가격뿐 아니라 접근 계약의 변경일 수 있습니다.</p><p><strong>개선:</strong> 데이터 종류별로 정책을 나누고 작은 범위에서 비용과 성능을 검증한 뒤 확대합니다. 총비용의 어느 항목이 늘었는지 설명할 수 있어야 다음 정책도 올바르게 선택할 수 있습니다.</p></div></details>
+
+<h2 id="section-14">공식 문서</h2>
 <ul>
 <li><a href="https://docs.aws.amazon.com/wellarchitected/latest/cost-optimization-pillar/welcome.html">비용 최적화 원칙</a></li>
 <li><a href="https://docs.aws.amazon.com/savingsplans/latest/userguide/what-is-savings-plans.html">Savings Plans</a></li>

@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="수집·버퍼·처리·카탈로그·쿼리·시각화의 경계와 실시간·배치의 선택"><title>AWS 12 · 데이터 분석 흐름: Kinesis·Firehose·Flink·Athena·Glue·Redshift·MSK | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/aws-study-12.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/aws-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="aws"><main><a href="/">← 전체 글</a> · <a href="/posts/aws-study-00.html">AWS 학습 지도</a><header><p class="meta">AWS QUEST · 12 / 22 · CORE · 2026-10-20</p><h1>데이터 분석 흐름: Kinesis·Firehose·Flink·Athena·Glue·Redshift·MSK</h1><p class="subtitle">수집·버퍼·처리·카탈로그·쿼리·시각화의 경계와 실시간·배치의 선택</p><p class="note">첨부 공부팩 12_분석_데이터_Kinesis_Athena_Glue_Redshift_MSK.pdf (10쪽)의 주제를 재구성한 해설입니다. 공식 문서 확인일: 2026-10-20. 장애 사례와 수치는 학습용 가정이며 AWS 실계정 실험 결과가 아닙니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. 컨베이어와 분석실은 같은 장비가 아니다</a></li><li><a href="#section-2">2. 스트림과 큐의 차이부터</a></li><li><a href="#section-3">3. Firehose와 Flink: 전달과 계산</a></li><li><a href="#section-4">4. S3·Glue·Lake Formation: 데이터와 설명서와 출입 통제</a></li><li><a href="#section-5">5. Athena와 Redshift</a></li><li><a href="#section-6">6. 원문의 나머지 분석 서비스</a></li><li><a href="#section-7">7. 가상 장애: 분석 비용이 갑자기 열 배</a></li><li><a href="#section-8">8. 상세 면접 Q&amp;A</a></li><li><a href="#section-9">공식 문서</a></li></ol></aside><article><h2 id="section-1">1. 컨베이어와 분석실은 같은 장비가 아니다</h2>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="수집·버퍼·처리·카탈로그·쿼리·시각화의 경계와 실시간·배치의 선택"><title>AWS 12 · 데이터 분석 흐름: Kinesis·Firehose·Flink·Athena·Glue·Redshift·MSK | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/aws-study-12.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/aws-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="aws"><main><a href="/">← 전체 글</a> · <a href="/posts/aws-study-00.html">AWS 학습 지도</a><header><p class="meta">AWS QUEST · 12 / 22 · CORE · 2026-10-20</p><h1>데이터 분석 흐름: Kinesis·Firehose·Flink·Athena·Glue·Redshift·MSK</h1><p class="subtitle">수집·버퍼·처리·카탈로그·쿼리·시각화의 경계와 실시간·배치의 선택</p><p class="note">첨부 공부팩 12_분석_데이터_Kinesis_Athena_Glue_Redshift_MSK.pdf (10쪽)의 주제를 재구성한 해설입니다. 공식 문서 확인일: 2026-10-20. 장애 사례와 수치는 학습용 가정이며 AWS 실계정 실험 결과가 아닙니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. 컨베이어와 분석실은 같은 장비가 아니다</a></li><li><a href="#section-2">2. 스트림과 큐의 차이부터</a></li><li><a href="#section-3">3. Firehose와 Flink: 전달과 계산</a></li><li><a href="#section-4">4. S3·Glue·Lake Formation: 데이터와 설명서와 출입 통제</a></li><li><a href="#section-5">5. Athena와 Redshift</a></li><li><a href="#section-6">6. 원문의 나머지 분석 서비스</a></li><li><a href="#section-7">7. 가상 장애: 분석 비용이 갑자기 열 배</a></li><li><a href="#section-8">8. 상세 면접 Q&amp;A</a></li><li><a href="#section-9">깊이 읽기: 업무 데이터가 분석 결과가 되기까지</a></li><li><a href="#section-10">더 깊은 면접 Q&amp;A: 빠른 집계보다 올바른 집계</a></li><li><a href="#section-11">직접 풀어 보기: 어제 집계가 오늘 바뀌었다</a></li><li><a href="#section-12">공식 문서</a></li></ol></aside><article><h2 id="section-1">1. 컨베이어와 분석실은 같은 장비가 아니다</h2>
 <p>창고 센서가 온도를 계속 보내고, 하루 뒤 관리자가 시간대별 평균을 본다고 해 봅시다. 데이터를 받는 통로, 잠깐 보관하는 공간, 계산하는 작업자, 결과를 조회하는 분석실이 필요합니다. Kinesis나 MSK가 데이터를 운반·보관하는 역할을 맡는다고 Athena의 SQL 분석까지 같은 서비스가 처리하는 것은 아닙니다. 분석 시스템을 <strong>수집→저장→가공→조회→공유</strong>로 나누면 긴 제품 목록이 정리됩니다.</p>
 <h2 id="section-2">2. 스트림과 큐의 차이부터</h2>
 <p>큐에서는 작업 완료 후 메시지를 제거하는 소비 모델을 많이 사용합니다. 로그 기반 스트림은 보존된 레코드를 소비 위치에 따라 읽고 여러 소비자가 독립적으로 다시 처리하는 모델이 중요합니다. 어느 쪽이 더 좋다는 뜻이 아니라 작업 분배와 기록 재생의 요구가 다르다는 뜻입니다.</p>
@@ -59,12 +59,44 @@
 <details class="question"><summary>Q. MSK를 쓰면 Kafka 운영 지식이 필요 없나요?</summary><div class="answer"><p>인프라 관리 부담은 줄지만 파티션·키·소비자 병렬성·오프셋·보존·재시도는 남습니다. 특정 키에 부하가 집중되거나 소비자 처리가 느려지는 문제는 관리형이라는 이유로 해결되지 않습니다. 운영 책임이 줄어드는 범위를 정확히 확인해야 합니다.</p></div></details>
 <details class="question"><summary>Q. 실시간 분석은 언제 필요한가요?</summary><div class="answer"><p>의사결정이 늦어져 발생하는 손실과 필요한 지연을 먼저 정합니다. 냉장 온도 이상에 즉시 대응하는 요구와 다음 날 보고서는 다릅니다. 실시간 상태·재처리·늦은 이벤트 처리 복잡성에 비해 얻는 가치가 있는지 판단합니다.</p></div></details>
 
-<h2 id="section-9">공식 문서</h2>
+<h2 id="section-9">깊이 읽기: 업무 데이터가 분석 결과가 되기까지</h2>
+<h3>처리할 일과 이미 일어난 사실</h3>
+<p>큐에 넣은 “이 사진을 분석하라”는 작업 요청과 스트림에 남긴 “입고 검수가 완료됐다”는 사건은 의미가 다릅니다. 작업 큐에서는 누군가 일을 끝내는 것이 중요하고, 사건 스트림에서는 여러 소비자가 각자의 목적으로 같은 사실을 읽고 재처리하는 것이 중요할 수 있습니다. 서비스 선택 전 메시지가 명령인지 사실인지부터 구분하면 보존·재생·구독 구조가 명확해집니다.</p>
+<p>실시간 대시보드와 일별 정산도 요구가 다릅니다. 대시보드는 몇 초 늦은 근사값을 허용할 수 있지만 정산은 늦게 들어온 취소까지 반영해야 할 수 있습니다. 같은 스트림을 써도 소비자의 상태와 완료 기준은 다르게 설계합니다. “실시간”이라는 말 대신 허용 지연과 수정 가능 기간을 숫자로 정의합니다.</p>
+<h3>이벤트 시간과 처리 시간</h3>
+<p>PDA가 10시 00분에 검수한 사건을 통신 장애로 10시 05분에 보냈다고 합시다. 이벤트 시간은 10시 00분, 시스템이 받은 시간은 10시 05분입니다. 처리 시간을 기준으로 집계하면 실제 작업 시간대와 달라집니다. 이벤트 시간으로 집계하려면 늦게 도착하는 데이터와 기기 시계 오차를 다뤄야 합니다.</p>
+<p>Window는 일정 구간의 사건을 모아 계산하는 단위입니다. Watermark는 이벤트 시간이 어느 정도 진행됐다고 판단하는 기준으로 이해할 수 있지만 모든 미래 지연 데이터가 절대 오지 않는다는 보장은 아닙니다. 허용 지연을 넘긴 사건을 버릴지, 별도 경로에 저장할지, 기존 결과를 수정할지 정합니다. 상태 저장과 checkpoint가 있어도 외부 sink에 결과를 쓰는 계약까지 맞아야 원하는 중복·복구 의미를 얻습니다.</p>
+<h3>S3 데이터 레이크의 세 요소</h3>
+<p>원본 파일은 데이터이고, 테이블의 열·타입·위치 설명은 메타데이터이며, 누가 어떤 데이터를 볼 수 있는지는 접근 제어입니다. Glue Data Catalog에 테이블을 등록했다고 데이터가 DB 엔진 내부로 모두 옮겨진 것은 아닙니다. Athena 같은 엔진은 메타데이터를 참고해 S3 데이터를 읽습니다. 실제 S3·KMS 접근과 Lake Formation 등 적용된 권한 체계도 맞아야 합니다.</p>
+<p>Crawler가 구조를 발견해 준다고 잘못된 원본 의미를 정정해 주지는 않습니다. 숫자 코드와 문자열 코드, 타임존이 없는 시각, 필드 의미 변경은 데이터 계약으로 관리해야 합니다. 같은 이름의 열이 어느 날부터 다른 단위를 뜻하면 쿼리는 성공해도 결과는 틀릴 수 있습니다. 데이터 품질은 문법 오류보다 넓습니다.</p>
+<h3>열 기반 파일과 partition pruning</h3>
+<p>행 기반 표현은 한 주문의 모든 열을 가까이 두는 그림이고, 열 기반 파일은 같은 열의 값을 모아 읽기 쉽게 정리하는 그림입니다. 분석에서 수십 개 열 중 금액과 날짜만 필요하다면 Parquet·ORC 같은 형식이 불필요한 읽기를 줄이는 데 도움이 됩니다. 압축과 통계 정보, 실제 쿼리·데이터 타입에 따라 효과가 달라집니다.</p>
+<p>날짜별로 partition을 나누고 쿼리가 해당 partition 조건을 사용하면 읽을 범위를 줄일 수 있습니다. 365일 데이터에서 하루만 읽는다면 큰 차이가 날 수 있지만, 실제 스캔 감소가 정확히 365배라고 보장할 수는 없습니다. 크기 분포·열 선택·파일 구성·실행 계획이 영향을 줍니다. 모든 사용자 ID처럼 너무 세밀한 단위로 나누면 작은 파일과 메타데이터 작업이 늘어 역효과가 날 수 있습니다.</p>
+<h3>작은 파일이 많으면 왜 불리할까</h3>
+<p>상자 하나를 열 때마다 운송장 확인과 포장 해체 시간이 든다고 생각해 보세요. 데이터가 작아도 파일마다 목록 확인·요청·메타데이터·읽기 준비 비용이 발생할 수 있습니다. 적절한 크기로 묶는 compaction은 이를 줄이지만 작업 비용과 데이터 신선도 지연을 가져옵니다. “파일은 클수록 좋다”도 아닙니다. 병렬 읽기와 압축 형식, partition 요구를 함께 고려합니다.</p>
+<h2 id="section-10">더 깊은 면접 Q&amp;A: 빠른 집계보다 올바른 집계</h2>
+<details class="question"><summary>Q. 스트림 처리에서 exactly-once라고 하면 집계 결과는 절대 중복되지 않나요?</summary><div class="answer"><p><strong>답변:</strong> 어떤 범위에서 제공하는 보장인지 확인해야 합니다. 처리 엔진의 상태와 checkpoint가 일관되어도 외부 DB·API에 쓰는 효과가 같은 계약에 참여하지 않으면 중복될 수 있습니다.</p><p><strong>설계:</strong> 이벤트 ID, sink의 트랜잭션·멱등 쓰기 지원, 장애 후 재생 범위를 확인합니다. 내부 처리 보장과 업무 전체 보장을 같은 말로 사용하지 않습니다.</p></div></details>
+<details class="question"><summary>Q. Athena 쿼리에 LIMIT을 붙이면 스캔 비용이 항상 작아지나요?</summary><div class="answer"><p><strong>답변:</strong> 반환 행 수를 제한하는 것과 읽어야 할 데이터를 줄이는 것은 별개입니다. 쿼리 형태와 엔진 동작에 따라 다르므로 LIMIT만으로 스캔량 감소를 보장해서는 안 됩니다. partition 조건, 필요한 열 선택, 파일 형식과 실제 scanned bytes를 확인합니다.</p><p><strong>연습:</strong> 같은 결과를 만드는 두 쿼리의 실행 계획·스캔량·시간을 비교합니다. 결과 행 수가 같다는 사실만으로 비용이 같거나 적다고 판단하지 않습니다.</p></div></details>
+<details class="question"><summary>Q. 늦게 도착한 데이터를 무시하면 안 되나요?</summary><div class="answer"><p><strong>답변:</strong> 업무가 허용하면 가능하지만 손실 범위와 영향이 명확해야 합니다. 실시간 모니터링의 임시 숫자와 정산·감사 기록은 허용 기준이 다릅니다. 원본을 남기고 최종 집계에서 보정하는 방법도 있습니다.</p><p><strong>꼬리 질문:</strong> 수정된 결과를 이미 소비한 다른 시스템에 어떻게 알릴지도 필요합니다. 한 번 만든 대시보드 숫자를 바꾸는 것과 이미 지급한 금액을 정정하는 것은 난도가 다릅니다.</p></div></details>
+<details class="question"><summary>Q. S3에 모든 원본을 모으면 데이터 레이크가 완성되나요?</summary><div class="answer"><p><strong>답변:</strong> 저장 기반은 생기지만 카탈로그·소유자·스키마·품질·보존·접근 권한이 없으면 필요한 데이터를 찾거나 신뢰하기 어렵습니다. 민감정보가 무작정 복제되는 위험도 생깁니다.</p><p><strong>완료 기준:</strong> 특정 분석 질문에 대해 어떤 원본과 변환을 거쳤는지 추적할 수 있고, 권한 있는 사용자가 재현 가능한 결과를 얻어야 합니다. 저장량 자체가 분석 플랫폼의 성숙도를 뜻하지는 않습니다.</p></div></details>
+
+<h2 id="section-11">직접 풀어 보기: 어제 집계가 오늘 바뀌었다</h2>
+<p>어제 23시 58분에 발생한 검수 사건이 기기 통신 장애로 오늘 00시 07분에 도착했습니다. 일별 검수량 보고서에 어느 날짜로 넣어야 할까요? 실시간 화면과 최종 정산 보고서의 목적이 다르다고 가정합니다.</p>
+<details class="question"><summary>해설 펼치기 — 판단 과정과 조건을 바꾼 경우</summary><div class="answer"><p><strong>시간 정의:</strong> 실제 업무 시점을 기준으로 집계한다면 어제에 속합니다. 수집된 시점을 기준으로 시스템 처리량을 보고 싶다면 오늘에 속할 수 있습니다. 먼저 보고서의 질문을 정의해야 합니다.</p><p><strong>지연 처리:</strong> 어제 결과를 이미 확정했다면 수정 가능한 기간과 재집계 절차를 정합니다. 실시간 화면은 임시값임을 표현하고 최종 보고서는 늦은 사건을 반영하는 방식도 가능합니다.</p><p><strong>정합성:</strong> 같은 사건이 재전송되었는지 식별할 event ID가 필요할 수 있습니다. 시간만으로 중복을 판단하면 같은 시각에 발생한 다른 사건을 잃을 수 있습니다. 원본 보관과 변환 이력을 연결합니다.</p><p><strong>추가 조건:</strong> 기기 시계가 틀렸을 수 있으므로 이벤트 시간의 신뢰성도 평가합니다. 모든 날짜 오류를 스트림 엔진의 watermark 설정만으로 해결할 수는 없습니다.</p></div></details>
+
+<h2 id="section-12">공식 문서</h2>
 <ul>
-<li><a href="https://docs.aws.amazon.com/streams/latest/dev/introduction.html">Kinesis Data Streams</a></li>
-<li><a href="https://docs.aws.amazon.com/firehose/latest/dev/what-is-this-service.html">Data Firehose</a></li>
-<li><a href="https://docs.aws.amazon.com/athena/latest/ug/performance-tuning.html">Athena 성능 개선</a></li>
-<li><a href="https://docs.aws.amazon.com/glue/latest/dg/catalog-and-crawler.html">Glue Data Catalog</a></li>
-<li><a href="https://docs.aws.amazon.com/finspace/latest/management-api/amazon-finspace-end-of-support.html">FinSpace 종료 공지</a></li>
+<li><p><a href="https://docs.aws.amazon.com/streams/latest/dev/introduction.html">Kinesis Data Streams</a></p>
+</li>
+<li><p><a href="https://docs.aws.amazon.com/firehose/latest/dev/what-is-this-service.html">Data Firehose</a></p>
+</li>
+<li><p><a href="https://docs.aws.amazon.com/athena/latest/ug/performance-tuning.html">Athena 성능 개선</a></p>
+</li>
+<li><p><a href="https://docs.aws.amazon.com/glue/latest/dg/catalog-and-crawler.html">Glue Data Catalog</a></p>
+</li>
+<li><p><a href="https://docs.aws.amazon.com/finspace/latest/management-api/amazon-finspace-end-of-support.html">FinSpace 종료 공지</a></p>
+</li>
+<li><p><a href="https://docs.aws.amazon.com/athena/latest/ug/performance-tuning-data-optimization-techniques.html">Athena 데이터 배치·파일·파티션 최적화</a></p>
+</li>
 </ul>
 </article><nav aria-label="연재 이동"><a href="/posts/aws-study-11.html">← 마이그레이션과 하이브리드: 서버·DB·파일은 다르게 옮긴다</a><a href="/posts/aws-study-13.html">Well-Architected 여섯 원칙: 좋은 설계를 질문으로 검증하기 →</a></nav><footer>AWS SAA 학습 연재 · <a href="/learning/aws/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

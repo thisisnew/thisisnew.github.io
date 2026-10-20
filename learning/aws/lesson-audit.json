@@ -4,9 +4,9 @@
     "title": "AWS SAA 학습 지도: 서비스 이름을 설계 판단으로 바꾸는 23편",
     "source": "00_AWS_SAA_공부순서_로드맵.pdf",
     "pdfPages": 2,
-    "characters": 4336,
-    "sections": 8,
-    "questions": 4,
+    "characters": 8968,
+    "sections": 11,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/aws-certification/latest/solutions-architect-associate-03/solutions-architect-associate-03.html",
       "https://docs.aws.amazon.com/wellarchitected/latest/framework/welcome.html"
@@ -17,9 +17,9 @@
     "title": "SAA-C03 시험 가이드: 긴 문제에서 설계 조건을 추출하는 법",
     "source": "01_SAA-C03_공식_시험가이드.pdf",
     "pdfPages": 30,
-    "characters": 4238,
-    "sections": 8,
-    "questions": 4,
+    "characters": 8816,
+    "sections": 11,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/aws-certification/latest/solutions-architect-associate-03/solutions-architect-associate-03.html"
     ]
@@ -29,9 +29,9 @@
     "title": "클라우드와 글로벌 인프라: 계정·리전·AZ를 처음부터 구분하기",
     "source": "02_AWS_기초_클라우드_글로벌인프라.pdf",
     "pdfPages": 8,
-    "characters": 3841,
-    "sections": 8,
-    "questions": 4,
+    "characters": 8268,
+    "sections": 11,
+    "questions": 9,
     "officialLinks": [
       "https://aws.amazon.com/about-aws/global-infrastructure/",
       "https://aws.amazon.com/compliance/shared-responsibility-model/",
@@ -43,15 +43,16 @@
     "title": "컴퓨팅 선택: EC2·Auto Scaling·Lambda·컨테이너의 동작과 책임",
     "source": "03_컴퓨팅_EC2_AutoScaling_Lambda_Containers.pdf",
     "pdfPages": 14,
-    "characters": 5652,
-    "sections": 9,
-    "questions": 4,
+    "characters": 10088,
+    "sections": 12,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/apprunner/latest/dg/apprunner-availability-change.html",
       "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/concepts.html",
       "https://docs.aws.amazon.com/autoscaling/ec2/userguide/what-is-amazon-ec2-auto-scaling.html",
       "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html",
-      "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html"
+      "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html",
+      "https://docs.aws.amazon.com/lambda/latest/dg/configuration-concurrency.html"
     ]
   },
   {
@@ -59,16 +60,18 @@
     "title": "스토리지: S3·EBS·EFS를 데이터 접근 방식부터 이해하기",
     "source": "04_스토리지_S3_EBS_EFS_Backup.pdf",
     "pdfPages": 7,
-    "characters": 5513,
-    "sections": 9,
-    "questions": 4,
+    "characters": 9969,
+    "sections": 12,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/fsx/latest/FileCacheGuide/what-is.html",
       "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
       "https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html",
       "https://docs.aws.amazon.com/ebs/latest/userguide/ebs-volume-types.html",
       "https://docs.aws.amazon.com/efs/latest/ug/whatisefs.html",
-      "https://docs.aws.amazon.com/aws-backup/latest/devguide/whatisbackup.html"
+      "https://docs.aws.amazon.com/aws-backup/latest/devguide/whatisbackup.html",
+      "https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html",
+      "https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity-upload.html"
     ]
   },
   {
@@ -76,16 +79,18 @@
     "title": "VPC와 네트워크: 요청 한 건이 DNS에서 DB까지 가는 길",
     "source": "05_네트워크_VPC_ELB_Route53_CloudFront.pdf",
     "pdfPages": 7,
-    "characters": 5531,
-    "sections": 10,
-    "questions": 4,
+    "characters": 10259,
+    "sections": 13,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/general/latest/gr/full_shutdown_services.html",
       "https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Route_Tables.html",
       "https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Security.html",
       "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Expiration.html",
       "https://docs.aws.amazon.com/vpc/latest/privatelink/what-is-privatelink.html",
-      "https://docs.aws.amazon.com/app-mesh/latest/userguide/what-is-app-mesh.html"
+      "https://docs.aws.amazon.com/app-mesh/latest/userguide/what-is-app-mesh.html",
+      "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html",
+      "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-network-acls.html"
     ]
   },
   {
@@ -93,9 +98,9 @@
     "title": "데이터베이스 선택: RDS·Aurora·DynamoDB·캐시와 정합성",
     "source": "06_데이터베이스_RDS_Aurora_DynamoDB_ElastiCache.pdf",
     "pdfPages": 8,
-    "characters": 5224,
-    "sections": 10,
-    "questions": 4,
+    "characters": 9440,
+    "sections": 13,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/general/latest/gr/full_shutdown_services.html",
       "https://docs.aws.amazon.com/general/latest/gr/maintenance_services.html",
@@ -110,14 +115,15 @@
     "title": "메시징과 통합: SQS·SNS·EventBridge·Step Functions를 구분하기",
     "source": "07_메시징_통합_SQS_SNS_EventBridge_StepFunctions.pdf",
     "pdfPages": 3,
-    "characters": 4954,
-    "sections": 9,
-    "questions": 4,
+    "characters": 9517,
+    "sections": 12,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues-at-least-once-delivery.html",
       "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html",
       "https://docs.aws.amazon.com/sns/latest/dg/sns-sqs-as-subscriber.html",
-      "https://docs.aws.amazon.com/step-functions/latest/dg/choosing-workflow-type.html"
+      "https://docs.aws.amazon.com/step-functions/latest/dg/choosing-workflow-type.html",
+      "https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-errorhandling.html"
     ]
   },
   {
@@ -125,15 +131,17 @@
     "title": "AWS 보안 서비스 지도: IAM·KMS·Secrets·WAF의 서로 다른 역할",
     "source": "08_보안_IAM_KMS_Secrets_WAF_Shield.pdf",
     "pdfPages": 13,
-    "characters": 5056,
-    "sections": 9,
-    "questions": 4,
+    "characters": 9509,
+    "sections": 12,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/general/latest/gr/maintenance_services.html",
       "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic.html",
       "https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html",
       "https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html",
-      "https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html"
+      "https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html",
+      "https://docs.aws.amazon.com/secretsmanager/latest/userguide/rotate-secrets_lambda-functions.html",
+      "https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html"
     ]
   },
   {
@@ -141,16 +149,17 @@
     "title": "운영과 관찰성: CloudWatch·CloudTrail·Config에서 조직 관리까지",
     "source": "09_운영_관찰성_CloudWatch_CloudTrail_Config_Organizations.pdf",
     "pdfPages": 10,
-    "characters": 4903,
-    "sections": 10,
-    "questions": 4,
+    "characters": 9075,
+    "sections": 13,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/general/latest/gr/full_shutdown_services.html",
       "https://docs.aws.amazon.com/proton/latest/userguide/proton-end-of-support.html",
       "https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/WhatIsCloudWatch.html",
       "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-user-guide.html",
       "https://docs.aws.amazon.com/config/latest/developerguide/WhatIsConfig.html",
-      "https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html"
+      "https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html",
+      "https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarms-and-missing-data.html"
     ]
   },
   {
@@ -158,14 +167,15 @@
     "title": "비용 관리: Cost Explorer·Budgets·Savings Plans를 제대로 읽기",
     "source": "10_비용관리_CostExplorer_Budgets_SavingsPlans.pdf",
     "pdfPages": 3,
-    "characters": 3980,
-    "sections": 9,
-    "questions": 4,
+    "characters": 8024,
+    "sections": 12,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/cost-management/latest/userguide/ce-what-is.html",
       "https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html",
       "https://docs.aws.amazon.com/savingsplans/latest/userguide/what-is-savings-plans.html",
-      "https://docs.aws.amazon.com/cur/latest/userguide/what-is-data-exports.html"
+      "https://docs.aws.amazon.com/cur/latest/userguide/what-is-data-exports.html",
+      "https://docs.aws.amazon.com/cost-management/latest/userguide/create-savingsplans-budget.html"
     ]
   },
   {
@@ -173,16 +183,17 @@
     "title": "마이그레이션과 하이브리드: 서버·DB·파일은 다르게 옮긴다",
     "source": "11_마이그레이션_하이브리드_DMS_DataSync_Snow.pdf",
     "pdfPages": 6,
-    "characters": 4761,
-    "sections": 10,
-    "questions": 4,
+    "characters": 8759,
+    "sections": 13,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/general/latest/gr/maintenance_services.html",
       "https://docs.aws.amazon.com/dms/latest/userguide/Welcome.html",
       "https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Task.CDC.html",
       "https://docs.aws.amazon.com/datasync/latest/userguide/what-is-datasync.html",
       "https://docs.aws.amazon.com/transfer/latest/userguide/what-is-aws-transfer-family.html",
-      "https://aws.amazon.com/snowball/"
+      "https://aws.amazon.com/snowball/",
+      "https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Validating.html"
     ]
   },
   {
@@ -190,16 +201,17 @@
     "title": "데이터 분석 흐름: Kinesis·Firehose·Flink·Athena·Glue·Redshift·MSK",
     "source": "12_분석_데이터_Kinesis_Athena_Glue_Redshift_MSK.pdf",
     "pdfPages": 10,
-    "characters": 5073,
-    "sections": 9,
-    "questions": 4,
+    "characters": 9231,
+    "sections": 12,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/general/latest/gr/maintenance_services.html",
       "https://docs.aws.amazon.com/streams/latest/dev/introduction.html",
       "https://docs.aws.amazon.com/firehose/latest/dev/what-is-this-service.html",
       "https://docs.aws.amazon.com/athena/latest/ug/performance-tuning.html",
       "https://docs.aws.amazon.com/glue/latest/dg/catalog-and-crawler.html",
-      "https://docs.aws.amazon.com/finspace/latest/management-api/amazon-finspace-end-of-support.html"
+      "https://docs.aws.amazon.com/finspace/latest/management-api/amazon-finspace-end-of-support.html",
+      "https://docs.aws.amazon.com/athena/latest/ug/performance-tuning-data-optimization-techniques.html"
     ]
   },
   {
@@ -207,9 +219,9 @@
     "title": "Well-Architected 여섯 원칙: 좋은 설계를 질문으로 검증하기",
     "source": "13_Well-Architected_핵심요약_6대원칙.pdf",
     "pdfPages": 59,
-    "characters": 4381,
-    "sections": 10,
-    "questions": 4,
+    "characters": 8451,
+    "sections": 13,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/wellarchitected/latest/framework/welcome.html",
       "https://docs.aws.amazon.com/wellarchitected/latest/framework/definitions.html",
@@ -221,14 +233,16 @@
     "title": "보안 심화 1: 계정 경계·임시 자격 증명·최소 권한의 실제 설계",
     "source": "D01_보안_기초_IAM_권한관리.pdf",
     "pdfPages": 76,
-    "characters": 5068,
-    "sections": 8,
-    "questions": 4,
+    "characters": 9598,
+    "sections": 11,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html",
       "https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html",
       "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic.html",
-      "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user_externalid.html"
+      "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user_externalid.html",
+      "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic-cross-account.html",
+      "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic_policy-eval-denyallow.html"
     ]
   },
   {
@@ -236,9 +250,9 @@
     "title": "보안 심화 2: 탐지에서 네트워크·컴퓨팅 보호까지",
     "source": "D02_보안_탐지_인프라보호.pdf",
     "pdfPages": 38,
-    "characters": 4462,
-    "sections": 8,
-    "questions": 4,
+    "characters": 8494,
+    "sections": 11,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html",
       "https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html",
@@ -251,9 +265,9 @@
     "title": "보안 심화 3: 데이터 보호·사고 대응·개발 파이프라인 보안",
     "source": "D03_보안_데이터보호_사고대응_앱보안.pdf",
     "pdfPages": 74,
-    "characters": 4383,
-    "sections": 9,
-    "questions": 4,
+    "characters": 8349,
+    "sections": 12,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html",
       "https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html",
@@ -265,9 +279,9 @@
     "title": "신뢰성 심화 1: 분산 시스템이 연쇄 장애를 막는 방법",
     "source": "D04_신뢰성_기초_워크로드아키텍처.pdf",
     "pdfPages": 84,
-    "characters": 5474,
-    "sections": 11,
-    "questions": 5,
+    "characters": 9619,
+    "sections": 14,
+    "questions": 10,
     "officialLinks": [
       "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html",
       "https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/",
@@ -279,13 +293,14 @@
     "title": "신뢰성 심화 2: 배포·백업·장애 격리·재해복구를 검증하기",
     "source": "D05_신뢰성_변경관리_장애관리_DR.pdf",
     "pdfPages": 137,
-    "characters": 5726,
-    "sections": 12,
-    "questions": 5,
+    "characters": 9821,
+    "sections": 15,
+    "questions": 10,
     "officialLinks": [
       "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html",
       "https://docs.aws.amazon.com/whitepapers/latest/disaster-recovery-workloads-on-aws/disaster-recovery-options-in-the-cloud.html",
-      "https://aws.amazon.com/builders-library/static-stability-using-availability-zones/"
+      "https://aws.amazon.com/builders-library/static-stability-using-availability-zones/",
+      "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/disaster-recovery-dr-objectives.html"
     ]
   },
   {
@@ -293,9 +308,9 @@
     "title": "성능 심화 1: 아키텍처와 컴퓨팅을 측정으로 선택하기",
     "source": "D06_성능효율_아키텍처선택_컴퓨팅.pdf",
     "pdfPages": 30,
-    "characters": 4488,
-    "sections": 10,
-    "questions": 4,
+    "characters": 8354,
+    "sections": 13,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/wellarchitected/latest/performance-efficiency-pillar/welcome.html",
       "https://docs.aws.amazon.com/lambda/latest/dg/configuration-memory.html",
@@ -307,9 +322,9 @@
     "title": "성능 심화 2: 데이터 접근과 네트워크 왕복을 줄이는 설계",
     "source": "D07_성능효율_데이터_네트워크.pdf",
     "pdfPages": 50,
-    "characters": 4764,
-    "sections": 10,
-    "questions": 4,
+    "characters": 8757,
+    "sections": 13,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/wellarchitected/latest/performance-efficiency-pillar/welcome.html",
       "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html",
@@ -322,9 +337,9 @@
     "title": "비용 심화 1: 팀이 비용을 소유하고 설명하는 체계 만들기",
     "source": "D08_비용최적화_재무관리_지출인식.pdf",
     "pdfPages": 60,
-    "characters": 4200,
-    "sections": 9,
-    "questions": 4,
+    "characters": 7999,
+    "sections": 12,
+    "questions": 9,
     "officialLinks": [
       "https://docs.aws.amazon.com/wellarchitected/latest/cost-optimization-pillar/welcome.html",
       "https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-alloc-tags.html",
@@ -336,9 +351,9 @@
     "title": "비용 심화 2: 자원·약정·데이터 전송·수요를 함께 최적화하기",
     "source": "D09_비용최적화_리소스_수요관리_지속최적화.pdf",
     "pdfPages": 56,
-    "characters": 5259,
-    "sections": 11,
-    "questions": 5,
+    "characters": 9522,
+    "sections": 14,
+    "questions": 10,
     "officialLinks": [
       "https://docs.aws.amazon.com/wellarchitected/latest/cost-optimization-pillar/welcome.html",
       "https://docs.aws.amazon.com/savingsplans/latest/userguide/what-is-savings-plans.html",

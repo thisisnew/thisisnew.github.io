@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="지표·로그·추적·감사·구성 이력, IaC와 멀티계정 거버넌스를 실제 장애 조사로 연결하기"><title>AWS 09 · 운영과 관찰성: CloudWatch·CloudTrail·Config에서 조직 관리까지 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/aws-study-09.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/aws-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="aws"><main><a href="/">← 전체 글</a> · <a href="/posts/aws-study-00.html">AWS 학습 지도</a><header><p class="meta">AWS QUEST · 09 / 22 · CORE · 2026-10-20</p><h1>운영과 관찰성: CloudWatch·CloudTrail·Config에서 조직 관리까지</h1><p class="subtitle">지표·로그·추적·감사·구성 이력, IaC와 멀티계정 거버넌스를 실제 장애 조사로 연결하기</p><p class="note">첨부 공부팩 09_운영_관찰성_CloudWatch_CloudTrail_Config_Organizations.pdf (10쪽)의 주제를 재구성한 해설입니다. 공식 문서 확인일: 2026-10-20. 장애 사례와 수치는 학습용 가정이며 AWS 실계정 실험 결과가 아닙니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. 계기판, 출입 기록, 설비 장부</a></li><li><a href="#section-2">2. 지표·로그·추적을 한 요청으로 묶기</a></li><li><a href="#section-3">3. CloudWatch 알람은 평가 규칙이다</a></li><li><a href="#section-4">4. CloudTrail과 Config로 변경을 추적하기</a></li><li><a href="#section-5">5. CloudFormation과 Systems Manager</a></li><li><a href="#section-6">6. Organizations와 Control Tower</a></li><li><a href="#section-7">7. 나머지 운영 도구와 제품 상태</a></li><li><a href="#section-8">8. 가상 장애 조사 순서</a></li><li><a href="#section-9">9. 상세 면접 Q&amp;A</a></li><li><a href="#section-10">공식 문서</a></li></ol></aside><article><h2 id="section-1">1. 계기판, 출입 기록, 설비 장부</h2>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="지표·로그·추적·감사·구성 이력, IaC와 멀티계정 거버넌스를 실제 장애 조사로 연결하기"><title>AWS 09 · 운영과 관찰성: CloudWatch·CloudTrail·Config에서 조직 관리까지 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/aws-study-09.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/aws-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="aws"><main><a href="/">← 전체 글</a> · <a href="/posts/aws-study-00.html">AWS 학습 지도</a><header><p class="meta">AWS QUEST · 09 / 22 · CORE · 2026-10-20</p><h1>운영과 관찰성: CloudWatch·CloudTrail·Config에서 조직 관리까지</h1><p class="subtitle">지표·로그·추적·감사·구성 이력, IaC와 멀티계정 거버넌스를 실제 장애 조사로 연결하기</p><p class="note">첨부 공부팩 09_운영_관찰성_CloudWatch_CloudTrail_Config_Organizations.pdf (10쪽)의 주제를 재구성한 해설입니다. 공식 문서 확인일: 2026-10-20. 장애 사례와 수치는 학습용 가정이며 AWS 실계정 실험 결과가 아닙니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. 계기판, 출입 기록, 설비 장부</a></li><li><a href="#section-2">2. 지표·로그·추적을 한 요청으로 묶기</a></li><li><a href="#section-3">3. CloudWatch 알람은 평가 규칙이다</a></li><li><a href="#section-4">4. CloudTrail과 Config로 변경을 추적하기</a></li><li><a href="#section-5">5. CloudFormation과 Systems Manager</a></li><li><a href="#section-6">6. Organizations와 Control Tower</a></li><li><a href="#section-7">7. 나머지 운영 도구와 제품 상태</a></li><li><a href="#section-8">8. 가상 장애 조사 순서</a></li><li><a href="#section-9">9. 상세 면접 Q&amp;A</a></li><li><a href="#section-10">깊이 읽기: 알람이 울린 뒤 사람이 실제로 움직일 수 있게 만들기</a></li><li><a href="#section-11">더 깊은 면접 Q&amp;A: 관측과 자동화의 한계</a></li><li><a href="#section-12">직접 풀어 보기: 알람은 조용한데 주문이 들어오지 않는다</a></li><li><a href="#section-13">공식 문서</a></li></ol></aside><article><h2 id="section-1">1. 계기판, 출입 기록, 설비 장부</h2>
 <p>자동차 계기판은 현재 속도와 온도를 보여 줍니다. 출입 기록은 누가 차고에 들어왔는지 알려 주고, 정비 장부는 부품이 어떻게 바뀌었는지 남깁니다. CloudWatch는 지표·로그·알람 등 관찰성, CloudTrail은 API 활동과 감사, Config는 리소스 구성과 규정 준수 평가라는 출발점으로 구분할 수 있습니다. 실제 기능은 일부 겹치지만 장애 조사에서 던지는 질문이 다릅니다.</p>
 <h2 id="section-2">2. 지표·로그·추적을 한 요청으로 묶기</h2>
 <p>지표는 시간에 따른 숫자입니다. 초당 요청 수·오류율·p99 지연·큐 대기 시간 같은 값을 집계해 이상을 빨리 찾습니다. 로그는 사건의 구체적 맥락입니다. 어떤 주문과 오류 코드가 실패했는지 확인합니다. trace는 여러 서비스에 걸친 요청 구간을 연결합니다. 전체 2초 중 DB 1.8초, 외부 API 0.1초였다는 식으로 시간을 나눕니다.</p>
@@ -27,11 +27,73 @@
 <details class="question"><summary>Q. CPU 알람만으로 서비스 상태를 볼 수 있나요?</summary><div class="answer"><p>CPU가 낮아도 DB 락이나 외부 API 대기로 요청이 실패할 수 있습니다. 사용자 관점의 성공률·지연·처리 지연과 자원 포화 지표를 연결해야 합니다. 시스템 내부 건강과 고객이 경험하는 서비스 건강을 함께 봅니다.</p></div></details>
 <details class="question"><summary>Q. 운영 자동화의 첫 조건은 무엇인가요?</summary><div class="answer"><p>반복 가능한 절차와 관측 가능한 성공·실패 기준입니다. 원인을 모르는 상황에서 자동 재시작을 붙이면 잠깐 증상만 가리거나 장애를 확대할 수 있습니다. 조치의 범위·멱등성·승인 조건·중단 및 되돌림을 먼저 정의합니다.</p></div></details>
 
-<h2 id="section-10">공식 문서</h2>
+<h2 id="section-10">깊이 읽기: 알람이 울린 뒤 사람이 실제로 움직일 수 있게 만들기</h2>
+<h3>지표·로그·추적은 세 종류의 질문에 답한다</h3>
+<p>식당의 평균 대기 시간이 늘었다는 계기판은 지표입니다. 어느 손님이 무엇을 주문했고 어떤 오류가 났는지 적은 기록은 로그입니다. 주문 접수부터 조리·포장·배달까지 걸린 시간을 연결한 것은 분산 추적에 가깝습니다. 지표로 이상을 찾고 추적으로 느린 구간을 좁힌 다음 로그로 상세 원인을 확인하면 서로 보완됩니다.</p>
+<p>입고 API의 p99가 높아졌다고 합시다. 평균 CPU는 정상입니다. trace를 보니 전체 3초 중 2.7초가 외부 상품 API 대기였습니다. 같은 trace ID로 로그를 찾으면 재시도 두 번과 연결 timeout을 확인할 수 있습니다. 이때 API 서버를 늘리는 것보다 외부 의존성의 제한·timeout·재시도를 조정하는 것이 먼저일 수 있습니다. 관측성은 자료를 많이 저장하는 일보다 질문에 맞는 증거를 연결하는 일입니다.</p>
+<h3>평균에 숨는 사용자와 지표 집계의 함정</h3>
+<p>100건 중 99건이 10ms, 1건이 10초라고 가정하면 평균은 약 110ms입니다. 평균만 보면 괜찮아 보이지만 한 사용자는 10초를 기다렸습니다. p95·p99 같은 분위수와 오류율·처리량을 함께 보는 이유입니다. 단, 각 서버의 p99를 단순 평균하여 전체 서비스의 p99라고 부르면 정확하지 않습니다. 분포를 어떻게 집계했는지 확인해야 합니다.</p>
+<p>비율도 분모가 중요합니다. 1분 동안 요청 1건 중 1건 실패는 100%이고, 100만 건 중 100건 실패는 0.01%입니다. 비율만 보면 첫 상황이 더 심각해 보이지만 업무 영향은 다릅니다. 낮은 트래픽의 비율 변동과 실제 실패 수를 함께 고려하고, 무응답·트래픽 소실도 별도로 감지합니다.</p>
+<h3>알람의 기간과 누락 데이터</h3>
+<p>“최근 세 구간 중 두 구간이 임계값을 넘으면 알림” 같은 M-out-of-N 설정은 순간 튐에 모두 반응하지 않게 도와줍니다. 대신 감지 시간이 늘 수 있습니다. 한 구간이 1분인지 5분인지에 따라 같은 숫자라도 대응 시점이 달라집니다. 사용한 통계가 Average인지 Maximum인지도 의미를 바꿉니다.</p>
+<p>누락 데이터를 정상으로 취급하면 수집기가 죽었을 때 서비스도 정상으로 보일 수 있습니다. 반대로 이벤트가 있을 때만 값을 내는 지표의 누락을 모두 장애로 보면 불필요한 알람이 생깁니다. 지표가 “아무 일도 없으면 0을 보냄”인지 “문제 때만 값을 보냄”인지 먼저 정합니다. 알람을 만든 뒤 실제 실패와 수집 중단을 각각 가정해 상태 전이를 확인해야 합니다.</p>
+<h3>변경 기록과 현재 설정을 연결하기</h3>
+<p>CloudTrail로 누가 어떤 관리 API를 호출했는지 추적하고 Config로 지원되는 자원의 구성 상태와 변경을 검토할 수 있습니다. 둘 다 모든 애플리케이션 업무 로그를 자동 대체하지는 않습니다. S3 객체 접근 같은 data event는 필요한 기록 범위와 비용을 별도로 설계해야 할 수 있습니다. “CloudTrail을 켰다”는 말 대신 어떤 이벤트를 어느 계정·리전에서 얼마나 보관하는지 명시합니다.</p>
+<p>IaC도 현재 상태가 코드와 영원히 같음을 보장하지 않습니다. 콘솔에서 긴급 변경을 했다면 코드로 반영하거나 의도된 상태로 되돌려야 합니다. Drift 탐지는 지원 범위 내 차이를 찾는 도구이며 모든 업무 의미를 판단하지 않습니다. 배포 실패 시 rollback이 데이터 변경까지 완벽히 되돌리는지도 별도로 검토합니다.</p>
+<h3>Runbook은 초보자도 실행 순서를 알 수 있어야 한다</h3>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>예시 질문</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>영향 확인</td>
+<td>전체 사용자 문제인가, 특정 센터·기능 문제인가?</td>
+</tr>
+<tr>
+<td>첫 증거</td>
+<td>어느 대시보드·로그·trace에서 시간 범위를 볼까?</td>
+</tr>
+<tr>
+<td>완화</td>
+<td>신규 요청 제한, 이전 배포 복귀, 소비 속도 조절 중 무엇이 안전한가?</td>
+</tr>
+<tr>
+<td>금지</td>
+<td>원인 확인 없이 재처리하거나 모든 서버를 재시작해도 되는가?</td>
+</tr>
+<tr>
+<td>복구 확인</td>
+<td>오류율만 낮아졌나, 밀린 업무와 데이터도 정상인가?</td>
+</tr>
+<tr>
+<td>담당자</td>
+<td>권한이 없거나 가설이 틀리면 누구에게 넘기는가?</td>
+</tr>
+</tbody></table>
+<h2 id="section-11">더 깊은 면접 Q&amp;A: 관측과 자동화의 한계</h2>
+<details class="question"><summary>Q. 로그를 전부 저장하면 장애 분석이 쉬워지나요?</summary><div class="answer"><p><strong>답변:</strong> 관련 요청을 연결할 식별자와 구조가 없으면 양만 늘 수 있습니다. 개인정보·secret 유출, 저장·검색 비용, 중요한 로그가 묻히는 문제도 생깁니다. 요청 ID, 업무 ID, 오류 유형, 처리 단계와 시간을 구조화하고 필요한 수준을 선택합니다.</p><p><strong>꼬리 질문:</strong> 성공 로그를 줄이더라도 정상 흐름의 기준을 잃지 않도록 지표나 표본 추적을 남깁니다. 보관 기간과 접근 권한도 데이터의 성질에 맞춰 정합니다.</p></div></details>
+<details class="question"><summary>Q. CPU 알람과 사용자 오류율 알람 중 무엇이 중요한가요?</summary><div class="answer"><p><strong>답변:</strong> 사용자 영향과 직접 연결되는 오류율·지연은 서비스 상태 판단에 중요하고 CPU는 원인 조사와 용량 예측에 도움이 됩니다. CPU가 높아도 요구를 만족할 수 있고 CPU가 낮아도 외부 대기로 서비스가 실패할 수 있습니다.</p><p><strong>설계:</strong> 사용자 영향 알람에서 대응을 시작하고 자원 지표로 원인을 좁히는 구성을 고려합니다. 특정 자원이 포화되기 전에 예방해야 한다면 자원 임계값 알람도 별도로 둡니다.</p></div></details>
+<details class="question"><summary>Q. 자동 복구는 언제 실행하면 되나요?</summary><div class="answer"><p><strong>답변:</strong> 증상이 명확하고 조치가 제한적이며 반복 실행해도 안전하고 결과를 검증할 수 있을 때 적합합니다. 원인이 불명확한 모든 장애에 전체 재시작을 연결하면 증거를 지우거나 부하를 더 키울 수 있습니다.</p><p><strong>안전장치:</strong> 적용 대상·최대 횟수·대기 시간·실패 시 중단·사람에게 넘기는 조건을 정합니다. 자동화의 성공 로그보다 실제 업무가 회복됐는지 확인하는 단계가 필요합니다.</p></div></details>
+<details class="question"><summary>Q. 배포 직후 오류가 늘면 무조건 롤백하나요?</summary><div class="answer"><p><strong>답변:</strong> 변경과 오류의 상관을 확인하고 롤백이 안전한지 판단합니다. 데이터 스키마나 메시지 형식이 호환되지 않게 바뀌었다면 코드만 과거로 돌리는 것이 더 위험할 수 있습니다.</p><p><strong>예방:</strong> 이전·새 버전이 공존할 수 있는 변경 순서를 준비하고 작은 범위부터 배포합니다. 롤백 가능성은 사고 때 만드는 기능이 아니라 배포 설계의 일부입니다.</p></div></details>
+
+<h2 id="section-12">직접 풀어 보기: 알람은 조용한데 주문이 들어오지 않는다</h2>
+<p>서버 CPU와 오류 로그는 모두 정상처럼 보입니다. 그런데 15분 동안 성공 주문이 0건입니다. 정상적으로 트래픽이 없는 시간인지 요청 경로가 끊긴 것인지 구분하려면 무엇을 봐야 할까요?</p>
+<details class="question"><summary>해설 펼치기 — 판단 과정과 조건을 바꾼 경우</summary><div class="answer"><p><strong>분모 확인:</strong> 요청이 아예 도착하지 않으면 오류율도 0처럼 보일 수 있습니다. 외부 진입점의 요청 수, DNS·인증·프런트엔드 오류, 앱 도달 수와 업무 완료 수를 순서대로 비교합니다.</p><p><strong>관측 경로 확인:</strong> 지표 수집 자체가 중단되지 않았는지도 봅니다. 누락 데이터를 정상으로 처리하는 설정이면 수집기 장애를 숨길 수 있습니다. 마지막 수집 시각과 다른 독립 신호를 대조합니다.</p><p><strong>기준선:</strong> 같은 요일·시간의 평소 트래픽과 예정된 작업을 확인합니다. 모든 무트래픽을 장애로 알리면 피로가 커지므로 업무 시간과 최소 기대 요청량을 고려합니다.</p><p><strong>개선:</strong> 자원 상태 알람 외에 핵심 사용자 경로의 synthetic check 또는 업무 완료 지표를 검토합니다. 실제 거래를 만드는 검사라면 테스트 데이터와 부수 효과를 안전하게 분리해야 합니다.</p></div></details>
+
+<h2 id="section-13">공식 문서</h2>
 <ul>
-<li><a href="https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/WhatIsCloudWatch.html">CloudWatch</a></li>
-<li><a href="https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-user-guide.html">CloudTrail</a></li>
-<li><a href="https://docs.aws.amazon.com/config/latest/developerguide/WhatIsConfig.html">AWS Config</a></li>
-<li><a href="https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html">Organizations의 SCP</a></li>
+<li><p><a href="https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/WhatIsCloudWatch.html">CloudWatch</a></p>
+</li>
+<li><p><a href="https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-user-guide.html">CloudTrail</a></p>
+</li>
+<li><p><a href="https://docs.aws.amazon.com/config/latest/developerguide/WhatIsConfig.html">AWS Config</a></p>
+</li>
+<li><p><a href="https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html">Organizations의 SCP</a></p>
+</li>
+<li><p><a href="https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/alarms-and-missing-data.html">CloudWatch 누락 데이터 처리</a></p>
+</li>
 </ul>
 </article><nav aria-label="연재 이동"><a href="/posts/aws-study-08.html">← AWS 보안 서비스 지도: IAM·KMS·Secrets·WAF의 서로 다른 역할</a><a href="/posts/aws-study-10.html">비용 관리: Cost Explorer·Budgets·Savings Plans를 제대로 읽기 →</a></nav><footer>AWS SAA 학습 연재 · <a href="/learning/aws/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

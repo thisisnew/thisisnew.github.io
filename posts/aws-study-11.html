@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Discovery·MGN·DMS·CDC·DataSync·Transfer Family·Snow와 전환·검증·되돌림"><title>AWS 11 · 마이그레이션과 하이브리드: 서버·DB·파일은 다르게 옮긴다 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/aws-study-11.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/aws-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="aws"><main><a href="/">← 전체 글</a> · <a href="/posts/aws-study-00.html">AWS 학습 지도</a><header><p class="meta">AWS QUEST · 11 / 22 · CORE · 2026-10-20</p><h1>마이그레이션과 하이브리드: 서버·DB·파일은 다르게 옮긴다</h1><p class="subtitle">Discovery·MGN·DMS·CDC·DataSync·Transfer Family·Snow와 전환·검증·되돌림</p><p class="note">첨부 공부팩 11_마이그레이션_하이브리드_DMS_DataSync_Snow.pdf (6쪽)의 주제를 재구성한 해설입니다. 공식 문서 확인일: 2026-10-20. 장애 사례와 수치는 학습용 가정이며 AWS 실계정 실험 결과가 아닙니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. 이사는 트럭을 부르는 것으로 끝나지 않는다</a></li><li><a href="#section-2">2. 도구를 이전 단위로 비교하기</a></li><li><a href="#section-3">3. DMS: 전체 복사 후 변경분을 따라가기</a></li><li><a href="#section-4">4. 전환 시점과 쓰기 주체</a></li><li><a href="#section-5">5. DataSync와 Transfer Family</a></li><li><a href="#section-6">6. 시간 계산과 병목</a></li><li><a href="#section-7">7. 원문 보정: Snow는 역사적 목적과 현재 상태를 분리</a></li><li><a href="#section-8">8. 가상 장애와 점검표</a></li><li><a href="#section-9">9. 상세 면접 Q&amp;A</a></li><li><a href="#section-10">공식 문서</a></li></ol></aside><article><h2 id="section-1">1. 이사는 트럭을 부르는 것으로 끝나지 않는다</h2>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Discovery·MGN·DMS·CDC·DataSync·Transfer Family·Snow와 전환·검증·되돌림"><title>AWS 11 · 마이그레이션과 하이브리드: 서버·DB·파일은 다르게 옮긴다 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/aws-study-11.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/aws-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="aws"><main><a href="/">← 전체 글</a> · <a href="/posts/aws-study-00.html">AWS 학습 지도</a><header><p class="meta">AWS QUEST · 11 / 22 · CORE · 2026-10-20</p><h1>마이그레이션과 하이브리드: 서버·DB·파일은 다르게 옮긴다</h1><p class="subtitle">Discovery·MGN·DMS·CDC·DataSync·Transfer Family·Snow와 전환·검증·되돌림</p><p class="note">첨부 공부팩 11_마이그레이션_하이브리드_DMS_DataSync_Snow.pdf (6쪽)의 주제를 재구성한 해설입니다. 공식 문서 확인일: 2026-10-20. 장애 사례와 수치는 학습용 가정이며 AWS 실계정 실험 결과가 아닙니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. 이사는 트럭을 부르는 것으로 끝나지 않는다</a></li><li><a href="#section-2">2. 도구를 이전 단위로 비교하기</a></li><li><a href="#section-3">3. DMS: 전체 복사 후 변경분을 따라가기</a></li><li><a href="#section-4">4. 전환 시점과 쓰기 주체</a></li><li><a href="#section-5">5. DataSync와 Transfer Family</a></li><li><a href="#section-6">6. 시간 계산과 병목</a></li><li><a href="#section-7">7. 원문 보정: Snow는 역사적 목적과 현재 상태를 분리</a></li><li><a href="#section-8">8. 가상 장애와 점검표</a></li><li><a href="#section-9">9. 상세 면접 Q&amp;A</a></li><li><a href="#section-10">깊이 읽기: 데이터 복사 완료와 서비스 이전 완료 사이</a></li><li><a href="#section-11">더 깊은 면접 Q&amp;A: 이전 작업의 종료 조건</a></li><li><a href="#section-12">직접 풀어 보기: 새 DB로 옮긴 뒤 다시 돌아갈 수 있을까</a></li><li><a href="#section-13">공식 문서</a></li></ol></aside><article><h2 id="section-1">1. 이사는 트럭을 부르는 것으로 끝나지 않는다</h2>
 <p>물류센터를 이전할 때 선반만 옮기면 운영할 수 있을까요? 재고 장부·전력·통신·거래처 주소·업무 시간·출입 권한도 바꿔야 합니다. 클라우드 마이그레이션도 파일 복사만의 문제가 아닙니다. <strong>어떤 단위로 옮길지, 이전 중 변경은 어떻게 따라잡을지, 언제 새 시스템으로 전환할지, 실패하면 어떻게 돌아갈지</strong>를 정해야 합니다.</p>
 <p>서버 전체를 옮기는 것과 DB의 테이블 데이터를 옮기는 것, 공유 폴더를 복사하는 것은 다른 작업입니다. 도구를 고르기 전에 이전 단위를 정해야 합니다.</p>
 <h2 id="section-2">2. 도구를 이전 단위로 비교하기</h2>
@@ -66,12 +66,68 @@
 <details class="question"><summary>Q. 문제가 생기면 DNS만 원래대로 돌리면 되나요?</summary><div class="answer"><p>새 환경에 기록된 데이터가 있으면 원본과 상태가 갈라집니다. 주소를 되돌리기 전에 데이터 복귀 또는 병합 전략이 필요합니다. DNS 캐시와 기존 연결도 즉시 바뀌지 않을 수 있어 라우팅·데이터·연결을 함께 다룹니다.</p></div></details>
 <details class="question"><summary>Q. DataSync와 Storage Gateway는 어떻게 다른가요?</summary><div class="answer"><p>DataSync는 데이터를 이동하는 작업을, Storage Gateway는 온프레미스 앱이 클라우드 저장소를 지속적으로 이용할 인터페이스를 제공하는 데 초점을 둡니다. 이전을 위해 한 번 크게 복사하는지, 기존 파일·볼륨·테이프 사용 방식을 유지해야 하는지부터 구분합니다.</p></div></details>
 
-<h2 id="section-10">공식 문서</h2>
+<h2 id="section-10">깊이 읽기: 데이터 복사 완료와 서비스 이전 완료 사이</h2>
+<h3>이삿짐을 옮기는 동안 가게가 계속 영업한다면</h3>
+<p>정지한 DB를 한 번 복사하는 것과 계속 쓰이는 DB를 옮기는 것은 다른 문제입니다. Full load는 기존 데이터를 옮기고 CDC는 그 사이와 이후의 변경을 따라가는 역할을 합니다. 원본에서 초당 만들어지는 변경량보다 대상에 적용하는 속도가 낮으면 지연은 줄지 않습니다. “복제가 실행 중”이라는 상태만 보고 전환할 수 없다는 뜻입니다.</p>
+<p>또한 엔진마다 로그 설정·권한·보존·지원 데이터 타입·DDL 처리 등 전제가 다릅니다. CDC가 읽어야 할 로그가 너무 일찍 지워지면 이어 따라가기 어려울 수 있습니다. 이전 기간 중 긴 트랜잭션이나 대규모 변경이 영향을 주는지도 확인합니다. 도구가 데이터를 운반해도 원본과 대상의 모든 기능 의미가 동일해지는 것은 아닙니다.</p>
+<h3>전환을 다섯 단계로 설계하기</h3>
+<p>첫째, 새 대상 환경을 준비하고 연결·권한·용량을 검증합니다. 둘째, 전체 복사와 변경분 추적을 수행합니다. 셋째, 행 수와 값뿐 아니라 업무 핵심 합계·상태·시간대·문자열 정렬·숫자 정밀도까지 비교합니다. 넷째, 정해진 절차로 기존 쓰기를 멈추거나 통제하고 마지막 변경이 반영됐는지 확인합니다. 다섯째, 새 대상에 연결한 앱에서 실제 업무 흐름을 검증하고 모니터링을 강화합니다.</p>
+<p>“DNS만 바꾸면 끝”이라고 말하면 연결 풀에 남은 기존 연결, 배치·소비자·관리 스크립트의 별도 접속 주소를 놓칠 수 있습니다. 이전 대상은 웹 API만이 아닙니다. 누가 어느 DB에 쓰는지 목록을 만들어 모든 writer의 전환을 관리해야 합니다.</p>
+<h3>롤백이 어려워지는 정확한 시점</h3>
+<p>새 대상이 쓰기를 받기 전이라면 원본으로 되돌아가는 것이 비교적 단순할 수 있습니다. 새 대상에서 새 주문이 발생한 뒤에는 원본에 그 주문이 없을 수 있습니다. 연결 주소만 과거로 되돌리면 최신 데이터를 잃거나 사용자별로 다른 상태를 보여줄 수 있습니다. 그래서 전환 후 원복 조건에는 새 변경분을 어떻게 반영할지 또는 어떤 시점부터 원복 대신 앞으로 수정할지 포함해야 합니다.</p>
+<p>양방향 복제를 설정하면 자동 해결된다고 단정하지 않습니다. 충돌, 순환 복제, 키 충돌, 스키마 호환, 쓰기 주체 규칙을 추가로 설계해야 합니다. 이전을 시작하기 전에 “되돌릴 수 있는 마지막 단계”를 문서로 명확히 해 두면 사고 때 잘못된 결정을 줄일 수 있습니다.</p>
+<h3>대역폭 계산과 실제 소요 시간</h3>
+<p>가상으로 1 TB를 1 Gbit/s로 보낸다면 바이트를 비트로 바꾸어 <code>8×10^12 / 10^9 = 8,000초</code>, 약 2.2시간이 순수 전송의 이론값입니다. TB를 십진 단위로 놓은 계산이며 TiB라면 값이 달라집니다. 실제로는 프로토콜 오버헤드, 암호화, 읽기·쓰기 성능, 파일 수, 재전송, 원본 부하 제한이 더해집니다. 이론 시간만으로 중단 창을 정하면 위험합니다.</p>
+<p>작은 파일 백만 개는 같은 총바이트의 큰 파일 하나보다 파일 열기·메타데이터·요청 처리 비용이 클 수 있습니다. DataSync 같은 도구를 검토할 때도 데이터 양만 보지 말고 파일 수·변경률·권한 정보·검증 요구를 함께 봅니다. 네트워크 증설만으로 원본 디스크가 느린 문제를 해결할 수는 없습니다.</p>
+<h3>이전 검증의 세 층</h3>
+<table>
+<thead>
+<tr>
+<th>층</th>
+<th>검증 예</th>
+<th>놓치기 쉬운 것</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>운반</td>
+<td>행 수·checksum·복제 지연</td>
+<td>삭제·갱신 누락, 지원하지 않는 타입</td>
+</tr>
+<tr>
+<td>실행</td>
+<td>앱 조회·저장·트랜잭션·배치</td>
+<td>드라이버, SQL 차이, 시간대, 권한</td>
+</tr>
+<tr>
+<td>업무</td>
+<td>주문 총액·재고 불변식·중복 여부</td>
+<td>집계 일치가 개별 오류를 숨김</td>
+</tr>
+</tbody></table>
+<p>DMS의 validation 기능은 유용하지만 지원 범위와 엔진·대상 제약을 확인해야 합니다. 모든 검증을 제품 상태 표시 하나로 대신하지 않고 업무가 의존하는 규칙을 별도 검사합니다.</p>
+<h2 id="section-11">더 깊은 면접 Q&amp;A: 이전 작업의 종료 조건</h2>
+<details class="question"><summary>Q. 원본과 대상의 행 수가 같으면 데이터 이전 성공인가요?</summary><div class="answer"><p><strong>답변:</strong> 서로 다른 행이 누락·중복되어도 개수는 같을 수 있습니다. 값 변환, 소수 정밀도, NULL, 시간대, 문자 인코딩도 확인해야 합니다. 변경이 계속되는 동안 비교했다면 같은 시점을 비교했는지도 중요합니다.</p><p><strong>검증:</strong> 키별 표본·범위별 checksum·업무 합계를 함께 사용하고 핵심 데이터는 더 엄격히 확인합니다. 검사 자체가 원본 서비스에 주는 부하도 관리합니다.</p></div></details>
+<details class="question"><summary>Q. CDC lag가 0이면 바로 전환해도 되나요?</summary><div class="answer"><p><strong>답변:</strong> 그 지표의 의미와 측정 시점을 확인하고 모든 writer의 통제, 대상의 애플리케이션 호환성과 용량 검증이 끝났는지 봅니다. 단일 시점의 지연 0은 전체 이전 절차 완료를 뜻하지 않습니다.</p><p><strong>꼬리 질문:</strong> 전환 순간 새로 유입되는 쓰기를 어느 시스템이 받는지 명확해야 합니다. 마지막 변경 확인과 접속 전환 사이에 생기는 틈까지 절차로 다룹니다.</p></div></details>
+<details class="question"><summary>Q. 서버를 그대로 복제해 옮기면 애플리케이션 수정은 필요 없나요?</summary><div class="answer"><p><strong>답변:</strong> 코드 변경을 줄일 수 있지만 IP·DNS·외부 방화벽·인증서·파일 경로·라이선스·시간 동기화·운영 도구 같은 환경 의존성이 남습니다. OS가 부팅되는 것과 업무가 정상 동작하는 것은 다릅니다.</p><p><strong>예:</strong> 애플리케이션은 새 DB를 보는데 야간 배치는 옛 DB를 계속 수정할 수 있습니다. 의존성 목록과 실제 통신 관찰을 통해 숨은 연결을 찾아야 합니다.</p></div></details>
+<details class="question"><summary>Q. 마이그레이션 중 성능까지 동시에 개선하는 것이 효율적이지 않나요?</summary><div class="answer"><p><strong>답변:</strong> 필요할 수 있지만 플랫폼 변경·스키마 변경·코드 변경을 동시에 하면 문제 원인을 분리하기 어렵습니다. 변경을 분리할 수 있는지, 각각의 검증과 원복 기준이 있는지 판단합니다.</p><p><strong>현실적 선택:</strong> 동일 동작으로 먼저 이전한 뒤 개선하거나, 반드시 필요한 변경만 분리된 실험으로 검증합니다. 일정 단축보다 문제가 생겼을 때 어디서부터 틀렸는지 확인할 수 있는 구조가 중요합니다.</p></div></details>
+
+<h2 id="section-12">직접 풀어 보기: 새 DB로 옮긴 뒤 다시 돌아갈 수 있을까</h2>
+<p>새 DB로 전환한 뒤 20분 동안 주문을 받았습니다. 성능 문제가 발견되어 운영자가 예전 접속 주소로 즉시 되돌리려 합니다. 왜 위험하며 어떤 판단이 필요한가요?</p>
+<details class="question"><summary>해설 펼치기 — 판단 과정과 조건을 바꾼 경우</summary><div class="answer"><p><strong>데이터 기준:</strong> 새 DB에만 존재하는 20분간의 주문이 있을 수 있습니다. 예전 주소로 돌리면 사용자는 그 주문을 찾지 못하거나 다시 생성할 수 있습니다. 연결 원복과 데이터 원복은 다릅니다.</p><p><strong>쓰기 통제:</strong> 현재 writer를 명확히 하고 추가 쓰기를 어떻게 통제할지 결정합니다. 원본과 새 대상 양쪽에서 쓰기가 이어지면 충돌과 조정 범위가 커집니다.</p><p><strong>대안:</strong> 새 환경에서 성능 문제를 완화하며 앞으로 수정할지, 변경분을 검증해 예전 환경으로 옮긴 뒤 원복할지 사전 계획과 실제 영향으로 판단합니다. 어떤 경로든 손실·중복과 시간을 검증해야 합니다.</p><p><strong>예방:</strong> 이전 계획에 원복 가능 시점과 새 쓰기 이후의 절차를 별도로 적습니다. 전환 리허설은 성공 전환뿐 아니라 이 실패 상황까지 포함해야 합니다.</p></div></details>
+
+<h2 id="section-13">공식 문서</h2>
 <ul>
-<li><a href="https://docs.aws.amazon.com/dms/latest/userguide/Welcome.html">DMS 개요</a></li>
-<li><a href="https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Task.CDC.html">DMS CDC</a></li>
-<li><a href="https://docs.aws.amazon.com/datasync/latest/userguide/what-is-datasync.html">DataSync</a></li>
-<li><a href="https://docs.aws.amazon.com/transfer/latest/userguide/what-is-aws-transfer-family.html">Transfer Family</a></li>
-<li><a href="https://aws.amazon.com/snowball/">Snowball 현행 종료 공지</a></li>
+<li><p><a href="https://docs.aws.amazon.com/dms/latest/userguide/Welcome.html">DMS 개요</a></p>
+</li>
+<li><p><a href="https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Task.CDC.html">DMS CDC</a></p>
+</li>
+<li><p><a href="https://docs.aws.amazon.com/datasync/latest/userguide/what-is-datasync.html">DataSync</a></p>
+</li>
+<li><p><a href="https://docs.aws.amazon.com/transfer/latest/userguide/what-is-aws-transfer-family.html">Transfer Family</a></p>
+</li>
+<li><p><a href="https://aws.amazon.com/snowball/">Snowball 현행 종료 공지</a></p>
+</li>
+<li><p><a href="https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Validating.html">DMS 데이터 검증 범위</a></p>
+</li>
 </ul>
 </article><nav aria-label="연재 이동"><a href="/posts/aws-study-10.html">← 비용 관리: Cost Explorer·Budgets·Savings Plans를 제대로 읽기</a><a href="/posts/aws-study-12.html">데이터 분석 흐름: Kinesis·Firehose·Flink·Athena·Glue·Redshift·MSK →</a></nav><footer>AWS SAA 학습 연재 · <a href="/learning/aws/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

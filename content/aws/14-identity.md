@@ -66,9 +66,63 @@ SEC03-BP01~09의 흐름은 요구 정의→최소 권한→긴급 접근→지�
 <details><summary>Q. 최소 권한을 처음부터 완벽히 정할 수 있나요?</summary><p>업무 시나리오를 기준으로 작게 시작하고 비운영 테스트와 사용 기록·Access Analyzer 결과를 통해 개선합니다. 드문 복구 작업도 요구에 포함합니다. 상시 관리자 권한으로 운영한 뒤 언젠가 줄이겠다는 계획보다 권한 요청과 검토 절차를 만드는 것이 중요합니다.</p></details>
 <details><summary>Q. ABAC가 RBAC보다 무조건 좋은가요?</summary><p>ABAC는 많은 리소스를 속성으로 관리할 때 유연하지만 속성의 정확성과 변경 권한이 핵심입니다. RBAC는 역할이 명확한 조직에서 이해와 감사가 쉬울 수 있습니다. 조직 규모·태그 거버넌스·예외 요구를 고려해 선택하거나 결합합니다.</p></details>
 
+## 깊이 읽기: 역할을 맡는 권한과 역할로 하는 일을 분리하기
+
+### 한 사람이 여러 모자를 바꾸어 쓰는 모델
+
+개발자는 평소 개발 계정에서 일하고, 승인된 절차로 운영 읽기 role을 맡아 장애를 조사할 수 있습니다. 여기서 사람 자체와 맡은 role, 실제 발급된 session은 구별됩니다. Role은 권한의 설계이고 session은 그 역할을 맡아 제한된 시간 동안 일하는 실제 신원에 가깝습니다. 장기 access key를 복사해 나누는 방식보다 누가 어떤 맥락에서 접근했는지 추적하고 권한을 나누기 쉽습니다.
+
+Trust policy는 누가 그 역할을 맡을 수 있는지 정합니다. Role의 permissions policy는 맡은 뒤 무엇을 할 수 있는지 정합니다. 출입증을 발급받을 자격과 출입증으로 열 수 있는 방이 다른 것처럼 생각하면 됩니다. `AssumeRole` 성공이 모든 S3·DB·KMS 작업 성공을 뜻하지 않는 이유입니다.
+
+### 교차 계정 접근을 순서대로 보기
+
+계정 A의 배포 주체가 계정 B의 role을 맡으려 한다고 합시다. 호출 주체 측의 역할 인수 권한과 B 측의 trust 관계, 적용되는 조건·제한을 확인합니다. 성공하면 B의 role session 자격증명으로 이후 요청을 보냅니다. 이때 데이터 접근 정책은 원래 A 사용자만 보는 것이 아니라 실제 요청에 사용된 session과 resource 정책 맥락을 봐야 합니다.
+
+직접 resource policy로 교차 계정 접근을 허용하는 방식과 role을 맡아 접근하는 방식은 같은 흐름이 아닙니다. 서비스 지원 여부도 다릅니다. 디버깅할 때 “다른 계정에서 접근한다”는 한 문장으로 묶지 말고, STS 역할 인수 단계와 실제 서비스 API 호출 단계를 나눕니다. 어느 단계가 실패했는지에 따라 조사할 정책이 달라집니다.
+
+### SCP와 permissions boundary를 안전 난간으로 이해하기
+
+SCP는 조직 내 적용 대상 계정의 권한 상한을 통제하는 도구이며 권한을 부여하는 정책이 아닙니다. Permissions boundary 역시 해당 identity의 권한 범위를 제한하는 데 쓰이며 그 자체가 작업 권한을 주지 않습니다. 하지만 실제 평가에는 resource policy의 principal 유형, session, 명시적 deny 등 세부 규칙이 있으므로 모든 경우를 “allow 정책 전부의 교집합”이라고 단순화하면 틀릴 수 있습니다.
+
+안전 난간이 있다고 사람이 자동으로 계단을 오를 권리를 받는 것은 아니라는 비유가 유용합니다. 난간은 허용 가능한 범위를 제한하고 실제 출입 권한은 따로 필요합니다. 다만 이 비유는 평가 순서 전체를 대신하지 않습니다. 실제 principal과 API를 기준으로 IAM 공식 평가 문서를 따라 확인해야 합니다.
+
+### 최소 권한을 만들 때 빠뜨리기 쉬운 의존 권한
+
+사진 읽기 기능에 `s3:GetObject`만 적었는데 실패할 수 있습니다. 객체의 암호화 방식에 따라 KMS가 관련되고, 목록 조회가 필요한 기능이라면 버킷 수준 action도 필요할 수 있습니다. 반대로 파일 key를 이미 알고 읽는 기능에 전체 목록 권한이 꼭 필요한 것은 아닙니다. 기능의 실제 호출을 기록하고 필요 범위를 따져야 합니다.
+
+새 정책은 정상 요청만 성공시키는 것으로 끝내지 않습니다. 다른 prefix, 다른 계정, 잘못된 태그, 허용하지 않은 action이 거부되는지 확인합니다. 예를 들어 입고 사진 서비스가 출고 정산 파일도 읽을 수 있다면 기능 테스트는 통과해도 최소 권한은 실패한 것입니다. Deny 테스트는 보안 정책의 경계를 증명합니다.
+
+### 긴급 접근도 정상 운영 절차의 일부
+
+사고 중 권한이 없다고 공유 관리자 키를 만들면 감사와 회수가 어려워집니다. 긴급 role의 사용 조건, 인증 방법, 승인·알림, 만료, 사후 검토를 미리 준비합니다. 계정 복구와 인증 제공자 장애 시의 절차도 별도로 검토합니다. 모든 접근을 한 인증 경로에만 의존시키면 그 경로 장애 때 복구 작업이 막힐 수 있습니다.
+
+| 상황 | 남길 증거 | 종료 조건 |
+|---|---|---|
+| 일반 운영 조회 | 사용자·role·사유·대상 | 조회 목적 달성 |
+| 긴급 변경 | 승인 맥락·명령·변경 전후 | 서비스 복구와 권한 회수 |
+| 외부 업체 접근 | 계약 범위·외부 식별 조건·기간 | 작업 종료·접근 제거 |
+| 자동 배포 | 실행 identity·배포 버전·대상 | 배포 확인·실패 복구 |
+
+## 더 깊은 면접 Q&A: 정책 평가를 말로 풀어내기
+
+<details><summary>Q. Trust policy에 계정 ID를 적었으니 그 계정의 누구나 모든 일을 하나요?</summary><p><strong>답변:</strong> 신뢰할 principal 범위와 호출 측 권한·조건, 맡은 role의 실제 권한을 나누어 봐야 합니다. Role을 맡을 수 있다는 사실이 해당 계정의 모든 자원을 마음대로 사용할 수 있다는 뜻은 아닙니다.</p><p><strong>꼬리 질문:</strong> 신뢰 범위를 필요한 주체로 좁히고 MFA·외부 식별 조건 등 해당 시나리오의 조건을 검토합니다. 계정 전체 신뢰라는 표현만으로 최종 권한을 판단하지 않습니다.</p></details>
+<details><summary>Q. External ID는 비밀번호처럼 숨겨야 하나요?</summary><p><strong>답변:</strong> 핵심 목적은 외부 대행 서비스가 여러 고객의 요청을 처리할 때 잘못된 고객 맥락으로 role을 맡는 confused deputy 위험을 줄이는 것입니다. 일반 비밀 비밀번호를 대신하는 개념으로 보면 안 됩니다.</p><p><strong>설계:</strong> 신뢰할 principal과 적절한 External ID 조건을 함께 사용하고 발급·매핑 절차를 관리합니다. 식별자만 알고 있으면 아무 주체나 접근하도록 만드는 것이 아닙니다.</p></details>
+<details><summary>Q. 사용하지 않은 권한을 모두 지우면 최소 권한이 되나요?</summary><p><strong>답변:</strong> 최근 사용 흔적은 좋은 근거지만 월말 배치·장애 복구·연간 작업처럼 드물게 필요한 권한이 있을 수 있습니다. 업무 목록과 함께 검토하고 검증 환경에서 영향과 복구 경로를 확인합니다.</p><p><strong>운영:</strong> 정상 권한과 긴급 권한을 분리하면 평소 권한은 줄이면서 드문 복구 작업을 안전한 절차로 수행할 수 있습니다. “최근 안 썼다”만으로 필요성을 확정하지 않습니다.</p></details>
+<details><summary>Q. 개발과 운영을 계정으로 나누는 이유는 무엇인가요?</summary><p><strong>답변:</strong> 권한·비용·할당량·실수의 영향 범위를 구분하고 조직 정책을 적용하기 쉽습니다. 같은 계정 안의 이름 규칙만으로는 실수로 운영 자원을 수정하는 일을 충분히 막기 어렵습니다.</p><p><strong>한계:</strong> 교차 계정 관리자 권한이나 공유 배포 도구가 지나치게 넓으면 다시 공통 위험이 됩니다. 계정 분리 후에도 중앙 도구와 로그·백업 경로의 권한을 검토합니다.</p></details>
+
+## 직접 풀어 보기: 역할 인수는 성공했는데 파일 읽기는 실패한다
+
+계정 A의 배포 작업이 계정 B의 role을 맡는 데 성공했습니다. 그런데 B의 S3 객체를 읽을 때 거부됩니다. Trust policy를 더 넓히면 해결될까요?
+
+<details><summary>해설 펼치기 — 판단 과정과 조건을 바꾼 경우</summary><p><strong>단계 분리:</strong> 이미 역할 인수에 성공했으므로 trust 단계가 주요 실패 지점이라는 근거는 없습니다. 이후 실제 호출에 어떤 session 자격증명이 사용됐는지 확인하고 role의 권한과 리소스 측 정책을 봅니다.</p><p><strong>요청 구체화:</strong> 읽으려는 객체 ARN, action, 암호화 키, endpoint 조건, 명시적 deny와 조직 제한을 확인합니다. 버킷 목록 권한과 특정 객체 읽기 권한도 다릅니다.</p><p><strong>수정:</strong> 필요한 자원과 action의 허용 또는 잘못된 조건을 최소 범위로 수정합니다. 신뢰 범위를 넓히는 것은 다른 주체가 role을 맡게 할 수 있어 문제와 무관한 위험을 추가합니다.</p><p><strong>검증:</strong> 필요한 파일은 읽히고 다른 prefix의 파일은 거부되는지 확인합니다. 역할 인수 성공·업무 API 성공·불필요한 접근 거부를 각각 별도 결과로 기록합니다.</p></details>
+
 ## 공식 문서
 
 - [보안 원칙: 신원·권한·운영 기반](https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html)
 - [IAM 보안 모범 사례](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html)
 - [정책 평가의 세부 조건](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic.html)
 - [External ID](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user_externalid.html)
+
+- [교차 계정 정책 평가](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic-cross-account.html)
+
+- [단일 계정의 principal별 정책 평가](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic_policy-eval-denyallow.html)

@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="SEC 4~6: 로그 중앙화·상관분석·분리·검사·이미지 강화·취약점·무결성·자동화"><title>AWS 15 · 보안 심화 2: 탐지에서 네트워크·컴퓨팅 보호까지 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/aws-study-15.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/aws-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="aws"><main><a href="/">← 전체 글</a> · <a href="/posts/aws-study-00.html">AWS 학습 지도</a><header><p class="meta">AWS QUEST · 15 / 22 · DEEP DIVE · 2026-10-20</p><h1>보안 심화 2: 탐지에서 네트워크·컴퓨팅 보호까지</h1><p class="subtitle">SEC 4~6: 로그 중앙화·상관분석·분리·검사·이미지 강화·취약점·무결성·자동화</p><p class="note">첨부 공부팩 D02_보안_탐지_인프라보호.pdf (38쪽)의 주제를 재구성한 해설입니다. 공식 문서 확인일: 2026-10-20. 장애 사례와 수치는 학습용 가정이며 AWS 실계정 실험 결과가 아닙니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. CCTV를 설치한 것과 사건을 찾는 것은 다르다</a></li><li><a href="#section-2">2. SEC 4: 생성→중앙화→상관분석→조치</a></li><li><a href="#section-3">3. SEC 5: 네트워크 계층과 트래픽 흐름</a></li><li><a href="#section-4">4. SEC 6: 이미지·패치·접근·무결성</a></li><li><a href="#section-5">5. 가상 공격 경로를 끊어 보기</a></li><li><a href="#section-6">8. 검증 연습과 운영 증거</a></li><li><a href="#section-7">9. 상세 면접 Q&amp;A</a></li><li><a href="#section-8">공식 문서</a></li></ol></aside><article><h2 id="section-1">1. CCTV를 설치한 것과 사건을 찾는 것은 다르다</h2>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="SEC 4~6: 로그 중앙화·상관분석·분리·검사·이미지 강화·취약점·무결성·자동화"><title>AWS 15 · 보안 심화 2: 탐지에서 네트워크·컴퓨팅 보호까지 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/aws-study-15.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/aws-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="aws"><main><a href="/">← 전체 글</a> · <a href="/posts/aws-study-00.html">AWS 학습 지도</a><header><p class="meta">AWS QUEST · 15 / 22 · DEEP DIVE · 2026-10-20</p><h1>보안 심화 2: 탐지에서 네트워크·컴퓨팅 보호까지</h1><p class="subtitle">SEC 4~6: 로그 중앙화·상관분석·분리·검사·이미지 강화·취약점·무결성·자동화</p><p class="note">첨부 공부팩 D02_보안_탐지_인프라보호.pdf (38쪽)의 주제를 재구성한 해설입니다. 공식 문서 확인일: 2026-10-20. 장애 사례와 수치는 학습용 가정이며 AWS 실계정 실험 결과가 아닙니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. CCTV를 설치한 것과 사건을 찾는 것은 다르다</a></li><li><a href="#section-2">2. SEC 4: 생성→중앙화→상관분석→조치</a></li><li><a href="#section-3">3. SEC 5: 네트워크 계층과 트래픽 흐름</a></li><li><a href="#section-4">4. SEC 6: 이미지·패치·접근·무결성</a></li><li><a href="#section-5">5. 가상 공격 경로를 끊어 보기</a></li><li><a href="#section-6">6. 검증 연습과 운영 증거</a></li><li><a href="#section-7">7. 상세 면접 Q&amp;A</a></li><li><a href="#section-8">깊이 읽기: 탐지 신호를 사건으로, 사건을 제한된 조치로 바꾸기</a></li><li><a href="#section-9">더 깊은 면접 Q&amp;A: 탐지 도구를 켠 뒤 해야 할 일</a></li><li><a href="#section-10">직접 풀어 보기: 야간 대량 다운로드 경보</a></li><li><a href="#section-11">공식 문서</a></li></ol></aside><article><h2 id="section-1">1. CCTV를 설치한 것과 사건을 찾는 것은 다르다</h2>
 <p>센터에 CCTV가 있어도 저장 장치가 꺼져 있거나 녹화 영상을 아무도 확인하지 않으면 도움이 되지 않습니다. 보안 로그도 생성·수집·보존·검색·분석·대응이 이어져야 합니다. 원문의 SEC 4는 이벤트를 어떻게 찾고 조사할지, SEC 5는 네트워크를 어떻게 보호할지, SEC 6은 실행 환경을 어떻게 보호할지 묻습니다.</p>
 <p>탐지 결과는 사실의 단서이지 모든 경우에 확정된 침해 판정은 아닙니다. “이상한 위치에서 로그인”이라는 결과에 계정 소유자·배포 일정·허용된 VPN·접근한 데이터 정보를 더해 판단합니다. 오탐을 줄이겠다고 로그를 꺼 버리는 대신 규칙과 맥락을 개선합니다.</p>
 <h2 id="section-2">2. SEC 4: 생성→중앙화→상관분석→조치</h2>
@@ -18,7 +18,7 @@
 <h2 id="section-5">5. 가상 공격 경로를 끊어 보기</h2>
 <p>취약한 웹 앱이 원격 코드 실행에 노출되었다고 가정합시다. 1단계는 코드·의존성 패치와 WAF 보완 통제로 진입 위험을 줄이는 것입니다. 2단계는 앱 role의 권한을 좁혀 접근 가능한 데이터를 제한하는 것입니다. 3단계는 outbound·네트워크 분리로 옆 시스템 이동을 제한합니다. 4단계는 위협 탐지와 로그로 발견하고 격리합니다. 하나의 통제가 실패해도 다음 계층이 피해를 줄이는 구조입니다.</p>
 <p>격리 전에 증거를 보존해야 하는 경우가 있습니다. 인스턴스를 즉시 종료하면 휘발성 증거가 사라질 수 있습니다. 반대로 계속 열어 두면 피해가 확대됩니다. 사전 플레이북에서 격리·증거·업무 지속의 우선순위를 정하고 사고 대응 팀과 합의해야 합니다.</p>
-<h2 id="section-6">8. 검증 연습과 운영 증거</h2>
+<h2 id="section-6">6. 검증 연습과 운영 증거</h2>
 <p>비운영 환경에서 공개 포트 변경 같은 통제된 이벤트를 계획하고, 변경 로그가 생성되는지, 중앙 계정에 도착하는지, 경보가 담당자에게 전달되는지, 조치가 기록되는지 확인하는 훈련을 설계해 보세요. 실제 공격을 만들어 운영망에 실행하는 것이 목적이 아닙니다. 한 단계라도 끊기면 “보안 도구가 켜져 있다”는 상태와 실제 탐지 능력의 차이가 드러납니다.</p>
 <table>
 <thead>
@@ -54,13 +54,66 @@
 <td>배포 후 재스캔</td>
 </tr>
 </tbody></table>
-<h2 id="section-7">9. 상세 면접 Q&amp;A</h2>
+<h2 id="section-7">7. 상세 면접 Q&amp;A</h2>
 <details class="question"><summary>Q. 보안 로그는 많이 모을수록 좋나요?</summary><div class="answer"><p>필요한 탐지·조사에 맞는 범위와 보존이 중요합니다. 무분별한 개인정보·secret 수집은 새 위험을 만들고 비용과 잡음을 늘립니다. 수집 목적·필드·접근 권한·보존 기간·누락 감지를 함께 설계해야 합니다.</p></div></details>
 <details class="question"><summary>Q. 취약점 점수가 높으면 무조건 가장 먼저 고치나요?</summary><div class="answer"><p>점수는 중요한 입력이지만 실제 외부 노출·악용 가능성·자산 중요도·보완 통제도 고려합니다. 우선순위를 설명할 근거와 수정 기한을 남겨야 합니다. 낮은 우선순위가 영구 방치를 뜻해서는 안 됩니다.</p></div></details>
 <details class="question"><summary>Q. 이미지 서명만 있으면 공급망이 안전한가요?</summary><div class="answer"><p>서명은 신뢰한 주체가 만든 결과물이고 변조되지 않았는지 확인하는 수단입니다. 빌드 파이프라인 자체가 침해되었거나 취약한 의존성이 포함될 수 있습니다. 출처·의존성 검사·빌드 권한·서명 키 보호를 함께 관리해야 합니다.</p></div></details>
 <details class="question"><summary>Q. 자동 수정은 항상 수동 조치보다 안전한가요?</summary><div class="answer"><p>반복성과 속도는 장점이지만 잘못된 규칙을 빠르게 확산할 수 있습니다. 탐지 정확도·조치 범위·멱등성·예외·중단 조건·되돌림을 검증한 뒤 자동화합니다. 영향이 큰 조치에는 승인 단계를 유지할 수 있습니다.</p></div></details>
 
-<h2 id="section-8">공식 문서</h2>
+<h2 id="section-8">깊이 읽기: 탐지 신호를 사건으로, 사건을 제한된 조치로 바꾸기</h2>
+<h3>침입 한 번을 여러 층에서 관찰하기</h3>
+<p>공격자가 취약한 웹 기능을 이용해 서버에서 명령을 실행했다고 가정합니다. 웹 요청 계층에는 비정상 경로·페이로드가 남을 수 있고, 호스트에는 예상하지 않은 프로세스가 나타날 수 있으며, 네트워크에는 평소와 다른 목적지 통신이 보일 수 있습니다. 탈취한 role로 API를 호출하면 CloudTrail 등의 감사 흔적이 관련될 수 있습니다. 하나의 도구가 모든 단서를 완벽하게 보여준다고 가정하지 않습니다.</p>
+<p>성의 정문, 복도, 금고에 각각 다른 센서를 두는 비유가 맞습니다. 정문 센서가 조용해도 이미 안에 들어온 사람이 금고를 열 수 있습니다. 그래서 WAF·네트워크 제어·호스트 관리·IAM 최소 권한·로그 분석이 함께 필요합니다. 방어 층이 많다는 사실보다 각 층이 독립적인 위험을 줄이는지 봅니다.</p>
+<h3>Finding은 판정의 시작이다</h3>
+<p>탐지 결과에는 자원, 시간, 계정, 유형과 심각도 같은 정보가 들어갑니다. 이것을 업무 맥락과 연결해야 합니다. 야간 대량 S3 조회가 예정된 백업 작업인지 탈취된 계정의 반출인지 판단하려면 담당자·변경 일정·평소 사용 패턴을 확인합니다. 심각도가 높다는 이유만으로 운영 DB를 즉시 끄는 자동화는 더 큰 장애를 만들 수 있습니다.</p>
+<p>기본 흐름은 수집 → 중복 묶기 → 맥락 추가 → 우선순위 → 제한된 완화 → 증거 보존 → 확인과 종료입니다. Findings가 많아지면 같은 원인의 중복 경보를 묶고 영향 범위로 우선순위를 정합니다. 경보 수를 줄이기 위해 광범위하게 무시 규칙을 만들면 새 공격도 숨길 수 있으므로 예외의 이유와 만료를 관리합니다.</p>
+<h3>로그를 중앙화하는 이유와 보호해야 할 것</h3>
+<p>침해된 서버의 로컬 로그만 믿으면 공격자가 지우거나 서버 종료로 사라질 수 있습니다. 다른 보안 경계로 로그를 전달하면 증거 보존에 도움이 됩니다. 중앙화된 저장소도 읽기·쓰기·삭제 권한, 보존 정책, 암호화 키, 시간 정합성을 보호해야 합니다. 모든 운영자가 모든 보안 로그를 삭제할 수 있으면 중앙화의 이점이 줄어듭니다.</p>
+<p>시간대와 시계 차이는 사건 순서를 헷갈리게 합니다. 애플리케이션 로그와 AWS 감사 기록을 비교할 때 UTC·현지 시간, event time·수집 시간을 구분합니다. 동일 요청 ID나 principal·resource·IP 같은 연결 단서도 남깁니다. 수집에 실패했을 때 그 실패 자체를 알 수 있어야 “로그가 없으니 사건도 없다”는 오판을 줄입니다.</p>
+<h3>패치와 이미지 갱신의 실제 수명주기</h3>
+<p>취약점 목록을 받는 것만으로 취약점이 제거되지는 않습니다. 영향받는 버전 확인, 악용 가능성과 노출 범위 판단, 수정 이미지 생성, 테스트, 점진 배포, 이전 버전 제거까지 이어져야 합니다. 실행 중인 컨테이너를 수동으로 고쳐도 다음 배포가 옛 이미지에서 시작하면 취약점이 되살아납니다. 이미지와 배포 명세를 함께 갱신하는 이유입니다.</p>
+<p>긴급 패치를 바로 적용하기 어려우면 임시 네트워크 제한·기능 비활성화 같은 완화를 검토할 수 있습니다. 단, 임시 조치를 영구 해결로 착각하지 않도록 담당자와 만료일을 둡니다. 취약점의 점수만이 아니라 인터넷 노출, 실제 사용 기능, 데이터 민감도, 대체 통제를 함께 보아야 합니다.</p>
+<h3>격리할 때도 증거와 업무를 고려하기</h3>
+<p>격리는 공격 확산을 줄이는 목적입니다. 하지만 프로세스 종료·디스크 삭제·인스턴스 교체는 휘발성 증거를 잃게 할 수 있습니다. 반대로 증거 수집을 기다리는 동안 피해가 커질 수도 있습니다. 사전에 사고 유형별 우선순위와 승인·실행 절차를 정해야 합니다. 아래 항목은 개념적 검토표이며 실제 환경에서는 조직의 대응 절차를 따릅니다.</p>
+<table>
+<thead>
+<tr>
+<th>질문</th>
+<th>판단 목적</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>공격이 진행 중인가?</td>
+<td>확산 차단의 긴급성</td>
+</tr>
+<tr>
+<td>어느 계정·role·자원이 영향받았나?</td>
+<td>조치 범위 제한</td>
+</tr>
+<tr>
+<td>로그와 스냅샷을 어디에 보관할까?</td>
+<td>증거 보호</td>
+</tr>
+<tr>
+<td>격리 후 업무가 어디로 이동하나?</td>
+<td>서비스 연속성</td>
+</tr>
+<tr>
+<td>원본으로 재배포해도 원인이 남나?</td>
+<td>재침해 방지</td>
+</tr>
+</tbody></table>
+<h2 id="section-9">더 깊은 면접 Q&amp;A: 탐지 도구를 켠 뒤 해야 할 일</h2>
+<details class="question"><summary>Q. GuardDuty를 켜면 공격을 자동 차단하나요?</summary><div class="answer"><p><strong>답변:</strong> 탐지 결과를 얻는 것과 차단 조치를 실행하는 것은 별도 흐름입니다. 필요한 자동화·알림·운영 절차를 구성하고 탐지 유형별 오탐과 영향 범위를 평가합니다. 서비스 기능을 포괄적인 예방 방화벽처럼 설명하면 안 됩니다.</p><p><strong>꼬리 질문:</strong> 자동 차단은 복구 가능한 제한 조치부터 시작할 수 있습니다. 조치 성공 후에도 공격자의 다른 권한이나 자원 변경이 남았는지 조사해야 합니다.</p></div></details>
+<details class="question"><summary>Q. VPC Flow Logs로 요청 본문까지 볼 수 있나요?</summary><div class="answer"><p><strong>답변:</strong> 네트워크 흐름의 메타데이터를 보는 도구이며 애플리케이션 요청 본문을 그대로 복원하는 로그로 취급하면 안 됩니다. HTTP 경로·상태·업무 오류는 해당 계층의 로그나 추적을 함께 사용합니다.</p><p><strong>조사:</strong> 허용·거부, 출발지·목적지·포트와 시간으로 통신 여부를 좁힌 뒤 LB와 앱 기록을 연결합니다. 한 로그 소스에 모든 진단 정보를 기대하지 않습니다.</p></div></details>
+<details class="question"><summary>Q. 보안 그룹에서 차단하면 침해 대응은 끝난 건가요?</summary><div class="answer"><p><strong>답변:</strong> 통신 경로 일부를 제한한 것입니다. 이미 탈취된 자격증명, 수정된 정책, 다른 자원에 심어진 변경, 반출된 데이터는 남을 수 있습니다. 네트워크 격리와 identity 대응·데이터 영향 조사를 함께 수행합니다.</p><p><strong>복구:</strong> 신뢰할 수 있는 배포물에서 재구성하고 원인이 된 취약점이나 권한을 수정합니다. 단순 재시작으로 공격 전 상태가 자동 복원된다고 가정하지 않습니다.</p></div></details>
+<details class="question"><summary>Q. 탐지 규칙이 너무 많이 울리면 임계값만 높이면 되나요?</summary><div class="answer"><p><strong>답변:</strong> 정상 활동과 실제 위험을 구분할 맥락이 부족한지 먼저 봅니다. 자원 중요도·업무 시간·승인된 작업·주체를 반영하고 중복 경보를 묶을 수 있습니다. 임계값 상승만으로 조용하게 만들면 작은 유출을 놓칠 수 있습니다.</p><p><strong>검증:</strong> 규칙 변경 전후에 놓친 사건과 대응 가능한 경보 비율을 확인합니다. 알람이 적다는 사실보다 중요한 사건을 제때 처리하는지가 목표입니다.</p></div></details>
+
+<h2 id="section-10">직접 풀어 보기: 야간 대량 다운로드 경보</h2>
+<p>새벽에 특정 role이 평소보다 많은 S3 객체를 읽었다는 경보가 발생했습니다. 예정된 백업인지 정보 반출인지 아직 모릅니다. 탐지 결과만 보고 모든 운영 접근을 막는 대신 어떤 확인과 조치를 연결할까요?</p>
+<details class="question"><summary>해설 펼치기 — 판단 과정과 조건을 바꾼 경우</summary><div class="answer"><p><strong>맥락:</strong> role의 소유자, 예정된 작업, 사용 위치와 시간, 읽은 객체 범위, 최근 권한 변경을 확인합니다. 정상 백업과 다른 목적지·데이터 범위가 있는지 비교합니다.</p><p><strong>피해 제한:</strong> 실제 유출 가능성과 진행 여부에 따라 해당 주체·세션·자원 범위에 제한된 대응을 검토합니다. 광범위한 차단은 정상 복구나 업무도 막을 수 있으므로 영향과 긴급성을 함께 판단합니다.</p><p><strong>증거:</strong> 관련 로그와 정책 변경 이력을 별도 보호하고, 경보의 시간과 실제 이벤트 시간을 맞춥니다. 조사 중 원본 기록을 임의로 지우지 않습니다.</p><p><strong>종료:</strong> 정상 작업이면 이유와 예외 범위를 기록하고, 비정상이면 자격증명·추가 권한·데이터 영향까지 조사합니다. 경보를 닫는 것과 사고를 해결하는 것은 다른 상태입니다.</p></div></details>
+
+<h2 id="section-11">공식 문서</h2>
 <ul>
 <li><a href="https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html">보안 원칙: 탐지와 보호</a></li>
 <li><a href="https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html">VPC Flow Logs</a></li>
