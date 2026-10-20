@@ -1,0 +1,384 @@
+{
+  "checked_at": "2026-10-20",
+  "checked_urls": 63,
+  "results": [
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/account-names.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/account-names.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 8.2.4 Specifying Account Names"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/binary-log.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/binary-log.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 7.4.4 The Binary Log"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/caching-sha2-pluggable-authentication.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/caching-sha2-pluggable-authentication.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 8.4.1.2 Caching SHA-2 Pluggable Authentication"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/connection-access.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/connection-access.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 8.2.6 Access Control, Stage 1: Connection Verification"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/derived-table-optimization.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/derived-table-optimization.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.2.2.4 Optimizing Derived Tables, View References, and Common Table Expressions\nwith Merging or Materialization"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/docker-mysql-getting-started.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/docker-mysql-getting-started.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 2.5.6.1 Basic Steps for MySQL Server Deployment with Docker"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/explain-output.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/explain-output.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.8.2 EXPLAIN Output Format"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/explain.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/explain.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 15.8.2 EXPLAIN Statement"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/grant.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/grant.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 15.7.1.6 GRANT Statement"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/hash-joins.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/hash-joins.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.2.1.4 Hash Join Optimization"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 15.3.3 Statements That Cause an Implicit Commit"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/index-condition-pushdown-optimization.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/index-condition-pushdown-optimization.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.2.1.6 Index Condition Pushdown Optimization"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-adaptive-hash.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-adaptive-hash.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.5.3 Adaptive Hash Index"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-auto-increment-handling.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-auto-increment-handling.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.6.1.6 AUTO_INCREMENT Handling in InnoDB"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-preload-buffer-pool.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-preload-buffer-pool.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.8.3.6 Saving and Restoring the Buffer Pool State"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-buffer-pool-flushing.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-buffer-pool-flushing.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.8.3.5 Configuring Buffer Pool Flushing"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-buffer-pool.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-buffer-pool.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.5.1 Buffer Pool"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-change-buffer.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-change-buffer.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.5.2 Change Buffer"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-checkpoints.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-checkpoints.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.11.3 InnoDB Checkpoints"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-internals.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-internals.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.9.1.5 How Compression Works for InnoDB Tables"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-tuning-monitoring.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-tuning-monitoring.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.9.1.4 Monitoring InnoDB Table Compression at Runtime"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-usage.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-usage.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.9.1.2 Creating Compressed Tables"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-consistent-read.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-consistent-read.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.7.2.3 Consistent Nonlocking Reads"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-data-encryption.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-data-encryption.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.13 InnoDB Data-at-Rest Encryption"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-deadlocks-handling.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-deadlocks-handling.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.7.5.3 How to Minimize and Handle Deadlocks"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-doublewrite-buffer.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-doublewrite-buffer.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.6.4 Doublewrite Buffer"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-error-handling.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-error-handling.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.21.5 InnoDB Error Handling"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-index-types.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-index-types.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.6.2.1 Clustered and Secondary Indexes"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-introduction.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-introduction.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.1 Introduction to InnoDB"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.7.2.4 Locking Reads"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.7.1 InnoDB Locking"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-multi-versioning.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-multi-versioning.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.3 InnoDB Multi-Versioning"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-online-ddl-limitations.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-online-ddl-limitations.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.12.8 Online DDL Limitations"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-page-compression.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-page-compression.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.9.2 InnoDB Page Compression"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.14 InnoDB Startup Options and System Variables"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-physical-structure.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-physical-structure.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.6.2.2 The Physical Structure of an InnoDB Index"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-redo-log.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-redo-log.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.6.5 Redo Log"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-table-compression.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-table-compression.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.9.1 InnoDB Table Compression"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.7.2.1 Transaction Isolation Levels"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-undo-logs.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-undo-logs.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.6.6 Undo Logs"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/internal-temporary-tables.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/internal-temporary-tables.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.4.4 Internal Temporary Table Use in MySQL"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/invisible-indexes.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/invisible-indexes.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.3.12 Invisible Indexes"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/keyring.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/keyring.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 8.4.4 The MySQL Keyring"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/metadata-locking.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/metadata-locking.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.11.4 Metadata Locking"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/multiple-column-indexes.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/multiple-column-indexes.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.3.6 Multiple-Column Indexes"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/mysql-indexes.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/mysql-indexes.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.3.1 How MySQL Uses Indexes"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/mysql-nutshell.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/mysql-nutshell.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 1.3 What Is New in MySQL 8.0"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 6.5.4 mysqldump — A Database Backup Program"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/nested-loop-joins.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/nested-loop-joins.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.2.1.7 Nested-Loop Join Algorithms"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/optimizer-hints.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/optimizer-hints.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.9.3 Optimizer Hints"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/optimizer-statistics.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/optimizer-statistics.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.9.6 Optimizer Statistics"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/order-by-optimization.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/order-by-optimization.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.2.1.16 ORDER BY Optimization"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/point-in-time-recovery.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/point-in-time-recovery.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 9.5 Point-in-Time (Incremental) Recovery"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/sql-prepared-statements.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/sql-prepared-statements.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 15.5 Prepared Statements"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/privilege-changes.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/privilege-changes.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 8.2.13 When Privilege Changes Take Effect"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/range-optimization.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/range-optimization.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.2.1.2 Range Optimization"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/replication-options-binary-log.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/replication-options-binary-log.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 19.1.6.4 Binary Logging Options and Variables"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/roles.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/roles.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 8.2.10 Using Roles"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/semijoins.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/semijoins.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.2.2.1 Optimizing IN and EXISTS Subquery Predicates with Semijoin\n          Transformations"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/server-status-variables.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/server-status-variables.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 7.1.10 Server Status Variables"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 7.1.8 Server System Variables"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/type-conversion.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/type-conversion.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 14.3 Type Conversion in Expression Evaluation"
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/using-encrypted-connections.html",
+      "status": 200,
+      "final": "https://dev.mysql.com/doc/refman/8.0/en/using-encrypted-connections.html",
+      "title": "MySQL :: MySQL 8.0 Reference Manual :: 8.3.1 Configuring MySQL to Use Encrypted Connections"
+    }
+  ]
+}

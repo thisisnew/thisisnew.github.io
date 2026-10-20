@@ -1,0 +1,138 @@
+{
+  "rows": [
+    {
+      "lesson": 1,
+      "title": "처음부터 이해하는 MySQL: 서버·연결·SQL의 여행 | thisisnew",
+      "allOpen": true,
+      "allClosed": true,
+      "individual": true,
+      "desktop": true,
+      "mobile": true,
+      "brokenAnchors": 0,
+      "errors": []
+    },
+    {
+      "lesson": 2,
+      "title": "계정과 권한: 접속 성공과 조회 허용은 다르다 | thisisnew",
+      "allOpen": true,
+      "allClosed": true,
+      "individual": true,
+      "desktop": true,
+      "mobile": true,
+      "brokenAnchors": 0,
+      "errors": []
+    },
+    {
+      "lesson": 3,
+      "title": "페이지와 버퍼 풀: 메모리·디스크·캐시의 실제 역할 | thisisnew",
+      "allOpen": true,
+      "allClosed": true,
+      "individual": true,
+      "desktop": true,
+      "mobile": true,
+      "brokenAnchors": 0,
+      "errors": []
+    },
+    {
+      "lesson": 4,
+      "title": "저장 완료의 비밀: redo·undo·커밋·장애 복구 | thisisnew",
+      "allOpen": true,
+      "allClosed": true,
+      "individual": true,
+      "desktop": true,
+      "mobile": true,
+      "brokenAnchors": 0,
+      "errors": []
+    },
+    {
+      "lesson": 5,
+      "title": "트랜잭션과 MVCC: 같은 데이터를 다르게 보는 이유 | thisisnew",
+      "allOpen": true,
+      "allClosed": true,
+      "individual": true,
+      "desktop": true,
+      "mobile": true,
+      "brokenAnchors": 0,
+      "errors": []
+    },
+    {
+      "lesson": 6,
+      "title": "잠금과 데드락: 행·빈 공간·대기 관계를 직접 확인하기 | thisisnew",
+      "allOpen": true,
+      "allClosed": true,
+      "individual": true,
+      "desktop": true,
+      "mobile": true,
+      "brokenAnchors": 0,
+      "errors": []
+    },
+    {
+      "lesson": 7,
+      "title": "B-tree와 InnoDB 인덱스: 기본 키가 저장 구조를 바꾼다 | thisisnew",
+      "allOpen": true,
+      "allClosed": true,
+      "individual": true,
+      "desktop": true,
+      "mobile": true,
+      "brokenAnchors": 0,
+      "errors": []
+    },
+    {
+      "lesson": 8,
+      "title": "복합 인덱스 설계: 조건·정렬·커버링을 함께 생각하기 | thisisnew",
+      "allOpen": true,
+      "allClosed": true,
+      "individual": true,
+      "desktop": true,
+      "mobile": true,
+      "brokenAnchors": 0,
+      "errors": []
+    },
+    {
+      "lesson": 9,
+      "title": "옵티마이저: 통계·조인 순서·힌트가 계획을 만드는 과정 | thisisnew",
+      "allOpen": true,
+      "allClosed": true,
+      "individual": true,
+      "desktop": true,
+      "mobile": true,
+      "brokenAnchors": 0,
+      "errors": []
+    },
+    {
+      "lesson": 10,
+      "title": "실행 계획 해독: EXPLAIN ANALYZE로 느린 이유 찾기 | thisisnew",
+      "allOpen": true,
+      "allClosed": true,
+      "individual": true,
+      "desktop": true,
+      "mobile": true,
+      "brokenAnchors": 0,
+      "errors": []
+    },
+    {
+      "lesson": 11,
+      "title": "데이터 압축: 공간 절감과 CPU·쓰기 비용의 교환 | thisisnew",
+      "allOpen": true,
+      "allClosed": true,
+      "individual": true,
+      "desktop": true,
+      "mobile": true,
+      "brokenAnchors": 0,
+      "errors": []
+    },
+    {
+      "lesson": 12,
+      "title": "암호화와 복구: 데이터·로그·키를 끝까지 보호하기 | thisisnew",
+      "allOpen": true,
+      "allClosed": true,
+      "individual": true,
+      "desktop": true,
+      "mobile": true,
+      "brokenAnchors": 0,
+      "errors": []
+    }
+  ],
+  "searchResults": 12,
+  "failures": []
+}

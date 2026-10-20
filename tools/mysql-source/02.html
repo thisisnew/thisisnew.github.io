@@ -1,13 +1,13 @@
-<h2>1. 접속할 수 있다는 것과 데이터를 볼 수 있다는 것은 다르다</h2>
+<h2 id="section-0">1. 접속할 수 있다는 것과 데이터를 볼 수 있다는 것은 다르다</h2>
 <p>건물 출입증을 생각해 봅시다. 로비에 들어오는 권한, 창고에 들어가는 권한, 창고에서 물건을 꺼내는 권한은 서로 다릅니다. DB도 마찬가지입니다. <strong>인증은 누구인지 확인하는 과정이고, 권한 검사는 그 사람이 무엇을 해도 되는지 판단하는 과정</strong>입니다. 비밀번호를 맞혔다고 모든 테이블을 읽거나 삭제할 수 있는 것은 아닙니다.</p>
 <p>실습의 root 계정은 학습 환경을 준비하는 관리자입니다. 실제 서비스 계정을 root로 두는 것은 앱의 작은 실수가 DB 전체 변경으로 확대되는 구조입니다. 조회 화면은 SELECT만, 업무 API는 필요한 테이블의 필요한 DML만, 스키마 변경은 별도 배포 계정으로 나눌 수 있습니다. 이것은 비밀번호를 어렵게 만드는 문제와 다른 문제입니다.</p>
-<h2>2. 사용자 이름만 같다고 같은 계정이 아니다</h2>
+<h2 id="section-1">2. 사용자 이름만 같다고 같은 계정이 아니다</h2>
 <p>MySQL 계정은 <code>'user'@'host'</code>로 표현합니다. 예를 들어 <code>'reader'@'localhost'</code>와 <code>'reader'@'10.0.0.8'</code>은 서로 다른 계정입니다. 앞은 사용자 이름, 뒤는 서버 관점에서 접속을 허용할 출발지입니다. 데이터베이스 이름이나 서버 자신의 주소를 쓰는 자리가 아닙니다.</p>
 <p>서버는 접속 조건에 맞는 계정 행을 선택한 뒤 인증합니다. 더 구체적인 호스트 항목이 우선될 수 있으므로 “분명 reader의 비밀번호를 바꿨는데 접속이 안 된다”면 어느 reader 계정이 선택되었는지 확인해야 합니다. <code>USER()</code>는 접속할 때 제시한 사용자·호스트 정보를, <code>CURRENT_USER()</code>는 권한 판정에 쓰이는 실제 인증 계정을 보여 줍니다. 저장 프로그램의 실행 문맥 등에서는 의미가 추가로 달라질 수 있으므로 여기서는 일반 클라이언트 세션을 기준으로 합니다.</p>
 <pre><code>SELECT USER(), CURRENT_USER(), CURRENT_ROLE();
 SHOW GRANTS FOR CURRENT_USER();</code></pre>
 <p>Docker 안의 mysql 클라이언트가 소켓으로 접속하는 경우와 호스트 PC에서 TCP로 접속하는 경우는 출발지가 다를 수 있습니다. 로컬 실습에서 localhost 계정으로 성공했다고 원격 앱에서도 같은 계정이 선택된다고 가정하면 안 됩니다. 아래 실습은 혼동을 없애기 위해 모두 <code>docker exec</code>로 컨테이너 안에서 접속합니다.</p>
-<h2>3. 역할은 권한 묶음이고, 부여와 활성화는 별개다</h2>
+<h2 id="section-2">3. 역할은 권한 묶음이고, 부여와 활성화는 별개다</h2>
 <p>신입 직원 30명에게 테이블 권한 20개를 일일이 부여하면 변경할 때 누락되기 쉽습니다. 역할(role)에 권한을 모으고 사용자에게 역할을 부여하면 권한 정책을 한 곳에서 관리할 수 있습니다. 그러나 역할을 부여했다는 것과 현재 세션에서 그 역할이 활성화되었다는 것은 다릅니다. 입장권을 가지고 있어도 사용할 출입증을 선택하지 않은 상태를 떠올리면 됩니다.</p>
 <pre><code>-- root로 실행. 1편 서버가 실행 중이어야 합니다.
 CREATE DATABASE IF NOT EXISTS mysql_school;
@@ -34,21 +34,48 @@ SELECT * FROM mysql_school.account_demo;
 SET ROLE DEFAULT;
 SELECT * FROM mysql_school.account_demo;</code></pre>
 <p>이 실습에서 권한 오류는 실패가 아니라 검증 성공입니다. 조회는 가능하지만 변경은 불가능해야 요구한 정책이 구현된 것입니다. 마지막 SELECT가 다시 성공하면 역할 활성화와 직접 권한의 차이까지 확인한 것입니다. 같은 이름으로 CREATE USER를 반복하면 이미 존재한다는 오류가 납니다. 재실습 때는 관리자 세션에서 해당 학습 계정과 역할만 DROP한 뒤 다시 만듭니다.</p>
-<h2>4. 권한 범위는 넓어질수록 실수의 반경도 커진다</h2>
+<h2 id="section-3">4. 권한 범위는 넓어질수록 실수의 반경도 커진다</h2>
 <table><thead><tr><th>범위</th><th>예</th><th>생각할 문제</th></tr></thead><tbody><tr><td>전역</td><td>*.*</td><td>미래에 생성될 DB까지 영향을 줄 수 있다.</td></tr><tr><td>데이터베이스</td><td>mysql_school.*</td><td>해당 스키마 전체에 정책이 적용된다.</td></tr><tr><td>테이블</td><td>mysql_school.account_demo</td><td>업무별 접근을 나누기 쉽다.</td></tr><tr><td>열</td><td>SELECT(note)</td><td>허용된 열만 요청해야 한다. SELECT *와 충돌할 수 있다.</td></tr></tbody></table>
 <p><code>GRANT OPTION</code>은 남에게 권한을 나누어 줄 수 있는 능력입니다. 데이터 읽기 권한과는 성격이 다릅니다. 또한 일부 관리 권한은 동적 권한으로 분류됩니다. 외운 GRANT 한 줄을 모든 환경에 복사하기보다 수행할 작업에 필요한 권한을 공식 문서에서 확인해야 합니다. 앱이 스키마를 자동 변경하지 않는다면 DDL 권한까지 줄 이유가 없습니다.</p>
 <p>CREATE USER, GRANT 같은 계정 관리 명령을 정상적으로 사용했다면 습관적으로 FLUSH PRIVILEGES를 실행할 필요는 없습니다. 권한 테이블을 직접 UPDATE하는 방식은 학습 코드에도 넣지 않는 편이 좋습니다. 표준 관리 명령이 검사와 내부 갱신을 처리하도록 해야 합니다.</p>
-<h2>5. 비밀번호·TLS·저장 암호화는 세 개의 문이다</h2>
+<h2 id="section-4">5. 비밀번호·TLS·저장 암호화는 세 개의 문이다</h2>
 <p>비밀번호 인증은 접속 주체를 확인합니다. TLS는 클라이언트와 서버 사이의 네트워크 전송을 보호합니다. 저장 암호화는 디스크의 데이터를 보호합니다. 셋 중 하나가 나머지를 대체하지 않습니다. 예를 들어 TLS로 연결해도 SELECT 권한이 있는 사용자는 평문 결과를 받습니다. 저장 암호화를 켜도 잘못 부여한 SELECT 권한은 그대로 위험합니다.</p>
 <p>MySQL 8.0의 기본 인증 플러그인은 caching_sha2_password입니다. 구형 드라이버가 이를 지원하지 못하는 경우 인증 오류가 날 수 있습니다. 이때 즉시 인증 방식을 약하게 바꾸기보다 드라이버 지원 버전과 TLS 설정을 확인합니다. 실제 비밀번호는 소스·블로그·오류 로그에 기록하지 않습니다. 이 글의 비밀번호는 로컬 폐기용 서버에만 사용하는 공개 예시입니다.</p>
-<h2>6. 장애 시나리오: 역할은 줬는데 조회가 안 된다</h2>
+<h2 id="section-5">6. 장애 시나리오: 역할은 줬는데 조회가 안 된다</h2>
 <p>가상의 운영 상황입니다. 신규 조회 API가 배포되었고 DB 연결은 성공하지만 테이블 접근이 거부됩니다. 첫째, CURRENT_USER로 인증 계정을 확인합니다. 둘째, SHOW GRANTS로 직접 권한과 역할 부여를 확인합니다. 셋째, CURRENT_ROLE로 활성 역할을 확인합니다. 넷째, 기본 역할 변경 전에 만들어진 연결을 재사용하고 있지는 않은지 봅니다. 마지막으로 SQL이 허용된 스키마의 테이블을 실제로 참조하는지 확인합니다.</p>
 <p>“일단 ALL PRIVILEGES 주면 되겠지”는 원인을 숨깁니다. 역할 활성화가 문제였다면 권한 확대 없이 고칠 수 있습니다. 반대로 SELECT만 필요한 것처럼 보이던 API가 임시 테이블이나 저장 프로그램을 사용한다면 실제 필요한 권한을 다시 분석해야 합니다. 에러 코드와 실행 SQL이 출발점입니다.</p>
-<h2>7. 상세 면접 Q&amp;A</h2>
+<h2 id="deep-0">접속 한 번에 일어나는 세 가지 판정</h2>
+<p>출입증 비유를 더 구체화해 보겠습니다. 경비실은 먼저 “이 사람이 들어올 수 있는 입구인가”를 보고, 그다음 “제시한 신분이 진짜인가”를 확인하고, 들어온 뒤에는 “이 방에서 무엇을 할 수 있는가”를 검사합니다. MySQL에서도 네트워크 도달, 계정 선택·인증, SQL 권한 검사는 분리됩니다. 이 구분 없이 모든 오류를 비밀번호 문제로 취급하면 해결 방향이 빗나갑니다.</p>
+<table><tr><th>상황</th><th>통과한 단계</th><th>다음 질문</th></tr><tr><td>서버 포트에 접속 불가</td><td>아직 인증 전</td><td>서버·방화벽·주소·포트가 맞는가?</td></tr><tr><td>Access denied for user</td><td>서버 도달 가능성</td><td>어떤 user@host가 매칭되고 인증 방식이 맞는가?</td></tr><tr><td>SELECT command denied</td><td>세션 인증 성공</td><td>대상 객체의 권한과 활성 역할이 있는가?</td></tr><tr><td>특정 열만 접근 거부</td><td>일부 객체 접근 가능</td><td>열 단위 권한과 SELECT 목록이 맞는가?</td></tr></table>
+<p>계정은 사용자가 입력한 이름 하나로 결정되지 않습니다. 같은 reader라도 출발 호스트가 다르면 다른 계정이 선택될 수 있습니다. 여러 계정의 권한을 전부 합쳐서 가장 유리하게 로그인하는 방식이 아닙니다. 서버가 매칭한 계정에 대해 인증을 통과해야 합니다. 일반적인 직접 접속에서 USER와 CURRENT_USER를 함께 확인하는 이유가 여기에 있습니다.</p>
+<h2 id="deep-1">직접 권한·역할·기본 역할을 네 단계로 따라가기</h2>
+<p>역할을 폴더, 권한을 그 안의 출입증이라고 생각해 보세요. 역할을 만드는 것만으로 사용자에게 출입증이 전달되지 않습니다. 역할에 권한을 넣고, 사용자에게 역할을 부여하고, 세션에서 역할이 활성화되어야 해당 역할의 권한을 사용할 수 있습니다.</p>
+<ol><li><code>CREATE ROLE</code>: 빈 권한 묶음을 만든다.</li><li><code>GRANT SELECT ... TO 역할</code>: 묶음에 조회 권한을 넣는다.</li><li><code>GRANT 역할 TO 사용자</code>: 사용자가 그 역할을 사용할 수 있게 한다.</li><li><code>SET DEFAULT ROLE</code> 또는 세션의 <code>SET ROLE</code>: 로그인 시 또는 현재 세션에서 사용할 역할을 정한다.</li></ol>
+<p>사용자에게 SELECT를 직접 부여했다면 SET ROLE NONE을 해도 그 직접 권한은 사라지지 않습니다. 반대로 앞 실습처럼 역할로만 SELECT를 얻었다면 역할을 끌 때 접근이 거부됩니다. “SET ROLE NONE이면 무조건 모든 권한이 사라진다”가 아니라 “활성 역할로 얻는 권한이 빠진다”가 정확합니다.</p>
+<p>이 차이는 검증에도 중요합니다. root로 쿼리가 잘 된다는 것은 서비스 계정 검증이 아닙니다. 배포에서 사용하는 계정으로 로그인해 실제 필요한 SQL을 실행하고, 허용하면 안 되는 UPDATE·DELETE가 거부되는지도 확인해야 합니다. 성공 사례와 거부 사례가 함께 있어야 권한 경계가 검증됩니다.</p>
+<h2 id="deep-2">최소 권한을 업무 흐름에서 도출하기</h2>
+<p>“입고 API니까 쓰기 권한”이라고 넓게 분류하지 말고 실행할 문장을 먼저 적습니다. 입고 요청을 만들고 상태를 갱신하며 상품을 조회하는 앱이라면 필요한 객체와 작업이 다릅니다. 아래는 설계 예시이며 실제 테이블명이 아닙니다.</p>
+<table><tr><th>업무</th><th>객체</th><th>권한 후보</th><th>별도 검토</th></tr><tr><td>상품 기본정보 읽기</td><td>goods</td><td>SELECT</td><td>민감 열이 포함되는가?</td></tr><tr><td>입고 요청 생성</td><td>receiving_request</td><td>INSERT·SELECT</td><td>중복 요청 판정이 필요한가?</td></tr><tr><td>처리 상태 변경</td><td>receiving_request</td><td>UPDATE</td><td>변경할 열을 한정할 수 있는가?</td></tr><tr><td>처리 이력 추가</td><td>receiving_history</td><td>INSERT</td><td>기존 이력 수정·삭제가 정말 필요한가?</td></tr><tr><td>인덱스 변경</td><td>배포 대상 테이블</td><td>별도 배포 계정</td><td>업무 앱이 DDL을 실행해야 하는가?</td></tr></table>
+<p>다만 DB 권한만으로 “자기 회사 데이터만 조회” 같은 행 단위 업무 규칙이 자동 구현되지는 않습니다. 같은 테이블의 모든 행에 SELECT가 있으면 SQL 조건 누락으로 다른 소유자의 데이터가 보일 수 있습니다. 애플리케이션의 인증·인가와 소유자 조건, 필요하면 별도 데이터 분리 정책이 함께 있어야 합니다. 최소 권한은 여러 층의 방어 중 하나입니다.</p>
+<h2 id="deep-3">TLS의 ‘암호화’와 ‘서버 신원 확인’도 다르다</h2>
+<p>낯선 사람과 암호화된 통화를 한다고 상대방이 내가 찾던 은행 직원이라는 뜻은 아닙니다. TLS도 연결 암호화와 인증서 검증을 구분해야 합니다. 클라이언트가 서버 인증서의 신뢰 체계와 접속 호스트명을 검증해야 의도한 서버와 통신한다는 보장이 강해집니다. 단순히 연결이 된다는 이유로 인증서 검증을 끄는 방식은 문제를 감출 수 있습니다.</p>
+<p>caching_sha2_password는 인증 플러그인이고 TLS는 통신 경로 보호입니다. 서로 다른 기능입니다. 연결 오류가 발생하면 드라이버 버전, 인증 플러그인 지원, TLS 요구, 서버 인증서와 호스트명이 맞는지 순서대로 확인합니다. 전송 보호가 되어 있어도 애플리케이션 로그에 비밀번호나 개인정보를 출력하면 그 로그는 별도 유출 경로가 됩니다.</p>
+<h2 id="deep-4">변경 후에도 오래된 연결이 남는 이유</h2>
+<p>기본 역할을 바꿨다고 이미 로그인한 모든 세션이 자동으로 같은 활성 역할을 갖는 것은 아닙니다. 권한 변경은 종류와 범위에 따라 적용 시점도 다릅니다. 그러므로 “GRANT 실행 성공”과 “현재 앱 연결의 권한 확인”을 분리합니다. 새 세션에서 확인한 뒤 커넥션 풀이 어떤 연결을 재사용하는지도 봅니다.</p>
+<p>권한 문제를 고치려고 곧바로 ALL PRIVILEGES를 부여하면 원인을 찾을 증거가 사라지고 과도한 권한만 남을 수 있습니다. 먼저 실패한 SQL의 객체와 연산, 실제 인증 계정, 현재 역할을 기록합니다. 그런 다음 필요한 범위만 추가하고 동일한 계정으로 허용·거부 테스트를 반복합니다. 긴급 변경이라도 원래 권한과 되돌릴 절차를 기록하면 임시 권한이 영구화되는 것을 줄일 수 있습니다.</p>
+<p>앞의 역할 실습을 마친 뒤 “SET ROLE NONE 후에도 SELECT가 된다면?”을 생각해 보세요. 직접 SELECT를 받았거나 다른 권한 경로가 있을 수 있습니다. 바로 MySQL 오류라고 결론내리지 않고 SHOW GRANTS와 계정 매칭을 확인하는 것이 이 편의 핵심 연습입니다.</p>
+
+<h2 id="section-6">7. 상세 면접 Q&amp;A</h2>
 <details><summary>사용자 이름과 비밀번호가 맞는데 Access denied가 나는 이유는?</summary><p>접속 호스트가 다르거나 더 구체적인 계정 항목이 선택될 수 있습니다. 네트워크 연결 성공과 인증 성공도 구분해야 합니다. 접속 경로, 서버가 보는 클라이언트 주소, 계정의 host 부분, 인증 플러그인 지원을 순서대로 확인합니다. 권한 오류라면 인증 이후의 작업 권한 문제인지도 구분합니다.</p></details>
 <details><summary>역할을 부여하면 바로 권한을 사용할 수 있나요?</summary><p>역할 부여와 활성화는 별개입니다. SET ROLE 또는 기본 역할 설정을 확인해야 합니다. 새 연결과 이미 열린 연결을 구분하고 CURRENT_ROLE로 현재 상태를 직접 확인합니다. 역할이 있다는 사실만으로 실제 SQL이 허용된다고 결론내리지 않습니다.</p></details>
 <details><summary>읽기 전용 계정이면 서비스에 부하를 줄 수 없나요?</summary><p>SELECT만으로도 큰 조인·정렬·대량 결과 전송이 발생합니다. 데이터를 변경하지 못한다는 보장과 CPU·I/O를 소비하지 않는다는 보장은 다릅니다. 권한 최소화와 쿼리 시간·반환량 제한, 실행 계획 검토는 함께 필요합니다.</p></details>
 <details><summary>GRANT 뒤 FLUSH PRIVILEGES가 필요한가요?</summary><p>정상 계정 관리 명령을 사용한 경우 일반적으로 필요하지 않습니다. 권한 테이블을 직접 수정하는 예전 습관과 혼동하지 않아야 합니다. 접근 문제가 계속되면 불필요한 명령을 반복하기보다 계정 매칭과 역할 활성 상태를 확인합니다.</p></details>
 <details><summary>DB 계정 하나를 모든 서비스가 공유하면 무엇이 어렵나요?</summary><p>최소 권한 적용, 변경 영향 범위 제한, 접속 주체별 추적이 어려워집니다. 한 서비스에 필요한 DDL 권한이 다른 서비스에도 노출될 수 있습니다. 계정을 업무 경계별로 나누되 운영 가능한 비밀정보 회전·배포 절차와 함께 설계해야 합니다.</p></details>
 <details><summary>TLS가 켜졌는지 무엇으로 확인하나요?</summary><p>클라이언트 설정만 보지 말고 세션의 SSL/TLS 관련 상태를 확인합니다. SHOW SESSION STATUS LIKE 'Ssl_cipher'가 한 방법입니다. 암호군이 표시되는지 보고, 인증서와 호스트 이름 검증 정책도 함께 봅니다. 암호화된 연결과 올바른 서버에 연결했다는 검증은 서로 관련되지만 동일하지 않습니다.</p></details>
-<h2>공식 문서</h2><ul><li><a href="https://dev.mysql.com/doc/refman/8.0/en/account-names.html">계정 이름과 호스트</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/roles.html">역할 부여와 활성화</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/grant.html">GRANT와 권한 범위</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/caching-sha2-pluggable-authentication.html">caching_sha2_password 인증</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/using-encrypted-connections.html">TLS 연결</a></li></ul>
+
+<details><summary>꼬리 질문: user@localhost의 localhost는 DB 서버 주소인가요?</summary><p><strong>답변:</strong> 계정 표기에서 host 부분은 서버가 판단하는 접속 출발지 조건입니다. 접속 URL의 목적지 주소와 구분합니다.</p><p><strong>예:</strong> 앱이 DB 주소 10.0.0.20으로 접속하더라도 앱의 출발지 IP는 10.0.0.8일 수 있습니다. NAT·프록시·소켓 접속에 따라 서버가 보는 출발지도 달라질 수 있으므로 실제 연결 정보로 확인합니다.</p></details>
+<details><summary>꼬리 질문: 역할을 끄면 직접 받은 권한도 없어지나요?</summary><p><strong>답변:</strong> 아닙니다. 활성 역할에서 오는 권한과 직접 부여된 권한을 구분해야 합니다.</p><p><strong>검증:</strong> 최소 권한용 새 테스트 계정을 만들고 직접 권한 없이 역할만 부여한 상태에서 활성화 전후를 비교합니다. 관리자 계정으로 실험하면 다른 권한이 접근을 허용해 역할의 효과를 잘못 해석할 수 있습니다.</p></details>
+<details><summary>꼬리 질문: 읽기 전용 트랜잭션이면 SELECT 권한만 줘도 되나요?</summary><p><strong>답변:</strong> 트랜잭션 읽기 전용 속성과 계정 권한은 별도의 통제입니다. 애플리케이션의 readOnly 표시만 보고 DB 계정의 쓰기 권한이 제거되었다고 볼 수 없습니다.</p><p><strong>설계:</strong> 실제 쓰기를 막아야 하는 조회 도구에는 DB의 최소 권한을 적용하고, 프레임워크의 readOnly가 어떤 SQL이나 드라이버 설정으로 전달되는지도 확인합니다. 성능 최적화용 힌트와 보안 경계를 혼동하지 않습니다.</p></details>
+<details><summary>꼬리 질문: 권한 변경 뒤 FLUSH PRIVILEGES가 필수인가요?</summary><p><strong>답변:</strong> CREATE USER·GRANT·REVOKE 같은 정상 계정 관리 명령을 사용했다면 일반적으로 별도 FLUSH PRIVILEGES가 필요하지 않습니다.</p><p><strong>원리:</strong> 관리 명령 자체가 서버의 권한 정보를 갱신합니다. 접속이 계속 안 된다면 매칭된 계정, 역할 활성화, 권한 적용 시점을 먼저 확인합니다. 권한 테이블을 직접 수정하는 오래된 운영 습관을 그대로 가져오는 것은 피합니다.</p></details>
+
+<h2 id="section-7">공식 문서</h2><ul><li><a href="https://dev.mysql.com/doc/refman/8.0/en/account-names.html">계정 이름과 호스트</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/roles.html">역할 부여와 활성화</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/grant.html">GRANT와 권한 범위</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/caching-sha2-pluggable-authentication.html">caching_sha2_password 인증</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/using-encrypted-connections.html">TLS 연결</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/connection-access.html">접속 계정 선택</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/roles.html">역할 부여와 활성화</a></li><li><a href="https://dev.mysql.com/doc/refman/8.0/en/privilege-changes.html">권한 변경 적용 시점</a></li></ul>

@@ -35,8 +35,8 @@ def static():
  for p,x in pages.items():
   if len(x.ids)!=len(set(x.ids)):errors.append(f'{p.name}: duplicate ids')
   if p.name.startswith('mysql-study'):
-   if x.details!=6 or x.summary!=6:errors.append(f'{p.name}: Q&A count')
-   if len(''.join(x.text))<4000:errors.append(f'{p.name}: incomplete text')
+   if x.details!=10 or x.summary!=10:errors.append(f'{p.name}: Q&A count')
+   if len(''.join(x.text))<8500:errors.append(f'{p.name}: incomplete text')
    if not any('/assets/pixel-quest.css'==u for u in x.links):errors.append(f'{p.name}: skin')
   for link in x.links:
    u=urlsplit(link)
@@ -51,7 +51,7 @@ def static():
  report={'static':'passed' if not errors else 'failed','errors':errors,'pages':rows}
  (ROOT/'learning/mysql-static-checks.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
  assert not errors,errors
- print('Static: 12 lessons + learning map; links, anchors, 72 answers passed',flush=True)
+ print('Static: 12 lessons + learning map; links, anchors, 120 answers passed',flush=True)
 
 def database():
  import pymysql
@@ -85,7 +85,7 @@ def database():
  def blocks(n):return parse(ROOT/f'tools/mysql-source/{n:02}.html').blocks
  version=sql('SELECT VERSION()')[0][0];assert version.startswith('8.0.36'),version
  # Execute the actual published SQL blocks rather than a rewritten approximation.
- selections={1:[1,2],2:[1],3:[0],4:[0,1],5:[0],6:[0],7:[0],8:[0,1,2,3],9:[0,1,2],10:[0,1],11:[0,1],12:[0,2]}
+ selections={1:[1,2,3],2:[1],3:[0],4:[0,1],5:[0],6:[0],7:[0],8:[0,1,2,3],9:[0,1,2],10:[0,1],11:[0,1],12:[0,2]}
  for n,indices in selections.items():
   for i in indices:runblock(blocks(n)[i])
   results.append(f'article-{n:02}-sql-blocks')
@@ -113,6 +113,36 @@ def database():
   assert sql('SELECT qty FROM mvcc_demo WHERE id=1 FOR UPDATE',a)==((20,),)
   sql('ROLLBACK',a)
  results.append('RR-RC-snapshot-and-locking-read')
+ # New walkthroughs: BEGIN does not itself establish the ordinary RR read view.
+ sql('SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ',a)
+ sql('UPDATE mvcc_demo SET qty=10 WHERE id=1')
+ sql('START TRANSACTION',a)
+ sql('UPDATE mvcc_demo SET qty=20 WHERE id=1',b)
+ assert sql('SELECT qty FROM mvcc_demo WHERE id=1',a)==((20,),)
+ sql('UPDATE mvcc_demo SET qty=30 WHERE id=1',b)
+ assert sql('SELECT qty FROM mvcc_demo WHERE id=1',a)==((20,),)
+ sql('UPDATE mvcc_demo SET qty=qty-1 WHERE id=1',a)
+ assert sql('SELECT qty FROM mvcc_demo WHERE id=1',a)==((29,),)
+ sql('ROLLBACK',a)
+ sql('UPDATE mvcc_demo SET qty=10 WHERE id=1')
+ sql('START TRANSACTION WITH CONSISTENT SNAPSHOT',a)
+ sql('UPDATE mvcc_demo SET qty=20 WHERE id=1',b)
+ assert sql('SELECT qty FROM mvcc_demo WHERE id=1',a)==((10,),)
+ sql('ROLLBACK',a)
+ results.append('BEGIN-first-read-snapshot-current-update-own-write-consistent-snapshot')
+ # The cursor must reproduce the same ordered set when data is not changing.
+ all_rows=sql("SELECT id,expected_date FROM order_index_demo WHERE warehouse_id=0 AND status='WAITING' ORDER BY expected_date,id")
+ assert len(all_rows)==100
+ seen=[];last_date='1000-01-01';last_id=0
+ while True:
+  with c.cursor() as q:
+   q.execute("SELECT id,expected_date FROM order_index_demo WHERE warehouse_id=0 AND status='WAITING' AND (expected_date>%s OR (expected_date=%s AND id>%s)) ORDER BY expected_date,id LIMIT 20",(last_date,last_date,last_id))
+   batch=q.fetchall()
+  if not batch:break
+  seen.extend(batch);last_id,last_date=batch[-1]
+ assert tuple(seen)==all_rows
+ results.append('composite-cursor-same-100-rows-no-duplicates')
+
  # Atomic stock guard: 20 requests compete for ten units.
  sql('UPDATE mvcc_demo SET qty=10 WHERE id=1')
  def decrement(_):
