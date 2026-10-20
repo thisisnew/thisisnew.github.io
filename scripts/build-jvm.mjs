@@ -25,7 +25,7 @@ for(const l of lessons){
  let finalPage=page;
  if(fs.existsSync(destination)){
   const existing=fs.readFileSync(destination,'utf8');
-  const deepDive=existing.match(/<!-- JVM-DEEP-DIVE-20261020-\\d{2} --><section class="jvm-depth-expansion"[\\s\\S]*?<\\/section>/);
+  const deepDive=existing.match(/<!-- JVM-DEEP-DIVE-20261020-\d{2} --><section class="jvm-depth-expansion"[\s\S]*?<\/section>/);
   if(deepDive)finalPage=page.replace('</article>',deepDive[0]+'</article>');
  }
  fs.writeFileSync(destination,finalPage);
