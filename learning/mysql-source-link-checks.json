@@ -1,384 +1,390 @@
 {
-  "checked_at": "2026-10-20",
-  "checked_urls": 63,
-  "results": [
+  "checked_on": "2026-10-20",
+  "method": "HTTP GET; redirects followed; response body read",
+  "links": [
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/account-names.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/account-names.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 8.2.4 Specifying Account Names"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/account-names.html",
+      "bytes": 101464
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/binary-log.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/binary-log.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 7.4.4 The Binary Log"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/binary-log.html",
+      "bytes": 120097
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/caching-sha2-pluggable-authentication.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/caching-sha2-pluggable-authentication.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 8.4.1.2 Caching SHA-2 Pluggable Authentication"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/caching-sha2-pluggable-authentication.html",
+      "bytes": 121827
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/connection-access.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/connection-access.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 8.2.6 Access Control, Stage 1: Connection Verification"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/connection-access.html",
+      "bytes": 105996
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/derived-table-optimization.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/derived-table-optimization.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.2.2.4 Optimizing Derived Tables, View References, and Common Table Expressions\nwith Merging or Materialization"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/derived-table-optimization.html",
+      "bytes": 111260
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/docker-mysql-getting-started.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/docker-mysql-getting-started.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 2.5.6.1 Basic Steps for MySQL Server Deployment with Docker"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/docker-mysql-getting-started.html",
+      "bytes": 99359
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/explain-output.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/explain-output.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.8.2 EXPLAIN Output Format"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/explain-output.html",
+      "bytes": 189080
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/explain.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/explain.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 15.8.2 EXPLAIN Statement"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/explain.html",
+      "bytes": 146048
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/grant.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/grant.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 15.7.1.6 GRANT Statement"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/grant.html",
+      "bytes": 210217
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/hash-joins.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/hash-joins.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.2.1.4 Hash Join Optimization"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/hash-joins.html",
+      "bytes": 106806
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 15.3.3 Statements That Cause an Implicit Commit"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/implicit-commit.html",
+      "bytes": 130028
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/index-condition-pushdown-optimization.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/index-condition-pushdown-optimization.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.2.1.6 Index Condition Pushdown Optimization"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/index-condition-pushdown-optimization.html",
+      "bytes": 100484
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-adaptive-hash.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-adaptive-hash.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.5.3 Adaptive Hash Index"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-adaptive-hash.html",
+      "bytes": 97399
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-auto-increment-handling.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-auto-increment-handling.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.6.1.6 AUTO_INCREMENT Handling in InnoDB"
-    },
-    {
-      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-preload-buffer-pool.html",
-      "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-preload-buffer-pool.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.8.3.6 Saving and Restoring the Buffer Pool State"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-auto-increment-handling.html",
+      "bytes": 142186
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-buffer-pool-flushing.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-buffer-pool-flushing.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.8.3.5 Configuring Buffer Pool Flushing"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-buffer-pool-flushing.html",
+      "bytes": 110140
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-buffer-pool.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-buffer-pool.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.5.1 Buffer Pool"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-buffer-pool.html",
+      "bytes": 115186
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-change-buffer.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-change-buffer.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.5.2 Change Buffer"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-change-buffer.html",
+      "bytes": 112952
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-checkpoints.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-checkpoints.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.11.3 InnoDB Checkpoints"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-checkpoints.html",
+      "bytes": 95373
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-internals.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-internals.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.9.1.5 How Compression Works for InnoDB Tables"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-internals.html",
+      "bytes": 116336
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-tuning-monitoring.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-tuning-monitoring.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.9.1.4 Monitoring InnoDB Table Compression at Runtime"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-tuning-monitoring.html",
+      "bytes": 101507
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-usage.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-usage.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.9.1.2 Creating Compressed Tables"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-compression-usage.html",
+      "bytes": 108918
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-consistent-read.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-consistent-read.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.7.2.3 Consistent Nonlocking Reads"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-consistent-read.html",
+      "bytes": 105217
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-data-encryption.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-data-encryption.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.13 InnoDB Data-at-Rest Encryption"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-data-encryption.html",
+      "bytes": 151541
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-deadlocks-handling.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-deadlocks-handling.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.7.5.3 How to Minimize and Handle Deadlocks"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-deadlocks-handling.html",
+      "bytes": 102135
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-doublewrite-buffer.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-doublewrite-buffer.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.6.4 Doublewrite Buffer"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-doublewrite-buffer.html",
+      "bytes": 104520
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-error-handling.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-error-handling.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.21.5 InnoDB Error Handling"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-error-handling.html",
+      "bytes": 97615
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-index-types.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-index-types.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.6.2.1 Clustered and Secondary Indexes"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-index-types.html",
+      "bytes": 97764
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-introduction.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-introduction.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.1 Introduction to InnoDB"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-introduction.html",
+      "bytes": 101545
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.7.2.4 Locking Reads"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html",
+      "bytes": 109719
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.7.1 InnoDB Locking"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html",
+      "bytes": 120657
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-multi-versioning.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-multi-versioning.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.3 InnoDB Multi-Versioning"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-multi-versioning.html",
+      "bytes": 101015
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-online-ddl-limitations.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-online-ddl-limitations.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.12.8 Online DDL Limitations"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-online-ddl-limitations.html",
+      "bytes": 99979
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-page-compression.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-page-compression.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.9.2 InnoDB Page Compression"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-page-compression.html",
+      "bytes": 110477
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.14 InnoDB Startup Options and System Variables"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html",
+      "bytes": 660235
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-physical-structure.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-physical-structure.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.6.2.2 The Physical Structure of an InnoDB Index"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-physical-structure.html",
+      "bytes": 97240
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-preload-buffer-pool.html",
+      "status": 200,
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-preload-buffer-pool.html",
+      "bytes": 113347
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-redo-log.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-redo-log.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.6.5 Redo Log"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-redo-log.html",
+      "bytes": 131383
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-table-compression.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-table-compression.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.9.1 InnoDB Table Compression"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-table-compression.html",
+      "bytes": 95671
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.7.2.1 Transaction Isolation Levels"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html",
+      "bytes": 116941
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-undo-logs.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/innodb-undo-logs.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 17.6.6 Undo Logs"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/innodb-undo-logs.html",
+      "bytes": 104194
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/internal-temporary-tables.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/internal-temporary-tables.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.4.4 Internal Temporary Table Use in MySQL"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/internal-temporary-tables.html",
+      "bytes": 123947
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/invisible-indexes.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/invisible-indexes.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.3.12 Invisible Indexes"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/invisible-indexes.html",
+      "bytes": 99874
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/keyring.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/keyring.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 8.4.4 The MySQL Keyring"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/keyring.html",
+      "bytes": 103689
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/metadata-locking.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/metadata-locking.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.11.4 Metadata Locking"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/metadata-locking.html",
+      "bytes": 109224
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/multiple-column-indexes.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/multiple-column-indexes.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.3.6 Multiple-Column Indexes"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/multiple-column-indexes.html",
+      "bytes": 98473
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/mysql-indexes.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/mysql-indexes.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.3.1 How MySQL Uses Indexes"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/mysql-indexes.html",
+      "bytes": 100309
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/mysql-nutshell.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/mysql-nutshell.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 1.3 What Is New in MySQL 8.0"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/mysql-nutshell.html",
+      "bytes": 468434
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 6.5.4 mysqldump — A Database Backup Program"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html",
+      "bytes": 314856
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/nested-loop-joins.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/nested-loop-joins.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.2.1.7 Nested-Loop Join Algorithms"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/nested-loop-joins.html",
+      "bytes": 99725
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/optimizer-hints.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/optimizer-hints.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.9.3 Optimizer Hints"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/optimizer-hints.html",
+      "bytes": 192772
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/optimizer-statistics.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/optimizer-statistics.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.9.6 Optimizer Statistics"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/optimizer-statistics.html",
+      "bytes": 107707
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/order-by-optimization.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/order-by-optimization.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.2.1.16 ORDER BY Optimization"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/order-by-optimization.html",
+      "bytes": 120879
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/point-in-time-recovery.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/point-in-time-recovery.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 9.5 Point-in-Time (Incremental) Recovery"
-    },
-    {
-      "url": "https://dev.mysql.com/doc/refman/8.0/en/sql-prepared-statements.html",
-      "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/sql-prepared-statements.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 15.5 Prepared Statements"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/point-in-time-recovery.html",
+      "bytes": 57024
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/privilege-changes.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/privilege-changes.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 8.2.13 When Privilege Changes Take Effect"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/privilege-changes.html",
+      "bytes": 92622
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/range-optimization.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/range-optimization.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.2.1.2 Range Optimization"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/range-optimization.html",
+      "bytes": 142437
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/replication-options-binary-log.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/replication-options-binary-log.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 19.1.6.4 Binary Logging Options and Variables"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/replication-options-binary-log.html",
+      "bytes": 295029
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/roles.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/roles.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 8.2.10 Using Roles"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/roles.html",
+      "bytes": 128475
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/semijoins.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/semijoins.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 10.2.2.1 Optimizing IN and EXISTS Subquery Predicates with Semijoin\n          Transformations"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/semijoins.html",
+      "bytes": 114455
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/server-status-variables.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/server-status-variables.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 7.1.10 Server Status Variables"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/server-status-variables.html",
+      "bytes": 289434
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 7.1.8 Server System Variables"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html",
+      "bytes": 1020745
+    },
+    {
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/sql-prepared-statements.html",
+      "status": 200,
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/sql-prepared-statements.html",
+      "bytes": 130875
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/type-conversion.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/type-conversion.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 14.3 Type Conversion in Expression Evaluation"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/type-conversion.html",
+      "bytes": 96633
     },
     {
       "url": "https://dev.mysql.com/doc/refman/8.0/en/using-encrypted-connections.html",
       "status": 200,
-      "final": "https://dev.mysql.com/doc/refman/8.0/en/using-encrypted-connections.html",
-      "title": "MySQL :: MySQL 8.0 Reference Manual :: 8.3.1 Configuring MySQL to Use Encrypted Connections"
+      "final_url": "https://dev.mysql.com/doc/refman/8.0/en/using-encrypted-connections.html",
+      "bytes": 137726
+    },
+    {
+      "url": "https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html",
+      "status": 200,
+      "final_url": "https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html",
+      "bytes": 151276
     }
   ]
 }

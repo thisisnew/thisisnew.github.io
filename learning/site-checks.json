@@ -449,6 +449,7 @@
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.iadd",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.iload",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.new",
+    "https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html",
     "https://docs.spring.io/spring-kafka/reference/kafka/annotation-error-handling.html",
     "https://docs.spring.io/spring-kafka/reference/kafka/receiving-messages/message-listener-container.html",
     "https://github.com/openjdk/jdk21u/blob/master/src/hotspot/share/gc/g1/g1CollectedHeap.hpp",

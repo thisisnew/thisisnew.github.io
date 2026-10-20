@@ -13,7 +13,7 @@ const server=http.createServer((req,res)=>{let rel=decodeURIComponent(new URL(re
   await page.goto(`http://127.0.0.1:8766/posts/mysql-study-${String(n).padStart(2,'0')}.html`);
   const title=await page.title();
   await page.getByRole('button',{name:'답변 모두 펼치기',exact:true}).click();
-  const allOpen=await page.locator('details').evaluateAll(ds=>ds.length===10&&ds.every(d=>d.open));
+  const allOpen=await page.locator('details').evaluateAll(ds=>ds.length===12&&ds.every(d=>d.open));
   await page.getByRole('button',{name:'답변 모두 접기',exact:true}).click();
   const allClosed=await page.locator('details').evaluateAll(ds=>ds.every(d=>!d.open));
   await page.locator('details summary').first().click();

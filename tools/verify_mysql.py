@@ -35,7 +35,7 @@ def static():
  for p,x in pages.items():
   if len(x.ids)!=len(set(x.ids)):errors.append(f'{p.name}: duplicate ids')
   if p.name.startswith('mysql-study'):
-   if x.details!=10 or x.summary!=10:errors.append(f'{p.name}: Q&A count')
+   if x.details!=12 or x.summary!=12:errors.append(f'{p.name}: Q&A count')
    if len(''.join(x.text))<8500:errors.append(f'{p.name}: incomplete text')
    if not any('/assets/pixel-quest.css'==u for u in x.links):errors.append(f'{p.name}: skin')
   for link in x.links:
@@ -51,7 +51,7 @@ def static():
  report={'static':'passed' if not errors else 'failed','errors':errors,'pages':rows}
  (ROOT/'learning/mysql-static-checks.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
  assert not errors,errors
- print('Static: 12 lessons + learning map; links, anchors, 120 answers passed',flush=True)
+ print('Static: 12 lessons + learning map; links, anchors, 144 answers passed',flush=True)
 
 def database():
  import pymysql
@@ -89,6 +89,19 @@ def database():
  for n,indices in selections.items():
   for i in indices:runblock(blocks(n)[i])
   results.append(f'article-{n:02}-sql-blocks')
+ # Execute new published worked examples without changing earlier block positions.
+ for n in (5,8,9):runblock(blocks(n)[-1])
+ assert sql('SELECT * FROM version_case')==((1,9,1),)
+ with c.cursor() as q:
+  q.execute('UPDATE version_case SET qty=qty-1,version=version+1 WHERE id=1 AND version=0 AND qty>=1')
+  assert q.rowcount==0
+  q.execute('UPDATE version_case SET qty=qty-1,version=version+1 WHERE id=1 AND version=1 AND qty>=1')
+  assert q.rowcount==1
+ assert sql("SELECT id FROM cursor_case WHERE expected_date>'2026-01-01' ORDER BY expected_date,id")==((3,),)
+ assert sql("SELECT id FROM cursor_case WHERE expected_date>'2026-01-01' OR (expected_date='2026-01-01' AND id>1) ORDER BY expected_date,id")==((2,),(3,))
+ assert sql('SELECT w.id FROM semantic_wh w JOIN semantic_order o ON o.warehouse_id=w.id ORDER BY w.id')==((1,),(1,))
+ assert sql('SELECT w.id FROM semantic_wh w WHERE EXISTS (SELECT 1 FROM semantic_order o WHERE o.warehouse_id=w.id) ORDER BY w.id')==((1,),)
+ results.extend(['optimistic-version-rejects-stale-write','cursor-tie-breaker-prevents-skipped-row','join-versus-exists-duplicate-semantics'])
  assert sql('SELECT qty FROM stock WHERE sku=101')==((10,),)
  assert sql('SELECT SUM(LENGTH(payload)) FROM buffer_demo')==((180000,),)
  assert sql('SELECT qty FROM durability_demo')==((8,),)
