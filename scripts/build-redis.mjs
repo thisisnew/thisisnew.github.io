@@ -1,0 +1,38 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import {fileURLToPath} from 'node:url';
+import {marked} from 'marked';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const dir=path.join(root,'content/redis'), evidence=path.join(root,'learning/redis');
+fs.mkdirSync(evidence,{recursive:true});
+const lessons=fs.readdirSync(dir).filter(x=>/^\d\d-.*\.md$/.test(x)).sort().map(file=>{const raw=fs.readFileSync(path.join(dir,file),'utf8');const [meta,...body]=raw.split('\n\n');return {...JSON.parse(meta),body:body.join('\n\n'),raw,file}});
+if(lessons.length!==31||lessons.some((x,i)=>x.n!==i))throw Error('Expected all 31 sequential Redis sources, 00 through 30');
+const esc=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+const url=l=>`/posts/redis-study-${String(l.n).padStart(2,'0')}.html`;
+const map='| 편 | 학습 글 |\n|---|---|\n'+lessons.map(l=>`| ${String(l.n).padStart(2,'0')} | [${l.title}](${url(l)}) |`).join('\n');
+const audit=[];
+for(const l of lessons){
+ let html=marked.parse(l.body.replaceAll('<!-- REDIS-INDEX -->',map),{gfm:true});
+ html=html.replace(/<details(?:\s+class="[^"]*")?>/g,'<details class="question">').replace(/(<summary>[\s\S]*?<\/summary>)([\s\S]*?)(<\/details>)/g,'$1<div class="answer">$2</div>$3');
+ const toc=[];let k=0;html=html.replace(/<h2>(.*?)<\/h2>/g,(_,t)=>{const id='section-'+(++k);toc.push(`<li><a href="#${id}">${t}</a></li>`);return `<h2 id="${id}">${t}</h2>`});
+ const prev=lessons[l.n-1],next=lessons[l.n+1];
+ const page=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="${esc(l.desc)}"><title>Redis ${String(l.n).padStart(2,'0')} · ${esc(l.title)} | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io${url(l)}"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/redis-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="redis"><main><a href="/">← 전체 글</a> · <a href="/posts/redis-study-00.html">Redis 학습 지도</a><header><p class="meta">REDIS QUEST · ${String(l.n).padStart(2,'0')} / 30 · ${l.n===0?'LEARNING MAP':'DEEP STUDY'}</p><h1>${esc(l.title)}</h1><p class="subtitle">${esc(l.desc)}</p><p class="note">첨부 Redis 학습 자료의 주제를 쉬운 설명과 공식 문서 근거로 재구성했습니다. 명령·설정의 버전 조건은 본문을 확인하세요. 장애 시나리오와 수치는 별도 표시가 없으면 학습용 가정이며, 코드가 실려 있다는 사실만으로 실행 검증을 의미하지 않습니다. <a href="/learning/redis/verification.html">검증 범위와 남은 한계</a></p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol>${toc.join('')}</ol></aside><article>${html}</article><nav aria-label="연재 이동">${prev?`<a href="${url(prev)}">← ${esc(prev.title)}</a>`:'<a href="/?category=redis#archive">Redis 전체 목록</a>'}${next?`<a href="${url(next)}">${esc(next.title)} →</a>`:'<a href="/posts/redis-study-00.html">학습 지도 ↗</a>'}</nav><footer>Redis 학습 연재 · <a href="/learning/redis/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>`;
+ fs.writeFileSync(path.join(root,url(l)),page);
+ audit.push({n:l.n,title:l.title,source:l.file,sourceSha256:crypto.createHash('sha256').update(l.raw).digest('hex'),characters:l.body.length,sections:k,questions:(html.match(/<details/g)||[]).length,officialLinks:[...new Set([...l.body.matchAll(/\]\((https:\/\/[^)]+)\)/g)].map(x=>x[1]))]});
+}
+let home=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const cards=lessons.map(l=>`<a class="post" data-category="redis" data-order="${l.n}" href="posts/redis-study-${String(l.n).padStart(2,'0')}.html"><div class="number">${String(l.n).padStart(2,'0')}</div><div><div class="tags">REDIS QUEST · ${l.n===0?'LEARNING MAP':'DEEP STUDY'}</div><h3>${esc(l.title)}</h3><p>${esc(l.desc)}</p><div class="date">${l.n===0?'학습 안내':`연재 ${l.n}/30`} · 원리·예제·면접 문답</div></div><div class="arrow">↗</div></a>`).join('\n');
+const block=`<!-- REDIS-SERIES-START -->\n${cards}\n<!-- REDIS-SERIES-END -->`;
+if(home.includes('<!-- REDIS-SERIES-START -->'))home=home.replace(/<!-- REDIS-SERIES-START -->[\s\S]*?<!-- REDIS-SERIES-END -->/,block);else home=home.replace('<div id="articles">','<div id="articles">\n'+block);
+if(!home.includes('data-category-link="redis"'))home=home.replace('<a href="#about">','<a href="#archive" data-category-link="redis">▤ Redis</a><a href="#about">');
+if(!home.includes('data-filter="redis"'))home=home.replace(/(<button class="chip" data-filter="aws"[\s\S]*?<\/button>)/,'$1<button class="chip" data-filter="redis" aria-pressed="false">Redis <span class="category-count">31</span></button>');
+if(!home.includes("redis:'Redis'"))home=home.replace("aws:'AWS / SAA'","aws:'AWS / SAA',redis:'Redis'");
+if(!home.includes('redis:4'))home=home.replace('aws:3','aws:3,redis:4');
+home=home.replaceAll('JVM / Java → AWS / SAA ·','JVM / Java → AWS / SAA → Redis ·');
+const count=(home.match(/class="post"/g)||[]).length;
+home=home.replace(/(<small id="count">)\d+/,`$1${count}`).replace(/(전체 <span class="category-count">)\d+/,`$1${count}`);
+fs.writeFileSync(path.join(root,'index.html'),home);
+fs.writeFileSync(path.join(evidence,'lesson-audit.json'),JSON.stringify(audit,null,2)+'\n');
+if(!fs.existsSync(path.join(evidence,'verification.html')))fs.writeFileSync(path.join(evidence,'verification.html'),'<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Redis 검증 범위</title><link rel="stylesheet" href="/assets/pixel-quest.css"><body><main><h1>Redis 검증 범위</h1><p>페이지 생성 완료. 구조 검증은 아직 실행하지 않았습니다.</p><p>실제 Redis 서버·Java/Spring 실행·장애 전환·성능·브라우저 검증은 별도 실행 기록이 있어야 통과로 볼 수 있습니다.</p><a href="/posts/redis-study-00.html">학습 지도</a></main></body></html>');
+console.log(`Generated ${lessons.length} Redis pages; ${audit.reduce((a,x)=>a+x.questions,0)} Q&A; ${count} total archive entries.`);

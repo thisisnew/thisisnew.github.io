@@ -6,7 +6,9 @@
     "build:jvm": "node scripts/build-jvm.mjs",
     "check:jvm": "python3 scripts/check-jvm.py",
     "build:aws": "node scripts/build-aws.mjs",
-    "check:aws": "python3 scripts/check-aws.py"
+    "check:aws": "python3 scripts/check-aws.py",
+    "build:redis": "node scripts/build-redis.mjs",
+    "check:redis": "python3 scripts/check-redis.py"
   },
   "devDependencies": {
     "marked": "15.0.12"

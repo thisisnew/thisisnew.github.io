@@ -1,0 +1,204 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="슬롯 라우팅, 일회성 ASKING, 다중 키 연산의 경계와 Spring 클라이언트의 재시도 설계를 연결한다."><title>Redis 17 · MOVED와 ASK: 이사 중인 데이터에 정확히 도착하기 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/redis-study-17.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/redis-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="redis"><main><a href="/">← 전체 글</a> · <a href="/posts/redis-study-00.html">Redis 학습 지도</a><header><p class="meta">REDIS QUEST · 17 / 30 · DEEP STUDY</p><h1>MOVED와 ASK: 이사 중인 데이터에 정확히 도착하기</h1><p class="subtitle">슬롯 라우팅, 일회성 ASKING, 다중 키 연산의 경계와 Spring 클라이언트의 재시도 설계를 연결한다.</p><p class="note">첨부 Redis 학습 자료의 주제를 쉬운 설명과 공식 문서 근거로 재구성했습니다. 명령·설정의 버전 조건은 본문을 확인하세요. 장애 시나리오와 수치는 별도 표시가 없으면 학습용 가정이며, 코드가 실려 있다는 사실만으로 실행 검증을 의미하지 않습니다. <a href="/learning/redis/verification.html">검증 범위와 남은 한계</a></p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">먼저 떠올릴 장면</a></li><li><a href="#section-2">1. 우편번호와 주소록: 비유의 정확한 범위</a></li><li><a href="#section-3">2. 정상 상태에서 한 번의 GET이 지나가는 길</a></li><li><a href="#section-4">3. MOVED는 슬롯 주소록을 고치라는 힌트다</a></li><li><a href="#section-5">4. 슬롯은 한 번에 이동하는 상자가 아니다</a></li><li><a href="#section-6">5. ASKING은 다음 요청 한 번을 위한 입장권이다</a></li><li><a href="#section-7">6. 다중 키 연산: 같은 슬롯과 같은 실행 장소</a></li><li><a href="#section-8">7. Java/Spring 설계: 키 빌더와 업무 경계를 먼저 고정한다</a></li><li><a href="#section-9">8. 재시도는 두 층으로 나누어야 한다</a></li><li><a href="#section-10">9. 격리 실습: 라우팅부터 관찰한다</a></li><li><a href="#section-11">10. 장애 타임라인 읽기</a></li><li><a href="#section-12">11. 복제본 읽기는 라우팅 최적화이면서 의미의 선택이다</a></li><li><a href="#section-13">면접과 설계 리뷰 Q&amp;A</a></li><li><a href="#section-14">정리와 원문 연결</a></li></ol></aside><article><h2 id="section-1">먼저 떠올릴 장면</h2>
+<p>온라인 서점의 장바구니 Redis를 세 대에서 네 대로 늘렸다. 애플리케이션은 멈추지 않았는데 로그에 <code>MOVED</code>, <code>ASK</code>, <code>TRYAGAIN</code>이 보인다. 이 셋을 모두 장애로 보고 동일한 요청을 무한 재시도하면 정상적인 리샤딩을 장애로 키울 수 있다. 반대로 무시하면 고객 장바구니가 비어 보인다. 이 장의 목표는 에러 문자열 암기가 아니라 <strong>누가 어떤 데이터를 가지고 있으며, 어떤 요청을 어디에 다시 보내야 하는지</strong>를 시간 순서로 설명하는 것이다.</p>
+<p>전제는 Redis Open Source Cluster의 전통적인 슬롯 이동 프로토콜이다. 관리형 서비스는 프록시로 일부 과정을 가리거나 운영 API를 제한할 수 있다. 클라이언트 라이브러리의 자동 라우팅 정책도 버전별로 다르다. 원문 17장의 설명을 기반으로 하되, 최신 문서에서 <code>CLUSTER SHARDS</code>와 <code>ASKING</code>의 의미를 교차 확인했다. 새로운 기능이 기존 프로토콜을 모두 대체한다고 가정하지 않는다.</p>
+<h2 id="section-2">1. 우편번호와 주소록: 비유의 정확한 범위</h2>
+<p>키는 편지이고, 슬롯은 우편번호 구역이며, primary는 담당 우체국이다. 클라이언트는 우편번호별 우체국 주소록을 가지고 있다. 주소록이 조금 오래되어도 옛 우체국이 새 주소를 알려주므로 대부분의 요청은 결국 도착한다. 이것이 리다이렉션이다. Redis 노드는 요청을 대신 전달하는 프록시가 아니라 <strong>클라이언트에게 다시 보낼 위치를 응답한다</strong>. 따라서 추가 네트워크 왕복과 클라이언트 로직이 필요하다.</p>
+<p>비유에는 한계가 있다. 우편물은 한 번 배달되면 끝나지만 Redis 쓰기는 상태를 변경한다. 네트워크가 끊긴 뒤 같은 증가 명령을 다시 보내면 두 번 실행될 수 있다. 또한 우편번호가 같다고 두 편지의 처리가 하나의 원자적 작업이 되지는 않는다. 같은 슬롯은 다중 키 연산을 실행할 <strong>배치 조건</strong>이지 업무 트랜잭션, 내구성 또는 롤백의 보장이 아니다.</p>
+<p>키의 슬롯은 일반적으로 <code>CRC16(key) mod 16384</code>로 결정된다. 유효한 hash tag가 있으면 중괄호 안의 부분을 해시한다. <code>cart:{user:42}:items</code>와 <code>cart:{user:42}:version</code>은 같은 태그를 사용하므로 같은 슬롯에 놓인다. 애플리케이션의 문자열이 아니라 실제 전송 바이트가 기준이므로 직렬화 방식도 키 설계의 일부다.</p>
+<h2 id="section-3">2. 정상 상태에서 한 번의 GET이 지나가는 길</h2>
+<ol>
+<li>Spring 서비스가 <code>cart:{user:42}:items</code> 조회를 호출한다.</li>
+<li>클러스터 클라이언트가 키의 슬롯을 계산한다.</li>
+<li>메모리의 슬롯 맵에서 담당 primary의 endpoint를 찾는다.</li>
+<li>기존 연결을 재사용하거나 해당 노드에 연결한다.</li>
+<li>요청을 받은 노드는 자신의 슬롯 맵과 역할을 확인한다.</li>
+<li>자신이 처리할 수 있으면 명령을 실행하여 결과를 응답한다.</li>
+</ol>
+<p>클러스터의 노드 ID와 클라이언트가 접속하는 endpoint는 다르다. 노드 ID는 클러스터 구성의 정체성이고 endpoint는 네트워크 위치다. 주소가 바뀌어도 정체성이 유지될 수 있으며, 같은 주소에 전혀 다른 노드가 생길 수도 있다. 애플리케이션이 접속 가능한 주소를 노드가 광고해야 한다. Docker 내부 IP를 외부 애플리케이션에 광고하면 최초 seed 연결은 성공해도 실제 키 요청이 실패할 수 있다.</p>
+<p>Seed는 클러스터 전체를 대표하는 영구 프록시가 아니다. 최초 토폴로지를 발견하기 위한 출발점이다. 따라서 seed 하나에 접속된다는 확인만으로 운영 준비가 끝나지 않는다. 클라이언트가 발견한 모든 필요한 노드 주소에 접근할 수 있는지, TLS 이름과 인증 조건도 맞는지 확인해야 한다.</p>
+<h2 id="section-4">3. MOVED는 슬롯 주소록을 고치라는 힌트다</h2>
+<p>다음 응답은 구조를 설명하는 가상 예시이며 슬롯 번호를 해당 키에 대해 실측한 결과가 아니다.</p>
+<pre><code class="language-text">GET example-key
+-MOVED 3999 redis-b.example.internal:6379
+</code></pre>
+<p>서버는 “내가 아는 현재 구성에서는 3999번 슬롯을 저 노드가 담당한다”고 말한다. 클라이언트는 그 노드로 명령을 다시 보내고 슬롯 맵을 갱신할 수 있다. 한 슬롯만 수정할 수도 있지만 failover는 한 primary가 맡은 많은 슬롯을 한꺼번에 바꾸므로 전체 토폴로지를 다시 읽는 정책이 유용하다. 무조건 모든 MOVED마다 전체 조회를 동시에 발사하면 갱신 폭풍이 생길 수 있으므로 실제 클라이언트는 갱신 빈도와 동시 실행을 제한할 수 있다.</p>
+<p>여기서 “영구 이동”은 앞으로 다시는 안 바뀐다는 뜻이 아니다. <strong>이번 한 번만 우회하라는 ASK와 달리, 현재 소유권 정보로 기억해도 되는 이동</strong>이라는 뜻이다. 요청을 다시 보내기 전에 또 다른 failover가 일어나면 새 목적지에서 다시 MOVED를 받을 수 있다. 그러므로 redirect 횟수와 전체 deadline을 제한해야 한다.</p>
+<p>현행 명세는 토폴로지 조회에 <code>CLUSTER SHARDS</code>를 제시하고, <code>CLUSTER SLOTS</code>는 deprecated로 표시한다. 기존 클라이언트의 SLOTS 사용이 곧 오동작을 뜻하지는 않는다. 지원 서버 버전, 라이브러리 버전과 호환 경로를 확인하고 전환한다. <a href="https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/">공식 Cluster 명세</a></p>
+<h2 id="section-5">4. 슬롯은 한 번에 이동하는 상자가 아니다</h2>
+<p>슬롯은 독립적인 물리 파일이 아니라 해시 조건으로 묶이는 키들의 집합이다. 키가 많으면 전부 한 순간에 새 노드로 옮기기 어렵다. 전통적인 온라인 리샤딩은 출발지 A를 <code>MIGRATING</code>, 도착지 B를 <code>IMPORTING</code> 상태로 두고 키를 나누어 이동한다. 그 동안 공식 소유자는 아직 A다.</p>
+<p>다음 표를 머릿속에 그려 보자. 가정상 같은 슬롯에 k1, k2, k3가 있고 k1만 먼저 이동했다.</p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>A</th>
+<th>B</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>슬롯 상태</td>
+<td>MIGRATING B</td>
+<td>IMPORTING A</td>
+</tr>
+<tr>
+<td>실제 키</td>
+<td>k2, k3</td>
+<td>k1</td>
+</tr>
+<tr>
+<td>일반 라우팅 기준의 소유권</td>
+<td>A</td>
+<td>아직 A</td>
+</tr>
+</tbody></table>
+<p>A에 k2를 물으면 A가 즉시 답한다. A에 k1을 물으면 A에는 없으므로 B로 ASK를 돌려준다. 아직 존재하지 않는 k4를 새로 만들려는 경우도 A에 계속 새 키가 생기지 않도록 B로 유도한다. 이것이 이동의 진전을 가능하게 한다. 출발지에서 이동하면서 신규 키가 끝없이 생성된다면 작업을 끝내기 어려울 것이다.</p>
+<p><code>MIGRATE</code>는 직렬화한 키를 목적지에 복원하고 성공을 확인한 뒤 출발지에서 제거하는 방식으로 동작한다. 정상 완료 경로의 의미와 통신 오류 때의 불확실성은 구분해야 한다. 시간 초과나 연결 손실이 생겼다고 데이터가 반드시 어느 한쪽에만 있다고 단정하지 말고 운영 도구의 복구 절차로 확인한다. 큰 키는 이동 중 두 노드의 지연을 키울 수 있다. “온라인 이동”은 “지연 영향이 0”이라는 약속이 아니다.</p>
+<h2 id="section-6">5. ASKING은 다음 요청 한 번을 위한 입장권이다</h2>
+<p>ASK를 받은 클라이언트의 정확한 동작은 다음과 같다.</p>
+<pre><code class="language-text">클라이언트 → A: GET k1
+A → 클라이언트: ASK &lt;slot&gt; B:6379
+클라이언트 → B, 연결 X: ASKING
+B → 클라이언트: OK
+클라이언트 → B, 같은 연결 X: GET k1
+B → 클라이언트: 값
+</code></pre>
+<p>B는 IMPORTING 중이므로 보통의 요청은 공식 소유자 A로 MOVED시킨다. <code>ASKING</code>은 ASK를 따라온 클라이언트임을 알려 다음 명령의 처리를 허용한다. 중요한 것은 <strong>같은 연결</strong>, <strong>다음 명령</strong>, <strong>슬롯 맵을 B로 영구 변경하지 않음</strong>이다. ASKING만 연결 X로 보내고 GET을 풀에서 꺼낸 연결 Y로 보내면 의미가 없다. 명령 사이에 다른 요청이 끼어들어도 안 된다. 고수준 라이브러리를 우회하여 이를 직접 구현하는 일은 권장하지 않는다. <a href="https://redis.io/docs/latest/commands/asking/">ASKING 명령</a></p>
+<p>다음 요청 k2는 여전히 A로 보내야 한다. ASK를 MOVED처럼 처리하여 전체 슬롯의 목적지를 B로 바꾸면 아직 A에 남은 키를 잘못 찾는다. 정상적인 B는 ASKING 없는 요청을 A로 돌려보낼 수 있어 최종적으로 동작할 수 있지만 불필요한 왕복, redirect 제한 초과, 관측 혼란이 생긴다. 프로토콜이 오류를 어느 정도 교정한다고 해서 클라이언트 구현이 올바른 것은 아니다.</p>
+<p>모든 키가 이동한 뒤 운영 도구는 슬롯 소유권을 B로 확정한다. 이제 A는 해당 슬롯에 MOVED를 돌려주고 클라이언트는 주소록을 B로 갱신한다. “키 이동”과 “소유권 확정”은 서로 연관되지만 동일한 사건이 아니다.</p>
+<h2 id="section-7">6. 다중 키 연산: 같은 슬롯과 같은 실행 장소</h2>
+<p><code>MGET a b</code>, <code>MSET a 1 b 2</code>, 여러 키에 접근하는 Lua 스크립트 등은 Cluster의 키 배치 제약을 고려해야 한다. 같은 물리 노드에 우연히 놓였더라도 슬롯이 다르면 기본적인 다중 키 명령은 <code>CROSSSLOT</code>으로 거부될 수 있다. 노드 단위가 아니라 슬롯 단위로 검증하는 이유는 이후 리샤딩에서도 일관된 경계를 유지하기 위해서다.</p>
+<p>같은 태그로 같은 슬롯에 묶으면 정상 상태에서는 하나의 노드가 처리할 수 있다. 그러나 이동 중에는 그 슬롯의 키가 A와 B로 갈라질 수 있다. 모든 관련 키가 같은 쪽에 존재하면 실행할 수 있지만, 필요한 키들이 양쪽에 나뉘거나 존재하지 않는 키 때문에 안전하게 실행 위치를 결정하기 어려운 경우 <code>TRYAGAIN</code>이 발생할 수 있다. 이것은 서로 다른 슬롯을 사용한 설계 오류인 CROSSSLOT과 다르다. 전자는 잠시 뒤 해결될 가능성이 있는 이동 상태이고, 후자는 키 설계나 명령 구성을 바꾸어야 한다.</p>
+<table>
+<thead>
+<tr>
+<th>결과</th>
+<th>먼저 물을 질문</th>
+<th>적절한 방향</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>MOVED</td>
+<td>현재 슬롯 담당자가 바뀌었는가?</td>
+<td>라이브러리 라우팅·토폴로지 갱신</td>
+</tr>
+<tr>
+<td>ASK</td>
+<td>이동 중인 키 한 번을 우회해야 하는가?</td>
+<td>같은 연결 ASKING 후 대상 명령</td>
+</tr>
+<tr>
+<td>TRYAGAIN</td>
+<td>같은 슬롯의 키가 이동 중 분리되었는가?</td>
+<td>한정된 지연 재시도·업무 deadline</td>
+</tr>
+<tr>
+<td>CROSSSLOT</td>
+<td>키들이 실제로 같은 슬롯인가?</td>
+<td>hash tag·업무 경계 재설계</td>
+</tr>
+<tr>
+<td>timeout</td>
+<td>실행 결과를 모르는가?</td>
+<td>멱등성·결과 조회·중복 방지</td>
+</tr>
+</tbody></table>
+<p>하나의 Lua 실행은 다른 명령의 끼어들기를 막는 의미에서 원자적이지만, 코드가 앞에서 쓰기를 하고 뒤에서 런타임 오류를 일으켰다고 앞선 쓰기를 자동 롤백하지 않는다. <code>MULTI/EXEC</code>도 관계형 데이터베이스의 임의 오류 롤백과 같지 않다. 같은 슬롯에 둔다고 이 차이가 사라지지 않는다.</p>
+<h2 id="section-8">7. Java/Spring 설계: 키 빌더와 업무 경계를 먼저 고정한다</h2>
+<p>다음은 <code>StringRedisTemplate</code>을 사용하는 핵심 예시다. 연결 팩토리는 이미 Cluster-aware로 구성되었다고 가정하며 생성 코드는 생략한다. 사용자 ID를 정수로 받으므로 임의의 중괄호 삽입으로 태그가 바뀌는 것도 피한다.</p>
+<pre><code class="language-java">final class CartKeys {
+    static String items(long userId) {
+        return &quot;cart:{user:&quot; + userId + &quot;}:items&quot;;
+    }
+    static String version(long userId) {
+        return &quot;cart:{user:&quot; + userId + &quot;}:version&quot;;
+    }
+}
+
+final class CartReader {
+    private final StringRedisTemplate redis;
+    CartReader(StringRedisTemplate redis) { this.redis = redis; }
+
+    List&lt;String&gt; read(long userId) {
+        return redis.opsForValue().multiGet(List.of(
+            CartKeys.items(userId), CartKeys.version(userId)));
+    }
+}
+</code></pre>
+<p>이 예시에서 <code>items</code> 값은 문자열로 저장된 작은 장바구니 요약이라고 가정한다. 실제 Hash/List 타입으로 저장했다면 <code>opsForValue()</code>가 아니라 타입에 맞는 API를 선택해야 한다. 예시 이름을 보고 자료형을 혼용하지 않는다. 없는 키의 반환값도 처리하고, 두 값의 조합이 업무적으로 어떤 버전을 의미하는지 정의해야 한다.</p>
+<p>회원별 태그는 회원 단위 연산을 쉽게 한다. 반면 모든 장바구니를 <code>{cart}</code>라는 하나의 태그에 넣으면 전부 한 슬롯에 몰린다. Cluster를 늘려도 그 핫 슬롯은 여러 primary로 나뉘지 않는다. 태그는 “오류를 없애는 장식”이 아니라 샤딩의 최소 업무 단위다. 아주 큰 판매자·테넌트를 태그로 삼으면 그 한 고객이 병목을 독점할 수 있다.</p>
+<p>고객 A의 장바구니와 고객 B의 장바구니를 반드시 함께 갱신해야 하는 요구가 생기면 단순히 모든 고객을 같은 태그로 바꾸지 않는다. 업무 원장을 관계형 DB에서 트랜잭션으로 처리하고 Redis를 파생 캐시로 둘지, 보상 작업과 상태 전이를 설계할지 판단한다. Redis 키 배치는 비즈니스 원자성 요구를 없애 주지 않는다.</p>
+<h2 id="section-9">8. 재시도는 두 층으로 나누어야 한다</h2>
+<p>드라이버의 redirect 처리는 Redis 프로토콜의 라우팅 문제를 해결한다. 서비스의 재시도는 주문 생성, 재고 차감처럼 업무 결과를 다룬다. 두 층이 각각 세 번 재시도하면 최악의 경우 시도 수가 곱해질 수 있다. 애플리케이션의 전체 deadline, 드라이버 timeout, 연결 재수립 시간, redirect 횟수, 서비스 재시도 횟수를 함께 검토한다.</p>
+<p>가정상 HTTP 예산이 500ms이고 다른 업무에 250ms가 필요하다면 Redis에 쓸 수 있는 예산은 최대 250ms다. Redis 호출마다 200ms timeout으로 세 번 시도하는 정책은 이미 상위 예산을 넘는다. 이 수치는 권장 기본값이 아니라 예산 계산의 예다. 동일한 시간 예산 안에서 재시도할지, 캐시 미스로 간주하고 원본 DB를 읽을지, 일부 기능을 제한할지를 정한다.</p>
+<p><code>INCR</code> timeout을 받았다고 곧바로 재시도하면 증가가 두 번 발생할 수 있다. SET도 고정값 덮어쓰기처럼 보이지만 TTL 갱신, 조건부 쓰기, 버전 조건에 따라 멱등성이 달라진다. 주문 번호 같은 고유 작업 ID와 결과 기록을 같은 업무 원장에 두어 중복 여부를 판별하는 편이 안전하다. Redis 자체를 중복 방지 원장으로 쓴다면 복제·영속성·만료에 따른 보장 범위까지 검토해야 한다.</p>
+<h2 id="section-10">9. 격리 실습: 라우팅부터 관찰한다</h2>
+<p>다음은 <strong>실행하지 않은 실습 절차와 예상 결과</strong>다. 운영 클러스터에는 실행하지 않는다. 로컬 전용 네트워크에 3 primary와 3 replica로 만든 폐기 가능한 실습 클러스터를 사용하고, 포트 7000–7005와 bus 통신은 외부에 노출하지 않는다. 기존 데이터와 공유하지 않으며 인증이 있으면 환경에 맞는 안전한 자격 증명 전달 방법을 사용한다.</p>
+<pre><code class="language-bash"># 조회 명령: -c 없이 원시 리다이렉션을 보기
+redis-cli -h 127.0.0.1 -p 7000 CLUSTER KEYSLOT &#39;cart:{user:42}:items&#39;
+redis-cli -h 127.0.0.1 -p 7000 CLUSTER KEYSLOT &#39;cart:{user:42}:version&#39;
+redis-cli -h 127.0.0.1 -p 7000 CLUSTER SHARDS
+
+# 실습용 작은 키만 쓴다. -c는 리다이렉션을 따라간다.
+redis-cli -c -p 7000 SET &#39;cart:{user:42}:items&#39; &#39;sku-1:2&#39;
+redis-cli -c -p 7000 SET &#39;cart:{user:42}:version&#39; &#39;1&#39;
+redis-cli -c -p 7000 MGET &#39;cart:{user:42}:items&#39; &#39;cart:{user:42}:version&#39;
+</code></pre>
+<p>예상 결과는 두 KEYSLOT 값이 같고, MGET이 두 값을 순서대로 돌려주는 것이다. 구체적인 슬롯 번호나 endpoint는 실습 구성에서 확인한다. 특정 포트가 항상 그 슬롯의 primary라고 가정하지 않는다. 다른 태그 두 개를 테스트하려면 우선 KEYSLOT이 실제로 다른지 확인한다. 해시 충돌 가능성이 있으므로 태그 문자열이 다르다는 사실만으로 다른 슬롯임을 증명할 수는 없다.</p>
+<p>ASK를 보려면 운영 도구로 해당 슬롯을 이동하는 통제된 실험이 필요하다. 먼저 작은 키 두 개로만 상태를 설명하고, 실제 변경은 도구의 현재 버전 도움말과 실습 전용 노드 ID를 확인한 뒤 한다. A에는 MIGRATING, B에는 IMPORTING이 설정된 동안 아직 A에 남은 키와 B로 이동한 키의 GET 경로를 각각 기록한다. 같은 Redis CLI 세션에서 B에 ASKING을 보낸 뒤 GET을 해야 하며, 별도의 CLI 프로세스를 두 번 실행하는 방식은 같은 연결 실험이 아니다. 완료 후 모든 노드가 동일한 슬롯 소유자를 보는지 확인한다.</p>
+<p>실습 종료 조건은 단순히 값 조회 성공이 아니다. 이동 중 상태가 남아 있지 않고, 실습 슬롯의 키 수가 의도한 노드에 모였으며, 슬롯 맵이 수렴하고, 클라이언트의 redirect 비율이 평상시로 돌아와야 한다. 데이터 삭제는 이 실험에서 만든 명확한 키만 대상으로 하거나 폐기 전용 환경 자체를 제거한다.</p>
+<h2 id="section-11">10. 장애 타임라인 읽기</h2>
+<p>가정상의 리샤딩 사건을 보자. 10:00:00에는 A가 정상 소유자다. 10:00:01에 A와 B가 이동 상태로 바뀐다. 10:00:02에 일부 키가 B로 옮겨져 ASK가 증가한다. 10:00:03에는 같은 슬롯 다중 키 작업 중 일부가 TRYAGAIN을 받는다. 10:00:05에 소유권이 B로 확정되고 MOVED가 잠깐 증가한다. 10:00:06 이후 클라이언트 맵이 갱신되며 직접 B로 간다. 시간은 교육용 가정이지 실제 리샤딩 완료 시간의 약속이 아니다.</p>
+<p>이 시계열에서는 ASK 증가 자체보다 <strong>작업 완료 후에도 ASK가 지속되는지</strong>, TRYAGAIN이 특정 업무 키에 몰리는지, 일부 애플리케이션 인스턴스만 새 주소에 접근하지 못하는지를 본다. MOVED가 끝없이 반복된다면 네트워크 접근 불가, 오래된 토폴로지, 잘못된 주소 광고, 클라이언트 버그, 미완료 이동을 구별한다. 서버 CPU만 보는 대시보드로는 이런 문제를 찾기 어렵다.</p>
+<h2 id="section-12">11. 복제본 읽기는 라우팅 최적화이면서 의미의 선택이다</h2>
+<p>Cluster replica에 일반 연결로 GET을 보내면 primary로 리다이렉션될 수 있다. 해당 연결에서 <code>READONLY</code>를 사용하면 자신이 지연된 데이터를 읽을 가능성을 받아들인다는 전제 아래 replica가 담당 shard의 읽기를 처리하도록 할 수 있다. <code>READWRITE</code>는 그 연결 상태를 되돌리는 명령이다. 이것은 사용자 ACL의 읽기 전용 권한과 다른 개념이다. READONLY를 보냈다고 쓰기 권한이 보안적으로 제거되는 정책을 대신하지 않는다.</p>
+<p>가정상 primary에서 상품 가격을 10,000원에서 9,000원으로 바꾼 직후 replica 읽기가 10,000원을 반환할 수 있다. 할인 안내 화면에서는 잠깐의 차이를 허용할 수도 있지만 결제 확정 가격은 별도 원장을 따라야 한다. “읽기 비중이 높으니 전부 replica로”라는 기계적 기준 대신 각 조회의 freshness 요구를 분류한다. 복제 지연을 읽기 허용 범위와 연결하고 지연이 커질 때 primary로 전환할지, 오류를 낼지, 오래된 결과를 표시할지 정한다.</p>
+<p>또한 replica의 소속 primary나 슬롯 배치가 바뀌면 READONLY 연결에도 MOVED가 생길 수 있다. 복제본 읽기는 클러스터 토폴로지 변경을 피하는 지름길이 아니다. 라이브러리의 read preference, 연결 상태와 토폴로지 갱신이 함께 맞아야 하며, 테스트에서는 쓰기 직후 읽기와 failover 후 읽기를 별도 시나리오로 검증한다.</p>
+<h2 id="section-13">면접과 설계 리뷰 Q&amp;A</h2>
+<details class="question"><summary>Q1. MOVED와 ASK를 한 문장으로 구별한다면?</summary><div class="answer">
+
+<p>MOVED는 현재 슬롯 소유권 정보를 고쳐 다음 요청에도 반영할 수 있다는 뜻이고, ASK는 이동 중인 이번 요청만 다른 노드에 보내라는 뜻이다. ASK에는 대상 연결에서 ASKING을 먼저 보내는 절차가 필요하다. “MOVED는 영구, ASK는 임시”라는 암기 뒤에 슬롯 맵 변경 여부와 연결 상태라는 두 차이를 반드시 설명해야 한다.</p>
+</div></details>
+
+<details class="question"><summary>Q2. ASKING을 RedisTemplate으로 따로 한 번 보내면 되는가?</summary><div class="answer">
+
+<p>일반적으로 그런 접근은 안전하지 않다. ASKING과 재전송 명령이 동일 연결에서 연속해서 실행되어야 하는데 고수준 API 두 번의 호출이 그 조건을 보장한다고 가정할 수 없다. 연결 공유나 동시 실행도 고려해야 한다. Cluster-aware 드라이버의 redirect 처리를 사용하고, 직접 프로토콜을 다룬다면 연결 소유권과 명령 순서까지 명시적으로 제어해야 한다.</p>
+</div></details>
+
+<details class="question"><summary>Q3. 같은 슬롯의 MGET도 실패할 수 있는 이유는?</summary><div class="answer">
+
+<p>정상 상태의 배치 조건과 이동 중의 물리 위치가 다르기 때문이다. 같은 슬롯의 여러 키가 출발지와 목적지에 나뉘면 단일 노드가 한 번에 전체 결과를 처리하기 어렵다. 이때 TRYAGAIN은 잠시 뒤 재시도를 요구할 수 있다. 여러 단일 GET으로 바꾸면 성공할 수 있지만 그 사이 갱신으로 서로 다른 시점의 결과를 읽는 의미 변화가 생긴다.</p>
+</div></details>
+
+<details class="question"><summary>Q4. CROSSSLOT을 해결하려고 모든 키에 같은 태그를 붙여도 되는가?</summary><div class="answer">
+
+<p>기능적으로 같은 슬롯 조건을 맞출 수 있지만 샤딩의 이점을 잃는다. 모든 트래픽과 데이터가 한 슬롯의 primary에 모여 수평 확장이 막힌다. 함께 원자적으로 다룰 최소 업무 집합을 태그로 삼고, 집합 간 거래는 별도 원장이나 명시적인 분산 업무 흐름으로 설계해야 한다. 오류를 없애는 것과 좋은 데이터 모델을 만드는 것은 다르다.</p>
+</div></details>
+
+<details class="question"><summary>Q5. 리다이렉션 응답을 받은 쓰기는 재전송해도 되는가?</summary><div class="answer">
+
+<p>명령을 실행하지 않고 라우팅 오류를 반환한 상황과, 실행 후 응답만 유실된 timeout을 구별해야 한다. 정상적인 MOVED/ASK 처리는 드라이버가 프로토콜에 따라 재전송한다. 그러나 업무 계층에서 모든 예외를 같은 것으로 간주하면 이미 실행된 INCR이나 주문 처리도 반복할 수 있다. 예외 종류, 드라이버 정책, 전체 deadline과 업무 멱등성을 함께 확인한다.</p>
+</div></details>
+
+<details class="question"><summary>Q6. READONLY는 복제본 읽기를 강한 일관성으로 바꾸는가?</summary><div class="answer">
+
+<p>아니다. Cluster 복제본 연결에서 해당 shard의 읽기를 허용하도록 하는 것이며 지연된 복제 데이터를 읽을 가능성을 받아들이는 선택이다. 방금 쓴 값을 즉시 읽어야 한다면 primary 경로를 쓰는 등 요구에 맞는 정책이 필요하다. 복제본이 다른 슬롯을 담당하게 되면 READONLY 연결이라도 리다이렉션이 생길 수 있다.</p>
+</div></details>
+
+<details class="question"><summary>Q7. 서버를 추가했는데 처리량이 늘지 않는 이유는?</summary><div class="answer">
+
+<p>노드를 추가하는 것만으로 기존 슬롯과 트래픽이 자동으로 균등 분배된다고 가정할 수 없다. 실제 슬롯 이동, 키 크기, 접근 빈도, hash tag 분포를 확인해야 한다. 슬롯 개수가 균등해도 한 슬롯에 매우 뜨거운 테넌트가 있으면 부하가 치우친다. 요청 수, 바이트, CPU 시간을 함께 보고 논리 업무 키 분할 여부를 검토한다.</p>
+</div></details>
+
+<details class="question"><summary>Q8. 운영에서 리샤딩 성공을 무엇으로 판단하는가?</summary><div class="answer">
+
+<p>관리 명령의 성공 코드만으로 판단하지 않는다. 서버 간 슬롯 소유권 일치, 이동 중 상태 해소, 필요한 키의 접근 가능성, 앱의 redirect·TRYAGAIN·timeout 감소, p99 회복을 확인한다. 일부 앱만 실패하면 서버 데이터보다 endpoint 접근성이나 클라이언트 토폴로지 갱신 문제일 수 있다. 작업 전후 증거를 남겨야 다음 변경의 안전한 기준도 생긴다.</p>
+</div></details>
+
+<h2 id="section-14">정리와 원문 연결</h2>
+<p>17장 원문은 Cluster 명세의 redirection·live reconfiguration·multi-key·replica read 범위다. 이 장에서는 이를 Spring 호출 경로와 업무 재시도 문제로 확장했다. 핵심은 **주소록 갱신(MOVED), 일회 우회(ASK), 일시 실행 불가(TRYAGAIN), 설계 오류(CROSSSLOT), 결과 불확실성(timeout)**을 다른 문제로 취급하는 것이다.</p>
+<ul>
+<li><a href="https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/">공식 Cluster 명세: 이동과 라우팅</a></li>
+<li><a href="https://redis.io/docs/latest/commands/asking/">ASKING 연결 상태</a></li>
+<li><a href="https://redis.io/docs/latest/commands/cluster-setslot/">CLUSTER SETSLOT의 상태 전이</a></li>
+</ul>
+</article><nav aria-label="연재 이동"><a href="/posts/redis-study-16.html">← Cluster 설계 목표와 슬롯 모델</a><a href="/posts/redis-study-18.html">Cluster 장애 감지와 승격 합의: 의심에서 새 primary까지 →</a></nav><footer>Redis 학습 연재 · <a href="/learning/redis/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

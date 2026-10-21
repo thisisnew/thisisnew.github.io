@@ -94,3 +94,6 @@ body[data-series] .series-home{display:table;margin-bottom:22px;padding:7px 12px
 .post[hidden]{display:none!important}
 
 [data-category="aws"],[data-filter="aws"],[data-category-link="aws"],body[data-series="aws"]{--series-ink:#3e6445;--series-tint:#e7f0df;--series-edge:#93b17c}
+
+/* Redis category: rose-red, preserving the shared pixel skin. */
+[data-category="redis"],[data-filter="redis"],[data-category-link="redis"],body[data-series="redis"]{--series-ink:#923c42;--series-tint:#f8e4e3;--series-edge:#cf9193}

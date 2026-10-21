@@ -1,0 +1,198 @@
+{
+  "checkedAt": "2026-10-21T23:28:14.725277+00:00",
+  "scope": "31 Redis pages: metadata, internal links, anchors, minimum content structure, Q&A and pixel skin; length thresholds are only omission guards, not quality scores",
+  "errors": [],
+  "lessons": [
+    {
+      "n": 0,
+      "sourceCharacters": 16308,
+      "questions": 10,
+      "sections": 14
+    },
+    {
+      "n": 1,
+      "sourceCharacters": 12115,
+      "questions": 8,
+      "sections": 13
+    },
+    {
+      "n": 2,
+      "sourceCharacters": 13441,
+      "questions": 8,
+      "sections": 13
+    },
+    {
+      "n": 3,
+      "sourceCharacters": 13527,
+      "questions": 8,
+      "sections": 14
+    },
+    {
+      "n": 4,
+      "sourceCharacters": 12483,
+      "questions": 8,
+      "sections": 14
+    },
+    {
+      "n": 5,
+      "sourceCharacters": 14820,
+      "questions": 9,
+      "sections": 15
+    },
+    {
+      "n": 6,
+      "sourceCharacters": 16004,
+      "questions": 9,
+      "sections": 16
+    },
+    {
+      "n": 7,
+      "sourceCharacters": 15057,
+      "questions": 9,
+      "sections": 17
+    },
+    {
+      "n": 8,
+      "sourceCharacters": 17237,
+      "questions": 9,
+      "sections": 16
+    },
+    {
+      "n": 9,
+      "sourceCharacters": 12034,
+      "questions": 8,
+      "sections": 9
+    },
+    {
+      "n": 10,
+      "sourceCharacters": 12647,
+      "questions": 8,
+      "sections": 9
+    },
+    {
+      "n": 11,
+      "sourceCharacters": 13102,
+      "questions": 8,
+      "sections": 9
+    },
+    {
+      "n": 12,
+      "sourceCharacters": 12897,
+      "questions": 8,
+      "sections": 10
+    },
+    {
+      "n": 13,
+      "sourceCharacters": 12041,
+      "questions": 8,
+      "sections": 10
+    },
+    {
+      "n": 14,
+      "sourceCharacters": 12286,
+      "questions": 8,
+      "sections": 9
+    },
+    {
+      "n": 15,
+      "sourceCharacters": 12710,
+      "questions": 8,
+      "sections": 11
+    },
+    {
+      "n": 16,
+      "sourceCharacters": 13214,
+      "questions": 8,
+      "sections": 11
+    },
+    {
+      "n": 17,
+      "sourceCharacters": 12732,
+      "questions": 8,
+      "sections": 14
+    },
+    {
+      "n": 18,
+      "sourceCharacters": 13415,
+      "questions": 8,
+      "sections": 15
+    },
+    {
+      "n": 19,
+      "sourceCharacters": 14315,
+      "questions": 8,
+      "sections": 17
+    },
+    {
+      "n": 20,
+      "sourceCharacters": 14224,
+      "questions": 8,
+      "sections": 16
+    },
+    {
+      "n": 21,
+      "sourceCharacters": 15627,
+      "questions": 8,
+      "sections": 19
+    },
+    {
+      "n": 22,
+      "sourceCharacters": 16689,
+      "questions": 9,
+      "sections": 17
+    },
+    {
+      "n": 23,
+      "sourceCharacters": 18686,
+      "questions": 10,
+      "sections": 21
+    },
+    {
+      "n": 24,
+      "sourceCharacters": 12294,
+      "questions": 8,
+      "sections": 11
+    },
+    {
+      "n": 25,
+      "sourceCharacters": 12160,
+      "questions": 8,
+      "sections": 10
+    },
+    {
+      "n": 26,
+      "sourceCharacters": 12344,
+      "questions": 8,
+      "sections": 9
+    },
+    {
+      "n": 27,
+      "sourceCharacters": 11978,
+      "questions": 8,
+      "sections": 11
+    },
+    {
+      "n": 28,
+      "sourceCharacters": 11890,
+      "questions": 8,
+      "sections": 11
+    },
+    {
+      "n": 29,
+      "sourceCharacters": 12070,
+      "questions": 8,
+      "sections": 13
+    },
+    {
+      "n": 30,
+      "sourceCharacters": 13470,
+      "questions": 8,
+      "sections": 13
+    }
+  ],
+  "questions": 257,
+  "sourceCharacters": 423817,
+  "runtimeValidation": "not assessed by this structural checker; consult separate runtime records",
+  "browserValidation": "not assessed by this structural checker; consult browser-checks.json if present",
+  "externalLinks": "presence only; not HTTP or semantic verification"
+}

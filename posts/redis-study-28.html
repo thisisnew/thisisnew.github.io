@@ -1,0 +1,248 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="SIGTERM, SHUTDOWN, 영속화 실패, 복제 지연을 연결해 종료와 재시작의 성공 조건을 설계한다."><title>Redis 28 · 종료 시그널과 안전한 재시작: 프로세스가 끝나는 것과 데이터가 안전한 것은 다르다 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/redis-study-28.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/redis-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="redis"><main><a href="/">← 전체 글</a> · <a href="/posts/redis-study-00.html">Redis 학습 지도</a><header><p class="meta">REDIS QUEST · 28 / 30 · DEEP STUDY</p><h1>종료 시그널과 안전한 재시작: 프로세스가 끝나는 것과 데이터가 안전한 것은 다르다</h1><p class="subtitle">SIGTERM, SHUTDOWN, 영속화 실패, 복제 지연을 연결해 종료와 재시작의 성공 조건을 설계한다.</p><p class="note">첨부 Redis 학습 자료의 주제를 쉬운 설명과 공식 문서 근거로 재구성했습니다. 명령·설정의 버전 조건은 본문을 확인하세요. 장애 시나리오와 수치는 별도 표시가 없으면 학습용 가정이며, 코드가 실려 있다는 사실만으로 실행 검증을 의미하지 않습니다. <a href="/learning/redis/verification.html">검증 범위와 남은 한계</a></p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. 불을 끄기 전에 계산대를 마감해야 한다</a></li><li><a href="#section-2">2. 시그널은 OS가 프로세스에 보내는 알림이다</a></li><li><a href="#section-3">3. SHUTDOWN의 성공은 무엇을 뜻하는가?</a></li><li><a href="#section-4">4. 옵션은 편리한 단축키가 아니라 보증을 바꾸는 선택이다</a></li><li><a href="#section-5">5. 정상 종료가 실패하는 것이 보호 동작일 수 있다</a></li><li><a href="#section-6">6. 부모 Redis와 백그라운드 자식을 구분한다</a></li><li><a href="#section-7">7. 컨테이너와 서비스 관리자: 유예 시간의 함정</a></li><li><a href="#section-8">8. 롤링 재시작과 장애 조치의 관계</a></li><li><a href="#section-9">9. 안전한 로컬 실습: 저장 종료와 복구를 연결하기</a></li><li><a href="#section-10">10. Java/Spring: 연결 종료와 업무 실패를 구분하기</a></li><li><a href="#section-11">11. 면접 질문과 상세 답변</a></li></ol></aside><article><h2 id="section-1">1. 불을 끄기 전에 계산대를 마감해야 한다</h2>
+<p>가게 문을 닫는 일은 조명 스위치를 내리는 것보다 복잡하다. 결제 중인 손님을 처리하고, 매출을 기록하고, 금고를 잠그고, 다음 날 다시 열 준비를 해야 한다. Redis도 프로세스를 없애는 일과 안전하게 종료하는 일이 다르다. 메모리에 있던 최신 데이터가 파일이나 다른 노드에 어떻게 남는지, 클라이언트가 어디로 이동하는지까지 확인해야 한다.</p>
+<p>이 비유가 완벽하지는 않다. 가게는 모든 손님의 결제가 끝났음을 눈으로 확인할 수 있지만 분산 시스템에서는 응답이 유실되거나 복제가 뒤처질 수 있다. 클라이언트는 서버가 쓰기를 처리한 뒤 응답을 보내기 전에 연결이 끊어지면 실행 여부를 알지 못할 수 있다. 그래서 <strong>정상 종료는 데이터 내구성과 재시도 의미를 함께 다루는 운영 절차</strong>다.</p>
+<p>이 장의 목표는 외울 종료 명령 하나를 정하는 것이 아니다. “지금 이 Redis를 멈춰도 되는가?”, “종료가 왜 실패했는가?”, “다시 시작한 서버가 업무를 받아도 되는가?”에 근거를 가지고 답하는 것이다.</p>
+<h2 id="section-2">2. 시그널은 OS가 프로세스에 보내는 알림이다</h2>
+<p>시그널은 Unix 계열 운영체제가 프로세스에 보내는 짧은 통지다. 일반적인 셸의 <code>kill</code> 명령은 이름과 달리 항상 강제 삭제를 뜻하지 않는다. 어떤 시그널을 보내는지가 중요하다.</p>
+<table>
+<thead>
+<tr>
+<th>시그널</th>
+<th>일반적인 의미</th>
+<th>Redis 운영에서의 해석</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>SIGTERM</td>
+<td>종료 요청</td>
+<td>정상 종료 절차를 예약하는 경로</td>
+</tr>
+<tr>
+<td>SIGINT</td>
+<td>인터럽트, 터미널 Ctrl-C 등</td>
+<td>정상 종료 요청 경로</td>
+</tr>
+<tr>
+<td>SIGKILL</td>
+<td>즉시 강제 종료</td>
+<td>프로세스가 잡아서 정리할 수 없음</td>
+</tr>
+<tr>
+<td>SIGSEGV 등</td>
+<td>잘못된 메모리 접근 등의 비정상 상황</td>
+<td>충돌 진단과 복구 대상</td>
+</tr>
+<tr>
+<td>SIGUSR1</td>
+<td>프로그램이 정한 사용자 정의 동작</td>
+<td>대상 프로세스와 버전에 따라 의미 확인</td>
+</tr>
+</tbody></table>
+<p>Redis는 SIGTERM·SIGINT를 받으면 즉시 모든 작업을 버리는 대신 종료 절차를 진행하도록 예약한다. 실행 중인 명령과 서버 상태 때문에 완료가 늦어질 수 있다. SIGKILL은 이러한 정리 기회를 주지 않는다. <a href="https://redis.io/docs/latest/operate/oss_and_stack/reference/signals/">Redis signal handling</a></p>
+<p>“kill이 위험하니 SHUTDOWN만 안전하다”도 너무 단순하다. SIGTERM은 정상 종료 요청으로 쓰일 수 있고, SHUTDOWN에도 안전장치를 우회하는 옵션이 있다. 명령 이름이 아니라 <strong>선택한 동작과 실제 완료 결과</strong>를 봐야 한다.</p>
+<h2 id="section-3">3. SHUTDOWN의 성공은 무엇을 뜻하는가?</h2>
+<p>정상 종료는 현재 설정에 따라 영속화와 복제 상태를 고려한다. RDB 저장이 설정되어 있으면 종료 시 저장이 필요할 수 있고, AOF가 활성화되어 있으면 남은 기록의 디스크 반영이 중요하다. 영속화를 모두 끈 캐시 인스턴스는 정상 종료해도 메모리 내용을 자동으로 RDB에 남기지 않는다.</p>
+<p>Redis 7.0 이후에는 뒤처진 replica가 따라올 시간을 <code>shutdown-timeout</code> 범위에서 기다리는 동작이 추가되었다. 이는 비동기 복제로 인한 손실 위험을 줄이려는 최선의 노력이지, 모든 장애 상황에서 무손실을 보증하는 합의 프로토콜이 아니다. <a href="https://redis.io/docs/latest/commands/shutdown/">SHUTDOWN</a></p>
+<p>종료 절차를 개념적으로 그리면 다음과 같다.</p>
+<pre><code class="language-text">종료 요청
+  → 현재 처리·서버 상태 고려
+  → 필요하면 쓰기 제한 및 replica 따라잡기 대기
+  → 영속화 상태 처리
+  → 소켓·PID 파일 등 정리
+  → 프로세스 종료
+</code></pre>
+<p>이 그림은 정확한 모든 내부 분기 순서를 재현하는 소스 코드가 아니다. 버전과 AOF 초기 생성, RDB 저장, 복제 상태에 따라 중단·실패 조건이 다르다. 공식 명령 문서와 실제 로그로 현재 배포의 동작을 확인한다.</p>
+<h3>3.1 응답이 없다고 실패는 아니다</h3>
+<p>성공적인 SHUTDOWN은 서버가 종료되면서 연결이 닫히므로 일반적인 <code>OK</code> 응답을 받지 않을 수 있다. 반대로 명령을 보냈다는 사실만으로 성공한 것도 아니다. 로그, 프로세스 상태, 서비스 관리자의 종료 결과를 함께 확인한다.</p>
+<p>애플리케이션의 PING 실패만으로 종료를 증명할 수도 없다. 네트워크 오류 때문에 PING이 실패했을 수 있기 때문이다. 운영자가 제어하는 환경이라면 대상 PID와 로그의 종료 메시지를 확인하고, 관리형 서비스라면 해당 서비스의 작업 상태와 노드 상태를 사용한다.</p>
+<h2 id="section-4">4. 옵션은 편리한 단축키가 아니라 보증을 바꾸는 선택이다</h2>
+<table>
+<thead>
+<tr>
+<th>옵션</th>
+<th>핵심 의미</th>
+<th>판단할 위험</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>SAVE</code></td>
+<td>저장 지점 설정과 무관하게 RDB 저장 요청</td>
+<td>저장 시간·디스크 공간·실패 가능성</td>
+</tr>
+<tr>
+<td><code>NOSAVE</code></td>
+<td>종료 시 RDB 저장 생략</td>
+<td>메모리의 최신 상태가 RDB에 안 남을 수 있음</td>
+</tr>
+<tr>
+<td><code>NOW</code></td>
+<td>replica 대기 생략</td>
+<td>복제 지연 중 최신 쓰기 손실 위험</td>
+</tr>
+<tr>
+<td><code>FORCE</code></td>
+<td>종료를 막는 오류를 무시</td>
+<td>안전하게 저장할 수 없는 상태에서도 종료 가능</td>
+</tr>
+<tr>
+<td><code>ABORT</code></td>
+<td>진행 중인 종료 취소</td>
+<td>취소 가능한 단계와 현재 상태 확인</td>
+</tr>
+</tbody></table>
+<p>NOW, FORCE, ABORT는 Redis 7.0에 추가되었다. 오래된 버전에 그대로 적용할 수 없다. 특히 <code>NOSAVE</code>를 “AOF까지 아무 처리 없이 즉시 죽인다”로 이해하면 안 된다. RDB 저장 선택과 AOF 상태 처리는 별개다.</p>
+<p>운영 runbook에 가장 강한 옵션 조합을 기본 종료 명령으로 적어 두지 않는다. 그 옵션이 필요한 이유와 잃어도 되는 데이터 범위, 대체 복구 경로가 승인되어야 한다. 저장 실패를 우회해 프로세스를 없애는 것은 장애 메시지를 없애는 것이지 데이터를 안전하게 만드는 것이 아니다.</p>
+<h2 id="section-5">5. 정상 종료가 실패하는 것이 보호 동작일 수 있다</h2>
+<p>디스크가 가득 차거나 저장 경로 권한이 잘못되어 RDB 저장을 할 수 없다면 종료가 거부될 수 있다. 메모리에만 있는 최신 데이터를 버리지 않기 위한 동작이다. 이때 “종료가 안 된다”는 증상에만 반응해 SIGKILL을 보내면 마지막 사본을 잃을 수 있다.</p>
+<p>대응은 다음 순서가 좋다.</p>
+<ol>
+<li>대상 인스턴스와 역할, 현재 쓰기 트래픽을 확인한다.</li>
+<li>로그와 <code>INFO persistence</code>에서 실패 원인을 확인한다.</li>
+<li>디스크 여유, 파일 시스템 상태, 데이터 디렉터리 소유권을 확인한다.</li>
+<li>기존 파일을 임의 삭제하지 않고 안전한 공간 확보나 권한 수정을 검토한다.</li>
+<li>성공한 저장 또는 검증된 복제본·백업을 확보한다.</li>
+<li>종료를 다시 요청하고 완료를 확인한다.</li>
+</ol>
+<p>AOF를 처음 켠 직후의 초기 파일 생성처럼 중단 시 복구 데이터가 불완전할 수 있는 상태도 있다. “AOF가 yes니까 안전하다”는 불충분하다. 활성화 설정과 실제로 사용할 수 있는 완성된 영속화 자료가 있는지는 다르다.</p>
+<h3>5.1 모든 저장 오류가 같은 것은 아니다</h3>
+<p>RDB 백그라운드 저장 실패 시 쓰기 차단은 <code>stop-writes-on-bgsave-error</code>와 저장 설정 등 조건에 영향을 받는다. 제공된 오래된 설명처럼 “RDB 자식이 죽으면 언제나 모든 쓰기가 막힌다”고 일반화하지 않는다. 현재 구성과 상태를 확인해야 한다.</p>
+<p>AOF 재작성 실패는 기존 AOF를 계속 사용할 수 있는지, 초기 생성 중인지에 따라 위험이 다르다. 재작성 파일이 실패했다고 즉시 기존 기록까지 사라졌다고 단정하지 않는다. 반대로 파일 하나가 보인다는 이유만으로 복구 가능하다고 판단하지 않는다. 현대 Redis의 AOF는 여러 파일과 manifest로 구성될 수 있으므로 디렉터리 단위의 일관성도 중요하다.</p>
+<h2 id="section-6">6. 부모 Redis와 백그라운드 자식을 구분한다</h2>
+<p>RDB 저장과 AOF 재작성은 백그라운드 자식 프로세스를 사용할 수 있다. 이 자식을 종료하는 것과 주 Redis 프로세스를 종료하는 것은 다른 사건이다. PID만 보고 시그널을 보내면 대상 혼동이 생길 수 있다. 프로세스 트리, 명령행, Redis 로그를 통해 역할을 확인해야 한다.</p>
+<p>특정 버전의 RDB 저장 자식에 SIGUSR1을 보내는 특별한 동작이 문서에 설명되어 있지만, 이를 “Redis에 SIGUSR1을 보내면 안전하다”로 축약하면 위험하다. <strong>어떤 역할의 프로세스인지가 명령의 의미 일부</strong>다. 학습 목적이라도 운영 프로세스에 임의 시그널을 보내지 않는다.</p>
+<p>백그라운드 자식 실패 후에는 부모가 계속 살아 있는지, 읽기·쓰기 상태가 어떤지, 마지막 성공한 저장 시점이 언제인지 확인한다. 프로세스 생존 여부 하나로 서비스와 데이터 보호의 건강 상태를 대표할 수 없다.</p>
+<h2 id="section-7">7. 컨테이너와 서비스 관리자: 유예 시간의 함정</h2>
+<p>컨테이너 오케스트레이터나 서비스 관리자는 보통 정상 종료를 요청한 후 일정 시간 안에 끝나지 않으면 강제로 종료할 수 있다. Redis의 replica 대기, 저장 시간, 디스크 지연이 그 유예 시간보다 길면 정상 종료를 시작했어도 마지막에는 강제 종료가 된다.</p>
+<p>따라서 종료 예산을 단계별로 생각한다.</p>
+<pre><code class="language-text">외부 종료 유예 시간
+   ≥ 트래픽 전환 시간
+   + Redis 종료 대기 및 저장 시간
+   + 관찰·안전 여유
+</code></pre>
+<p>이것은 하드한 성능 보증식이 아니라 예산을 나누는 방법이다. 최악 저장 시간은 데이터량과 디스크 상태에 따라 달라지므로 정상 시 평균만 보고 값을 정하지 않는다. 충분한 유예 시간과 종료 실패 알림을 함께 둔다.</p>
+<p>컨테이너의 PID 1이 셸 래퍼인 경우 시그널을 자식 Redis에 제대로 전달하는지도 확인한다. 서버가 SIGTERM을 받지 못하면 정상 종료 로직이 실행되지 않을 수 있다. 이미지의 실행 진입점과 시그널 전달을 스테이징에서 시험한다. 단순히 컨테이너가 “Stopped”가 되었다는 상태만으로 정상 종료를 증명하지 않는다.</p>
+<h2 id="section-8">8. 롤링 재시작과 장애 조치의 관계</h2>
+<p>복제본이 있다고 아무 노드나 한꺼번에 재시작해도 되는 것은 아니다. 현재 primary, replica의 연결 상태와 지연, 승격 후보의 데이터 상태를 확인한다. 무영속성 primary를 끄는 경우 특히 최신 쓰기의 위치를 생각해야 한다.</p>
+<p>계획된 작업이라면 해당 토폴로지의 지원 절차로 쓰기 역할을 다른 노드로 넘긴 뒤 이전 primary를 재시작하는 방법을 검토할 수 있다. Sentinel과 Redis Cluster의 역할 전환 절차는 같지 않으므로 명령을 섞지 않는다. 가용성 정족수와 슬롯 상태를 유지하는 것도 필요하다.</p>
+<p>재시작 완료는 다음 조건을 포함한다.</p>
+<ul>
+<li>프로세스가 실행되고 설정을 읽었다.</li>
+<li>영속화 로딩이 완료되었고 예상 데이터가 있다.</li>
+<li>올바른 primary/replica 역할을 가진다.</li>
+<li>복제 링크와 동기화가 정상이다.</li>
+<li>클라이언트 인증·TLS·토폴로지 재탐색이 성공한다.</li>
+<li>대표 업무 요청이 오류 없이 처리된다.</li>
+</ul>
+<p>포트가 열렸다는 사실은 목록의 첫 부분만 확인한다. 로딩 중인 서버, 잘못된 데이터 디렉터리로 시작한 빈 서버, 잘못된 역할의 서버도 프로세스 자체는 살아 있을 수 있다.</p>
+<h2 id="section-9">9. 안전한 로컬 실습: 저장 종료와 복구를 연결하기</h2>
+<p>이 절차는 <strong>예상 결과를 설명하는 실습</strong>이며 실제 실행 완료 보고가 아니다. 운영 데이터와 별개인 임시 디렉터리, 로컬 포트 16379, Redis 7 이상을 가정한다. 서버를 포그라운드로 실행하므로 다른 터미널에서 CLI를 사용한다.</p>
+<pre><code class="language-bash">umask 077
+LAB=$(mktemp -d)
+printf &#39;실습 디렉터리: %s\n&#39; &quot;$LAB&quot;
+cat &gt; &quot;$LAB/redis.conf&quot; &lt;&lt;CONF
+bind 127.0.0.1
+port 16379
+dir $LAB
+dbfilename lesson.rdb
+save &quot;&quot;
+appendonly no
+CONF
+redis-server &quot;$LAB/redis.conf&quot;
+</code></pre>
+<p>다른 터미널에서 확인한다.</p>
+<pre><code class="language-bash">redis-cli -h 127.0.0.1 -p 16379 SET lesson:restart before-stop
+redis-cli -h 127.0.0.1 -p 16379 SHUTDOWN SAVE
+</code></pre>
+<p>자동 저장을 끈 상태지만 SAVE 옵션으로 종료 시 RDB 저장을 요청했다. 예상 관찰은 서버 로그의 저장·종료 기록과 <code>$LAB/lesson.rdb</code> 파일이다. SHUTDOWN 연결이 닫히는 것은 정상일 수 있다. 그 다음 동일한 설정 파일과 동일한 데이터 디렉터리로 시작한다.</p>
+<pre><code class="language-bash">redis-server &quot;/실습/절대경로/redis.conf&quot;
+</code></pre>
+<p>새 CLI에서 조회한다.</p>
+<pre><code class="language-bash">redis-cli -h 127.0.0.1 -p 16379 GET lesson:restart
+</code></pre>
+<p><code>before-stop</code>이 예상된다. 이 실험은 특정 RDB 저장·로드 경로를 확인하는 것이지 디스크 고장이나 모든 장애에서의 무손실을 보증하는 것은 아니다. 같은 설정을 쓰지 않거나 dir이 달라지면 빈 서버가 뜰 수 있다. 실제 복구 runbook에도 경로 확인이 들어가야 한다.</p>
+<h3>9.1 NOSAVE 차이를 안전하게 관찰하기</h3>
+<p>재시작한 실습 인스턴스에서 값을 바꾼 뒤 RDB 저장 없이 종료한다.</p>
+<pre><code class="language-bash">redis-cli -h 127.0.0.1 -p 16379 SET lesson:restart unsaved-change
+redis-cli -h 127.0.0.1 -p 16379 SHUTDOWN NOSAVE
+</code></pre>
+<p>다시 같은 설정으로 시작하면 마지막 저장 파일의 <code>before-stop</code>이 예상된다. 최신 메모리 값 <code>unsaved-change</code>는 저장하지 않았기 때문이다. 이 실습은 AOF도 꺼져 있고 자동 RDB 저장도 꺼져 있다는 전제에서만 해석한다. 다른 영속화 설정에 그대로 일반화하면 안 된다.</p>
+<p>끝나면 실습 인스턴스만 종료하고 프로세스가 사라졌음을 확인한 후 임시 디렉터리를 삭제한다. 실제 Redis의 데이터 디렉터리에 이 실험을 수행하면 안 된다.</p>
+<h2 id="section-10">10. Java/Spring: 연결 종료와 업무 실패를 구분하기</h2>
+<p>Redis가 재시작하면 Java 클라이언트는 연결 끊김, 재연결, 명령 타임아웃 등을 관찰할 수 있다. 여기서 위험한 대응은 모든 예외를 무조건 재시도하는 것이다. GET은 재조회해도 대개 같은 업무 의미지만 <code>INCR</code>, 목록 추가, 결제 상태 변경을 위한 스크립트는 중복 실행 위험이 있다.</p>
+<pre><code class="language-text">클라이언트: INCR counter 전송
+서버: 증가 완료
+서버: 응답 전에 종료 또는 연결 끊김
+클라이언트: 실패로 판단하여 INCR 재시도
+결과: 한 번 의도한 증가가 두 번 수행될 수 있음
+</code></pre>
+<p>TCP 오류는 “명령이 실행되지 않았다”는 보증이 아니다. 중요한 쓰기는 요청 식별자와 멱등 처리, 즉 같은 요청이 반복되어도 한 번의 업무 효과만 생기도록 설계한다. Redis 재시작 중 재시도를 허용할 명령과 사용자에게 실패를 반환할 명령을 구분한다.</p>
+<pre><code class="language-java">// 개념 흐름: 실제 멱등성 저장·원자성은 업무에 맞게 구현한다.
+String requestId = request.idempotencyKey();
+// 1. requestId의 기존 완료 결과를 확인한다.
+// 2. 새 요청이면 업무 변경과 결과 기록을 원자적으로 묶는다.
+// 3. 연결 오류로 결과가 불명확하면 같은 requestId로 재조회한다.
+</code></pre>
+<p>클라이언트 재연결에는 지수 백오프와 지터가 도움이 될 수 있다. 지수 백오프는 실패가 반복될수록 대기 시간을 늘리는 것이고, 지터는 재시도 시점을 조금씩 흩뜨리는 것이다. 모든 애플리케이션이 같은 순간 연결을 다시 만들면 재시작 직후 서버에 부하가 몰린다. 그러나 라이브러리 설정에 따라 실제 동작이 다르므로 사용 버전의 재연결 정책을 확인한다.</p>
+<p>Spring 애플리케이션이 종료될 때도 새 요청 수신을 멈추고 진행 중인 업무를 정리한 뒤 Redis 연결 자원을 닫는 순서가 중요하다. 애플리케이션 종료 콜백에서 공유 Redis 서버 자체에 SHUTDOWN을 보내는 코드는 넣지 않는다. 연결 팩토리를 닫는 것과 Redis 서버를 종료하는 것은 완전히 다른 권한과 영향 범위다.</p>
+<h3>재시작 기록을 장애 복구 자료로 만들기</h3>
+<p>작업 기록에는 시작 시각과 종료 시각만 적지 않는다. 작업 전 역할, 마지막 성공한 저장 시점, replica 지연, 데이터 디렉터리, 적용 설정의 버전, 실제 종료 방법을 기록한다. 이 정보가 있어야 재시작 후 데이터가 예상과 다를 때 어떤 경로로 시작했는지 재구성할 수 있다. 비밀이나 개인 데이터 값 대신 확인용 표식과 제한된 메타데이터를 사용한다.</p>
+<p>작업 중 종료 요청 후 프로세스가 계속 살아 있다면 먼저 상태를 보존하고 원인을 확인한다. 종료 실패는 “무응답”과 같지 않으며, 로그에 저장 실패 이유가 있을 수 있다. 무턱대고 종료 요청을 반복하거나 더 강한 시그널로 올라가기 전에 현재 데이터의 유일한 사본이 어디에 있는지 묻는다.</p>
+<p>재시작 후 키 개수가 같다는 사실도 완전한 복구 증거는 아니다. 중요한 키의 형식, 만료 시간, 업무 상태와 복제 관계를 확인해야 한다. 검증 과정에서 전체 키를 무제한으로 조회해 부하를 만들지 말고, 사전에 정한 대표 키와 표본 검사를 사용한다. 검사 자체가 개인정보를 로그로 내보내지 않도록 주의한다.</p>
+<p>마지막으로 작업 전후 오류율과 지연을 같은 시간 축에 남긴다. 프로세스는 정상인데 클라이언트 재연결이 반복되는 경우에는 TLS·ACL·주소 정보와 연결 풀이 문제일 수 있다. 서버가 켜졌다는 완료 보고와 사용자가 서비스를 정상적으로 이용한다는 완료 보고 사이의 간격을 줄이는 것이 좋은 runbook의 목적이다.</p>
+<h2 id="section-11">11. 면접 질문과 상세 답변</h2>
+<details class="question"><summary>Q1. SIGTERM과 SIGKILL의 차이는 무엇인가요?</summary><div class="answer">
+
+<p>SIGTERM은 프로세스가 처리할 수 있는 종료 요청이며 Redis는 정상 종료 절차를 진행할 기회를 가진다. SIGKILL은 프로세스가 처리하거나 무시할 수 없는 강제 종료로 정리와 저장 기회를 보장하지 않는다. 따라서 일반 운영 종료는 정상 종료 경로를 우선한다.</p>
+<p>다만 SIGTERM을 보냈다는 사실만으로 정상 종료가 완료된 것은 아니다. 저장 실패나 긴 작업으로 계속 실행 중일 수 있고 외부 관리자가 나중에 강제 종료할 수 있다. 로그와 프로세스의 최종 상태를 확인해야 한다.</p>
+</div></details>
+
+<details class="question"><summary>Q2. SHUTDOWN이 연결을 끊었는데 오류인가요?</summary><div class="answer">
+
+<p>성공적인 종료에서는 서버가 사라지므로 일반적인 성공 문자열을 받지 않고 연결이 닫힐 수 있다. 따라서 클라이언트 응답만으로 실패를 판단하지 않는다. 서버 로그, 프로세스 종료 상태, 서비스 관리자 작업 결과로 확인한다.</p>
+<p>반대로 연결이 끊겼다고 반드시 종료된 것도 아니다. 네트워크 단절일 수 있다. 대상 서버의 상태를 독립적으로 확인하는 운영 관찰 경로가 필요하다.</p>
+</div></details>
+
+<details class="question"><summary>Q3. 영속화를 끈 Redis도 정상 종료하면 데이터가 보존되나요?</summary><div class="answer">
+
+<p>일반적으로 그렇지 않다. 영속화를 끈 구성은 메모리 데이터를 자동으로 파일에 보존한다고 기대하면 안 된다. 명시적 SHUTDOWN SAVE로 RDB를 요청할 수 있지만 실제 파일 생성 성공과 재시작 시 읽는 경로까지 확인해야 한다.</p>
+<p>replica가 있어도 복제 지연과 동시에 발생하는 장애를 고려해야 한다. Redis 7 이후의 종료 시 replica 대기는 위험을 줄이는 최선의 노력이지 영속성 보증을 대신하지 않는다.</p>
+</div></details>
+
+<details class="question"><summary>Q4. 저장 실패 때문에 종료가 안 되면 FORCE를 쓰면 되나요?</summary><div class="answer">
+
+<p>기본 대응으로 적절하지 않다. 저장할 수 없는 상태에서 종료를 막는 것은 최신 메모리 데이터를 보호하는 동작일 수 있다. 디스크 공간, 권한, 영속화 진행 상태를 확인하고 복구 가능한 사본을 확보하는 것이 먼저다.</p>
+<p>FORCE는 그 보호를 우회하므로 잃을 수 있는 데이터와 복구 경로를 이해하고 승인된 상황에서만 사용해야 한다. 프로세스 제거가 목표인지 데이터 보존이 목표인지 혼동하지 않는다.</p>
+</div></details>
+
+<details class="question"><summary>Q5. NOSAVE는 AOF도 무시하고 즉시 종료한다는 뜻인가요?</summary><div class="answer">
+
+<p>아니다. NOSAVE는 종료 시 RDB 저장을 생략하는 선택이다. AOF가 활성화된 경우의 기록 처리와 안전 조건은 별도로 존재한다. 초기 AOF 생성처럼 종료하면 복구 자료가 불완전해질 수 있는 상태는 다른 고려가 필요하다.</p>
+<p>옵션을 “빠르게 종료하는 정도”로만 순서화하지 말고 어떤 보증을 바꾸는지 이해해야 한다. NOW, FORCE도 각각 replica 대기와 오류 처리에 다른 의미를 가진다.</p>
+</div></details>
+
+<details class="question"><summary>Q6. 컨테이너가 정상 종료 요청을 보냈는데 왜 데이터가 사라질 수 있나요?</summary><div class="answer">
+
+<p>정상 종료가 완료되기 전에 유예 시간이 끝나 강제 종료되었을 수 있다. 시그널이 셸 래퍼에서 Redis로 전달되지 않았을 수도 있고, 영속화 설정이나 볼륨 경로가 잘못되었을 수도 있다. 재시작한 서버가 다른 빈 디렉터리를 읽는 경우도 있다.</p>
+<p>따라서 컨테이너 상태만 보지 않고 시그널 전달, 종료 로그, 저장 성공, 볼륨 지속성, 재시작 시 데이터 로드를 연결해 검증한다. 종료와 복구를 하나의 시험으로 묶는 것이 좋다.</p>
+</div></details>
+
+<details class="question"><summary>Q7. 재시작 중 타임아웃 난 명령은 그냥 재시도해도 되나요?</summary><div class="answer">
+
+<p>명령과 업무 의미에 따라 다르다. 타임아웃은 서버가 명령을 실행하지 않았다는 보증이 아니다. INCR이나 목록 추가처럼 반복 시 효과가 누적되는 작업은 중복될 수 있다. 요청 식별자와 멱등성 설계가 필요하다.</p>
+<p>재연결 정책과 업무 재시도 정책을 분리해서 설명해야 한다. 연결 복구는 라이브러리가 도와줄 수 있지만 중복 결제나 중복 작업을 막는 업무 규칙은 애플리케이션이 책임져야 한다.</p>
+</div></details>
+
+<details class="question"><summary>Q8. 안전한 재시작 완료 기준은 PING 성공인가요?</summary><div class="answer">
+
+<p>PING은 연결과 기본 응답을 확인하는 일부 기준이다. 예상 데이터 로딩, 올바른 역할, 복제 상태, TLS·ACL, 클러스터 슬롯 상태, 대표 업무 요청도 확인해야 한다. 빈 디렉터리로 시작한 잘못된 서버도 PING에는 응답할 수 있다.</p>
+<p>운영 완료 조건을 작업 시작 전에 정하고 그 증거를 수집한다. 프로세스 생존에서 멈추지 않고 실제 서비스가 올바른 데이터로 요청을 처리하는지까지 확인해야 재시작이 끝난 것이다.</p>
+</div></details>
+
+<h3>공식 참고 자료와 버전 주의</h3>
+<ul>
+<li><a href="https://redis.io/docs/latest/operate/oss_and_stack/reference/signals/">Redis signal handling</a>: 정상 종료와 충돌 시그널의 구분.</li>
+<li><a href="https://redis.io/docs/latest/commands/shutdown/">SHUTDOWN</a>: 옵션, 실패 조건, Redis 7 이후 replica 대기.</li>
+<li><a href="https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/">Redis persistence</a>: RDB와 AOF 복구 경계.</li>
+</ul>
+<p>원문의 “동기 저장은 추가 메모리를 쓰지 않는다”는 문장은 fork의 copy-on-write 추가 비용이 없다는 맥락으로 읽는 편이 안전하다. 실제 프로세스의 모든 버퍼·파일 시스템 메모리 사용이 정확히 0이라는 뜻으로 일반화하지 않는다. 다음 장에서는 이런 종료 요청과 네트워크 작업이 돌아가는 이벤트 루프를 내부 관점에서 살펴본다.</p>
+</article><nav aria-label="연재 이동"><a href="/posts/redis-study-27.html">← CPU 프로파일링: Redis가 느린 이유를 함수까지 추적하기</a><a href="/posts/redis-study-29.html">이벤트 루프 내부 구조: 한 명의 지휘자가 수많은 연결을 다루는 법 →</a></nav><footer>Redis 학습 연재 · <a href="/learning/redis/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

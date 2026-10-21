@@ -1,0 +1,194 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="감시와 데이터 복제를 구분하고, 장애 도메인과 클라이언트 경로까지 포함해 Sentinel 배치를 설계한다."><title>Redis 09 · Sentinel 역할과 배치 설계 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/redis-study-09.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/redis-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="redis"><main><a href="/">← 전체 글</a> · <a href="/posts/redis-study-00.html">Redis 학습 지도</a><header><p class="meta">REDIS QUEST · 09 / 30 · DEEP STUDY</p><h1>Sentinel 역할과 배치 설계</h1><p class="subtitle">감시와 데이터 복제를 구분하고, 장애 도메인과 클라이언트 경로까지 포함해 Sentinel 배치를 설계한다.</p><p class="note">첨부 Redis 학습 자료의 주제를 쉬운 설명과 공식 문서 근거로 재구성했습니다. 명령·설정의 버전 조건은 본문을 확인하세요. 장애 시나리오와 수치는 별도 표시가 없으면 학습용 가정이며, 코드가 실려 있다는 사실만으로 실행 검증을 의미하지 않습니다. <a href="/learning/redis/verification.html">검증 범위와 남은 한계</a></p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. Sentinel을 설치하기 전에 해결할 문제부터 정한다</a></li><li><a href="#section-2">2. 프로세스 수보다 독립 장애 도메인이 먼저다</a></li><li><a href="#section-3">3. 두 Sentinel에서 quorum을 1로 낮추면 왜 충분하지 않을까</a></li><li><a href="#section-4">4. 네트워크와 설정 파일도 배치의 일부다</a></li><li><a href="#section-5">5. 설계 검토를 통과시키는 질문</a></li><li><a href="#section-6">실습 공통 토대: 감시망과 데이터망을 따로 확인하기</a></li><li><a href="#section-7">설계 워크숍: 배송 조회 서비스의 장애 행렬</a></li><li><a href="#section-8">면접 질문과 깊이 있는 답변</a></li><li><a href="#section-9">원문과 공식 확인 자료</a></li></ol></aside><article><p>실습을 먼저 따라 하려면 아래의 <strong>실습 공통 토대</strong>에서 격리된 환경을 준비하고 정상 상태를 확인한 뒤, 이 장의 개별 실험으로 돌아온다. 코드와 출력 설명은 별도 언급이 없는 한 실행 결과가 아니라 예제와 예상 관찰이다.</p>
+<h2 id="section-1">1. Sentinel을 설치하기 전에 해결할 문제부터 정한다</h2>
+<p>한 대의 Redis에 배송 조회 캐시를 저장하면 구조는 단순하다. 그러나 서버가 멈출 때마다 사람이 대기 서버의 역할을 바꾸고 애플리케이션 주소까지 수정해야 한다면 장애 시간이 길어진다. Sentinel이 해결하는 중심 문제는 <strong>복제 그룹의 현재 primary를 감시하고 교체하는 일</strong>이다. 메모리 용량을 여러 primary로 나누는 샤딩은 하지 않는다. replica를 추가해도 전체 데이터셋의 복사본이 늘어날 뿐 기본적인 쓰기 저장 용량이 합산되지 않는다.</p>
+<p>Sentinel의 네 역할을 각각 문장으로 표현하자. 감시는 주기적으로 상태를 확인하는 일이다. 알림은 이상과 역할 변경을 외부 운영 도구에 알리는 일이다. 자동 장애 전환은 적절한 replica를 primary로 승격하고 나머지 복제 관계를 바꾸는 일이다. 구성 제공은 클라이언트에게 논리 서비스 이름에 대응하는 현재 primary 주소를 알려 주는 일이다. Sentinel은 일반 명령을 전달해 주는 프록시가 아니므로 클라이언트는 Sentinel에서 주소를 알아낸 다음 데이터 Redis에 직접 접속한다.</p>
+<h2 id="section-2">2. 프로세스 수보다 독립 장애 도메인이 먼저다</h2>
+<p><strong>장애 도메인</strong>은 하나의 원인으로 함께 고장 날 수 있는 범위다. 같은 물리 서버의 서로 다른 컨테이너, 같은 전원 장치에 연결된 서버, 같은 가용 영역의 VM은 서로 다른 수준의 공통 장애를 공유한다. “Sentinel 세 개를 실행했다”는 사실만으로 세 개의 독립 판단 지점을 확보한 것이 아니다. 세 프로세스가 같은 VM에 있다면 VM 정지 한 번으로 전부 사라진다.</p>
+<p>권장 출발점은 서로 독립적으로 실패한다고 볼 수 있는 세 위치의 Sentinel 세 개다. 데이터 Redis와 같은 호스트에 둘 수 있지만, 그러면 그 호스트 실패로 데이터 노드와 감시자 하나가 함께 사라진다는 것을 도식에 표시한다. 애플리케이션 서버에 두면 클라이언트와 비슷한 네트워크 관점을 얻을 수 있지만 애플리케이션 배포나 autoscaling으로 감시자 수가 바뀌지 않도록 수명주기를 관리해야 한다.</p>
+<pre><code class="language-text">장애 도메인 A          장애 도메인 B          장애 도메인 C
+primary + S1          replica R1 + S2       replica R2 + S3
+        └──────── 데이터 복제 및 감시 연결 ────────┘
+애플리케이션 → Sentinel에 현재 주소 질의 → 해당 Redis에 직접 접속
+</code></pre>
+<p>이 배치에서 A가 사라지면 B와 C의 Sentinel 두 개가 남아 과반 승인을 구성할 수 있고, 살아 있는 replica를 후보로 삼을 수 있다. 그러나 B와 C가 같은 물리 네트워크 장비에 연결되어 그 장비가 함께 고장 나면 기대한 독립성은 깨진다. 비용표에는 서버 개수만 넣지 말고 장애 도메인, 네트워크 경로, 운영 권한, 업그레이드 시점을 함께 적는다.</p>
+<h2 id="section-3">3. 두 Sentinel에서 quorum을 1로 낮추면 왜 충분하지 않을까</h2>
+<p><strong>quorum</strong>은 primary가 장애라고 판단하는 데 필요한 감시자 동의 수다. <strong>과반수 승인</strong>은 실제 장애 전환을 수행할 Sentinel을 선출하고 허가하는 조건이다. 감시자가 두 개면 과반수는 두 개다. quorum을 1로 내려도 하나가 사라진 상황에서 남은 하나만으로 과반 승인을 받을 수 없다. 서로 상대방을 못 보는 대칭적인 상황에서 양쪽이 각자 새로운 primary를 만들도록 허용하면 안전한 단일 구성을 정하기 어려워진다.</p>
+<p>세 개와 quorum 2를 구성하면 한 감시자의 장애를 견딜 수 있다. 다섯 개와 quorum 2라면 두 개의 장애 판단으로 전환 시도를 시작할 수 있어도 승인에는 최소 세 개가 필요하다. quorum을 과반수보다 높이면 그보다 더 많은 동의가 필요하므로 민감도가 낮아지고 더 많은 장애를 참는 것이 아니라 전환 조건이 더 엄격해진다. 숫자를 줄이면 가용성이 무조건 좋아진다는 식의 튜닝은 금물이다.</p>
+<h2 id="section-4">4. 네트워크와 설정 파일도 배치의 일부다</h2>
+<p>Sentinel 기본 포트는 26379이며 데이터 Redis 기본 포트 6379와 다르다. Sentinel끼리 통신해야 하고 Sentinel은 모든 데이터 인스턴스를 감시·제어할 수 있어야 한다. 클라이언트도 여러 Sentinel과 모든 잠재적 primary에 도달할 수 있어야 한다. 6379만 열고 26379를 막으면 평소 조회는 가능해도 자동 장애 전환에 필요한 통신이 실패할 수 있다.</p>
+<p>Sentinel 설정 파일은 현재 구성과 epoch 같은 상태를 저장하기 때문에 쓰기 가능해야 한다. 읽기 전용으로 마운트한 초기 템플릿을 그대로 런타임 파일로 사용하면 시작 또는 상태 보존에 문제가 생긴다. 템플릿과 Sentinel이 갱신하는 실제 파일의 책임을 나누고, 재배포 때 오래된 템플릿으로 현재 토폴로지를 덮어쓰지 않도록 한다. 각 Sentinel의 파일과 정체성도 따로 유지한다.</p>
+<p>NAT는 주소를 바꾸는 네트워크 변환이다. 컨테이너 내부에서 6379로 듣는 서버를 외부에는 16379로 노출했다면 Redis와 Sentinel이 서로에게 알려 주는 주소가 실제 접근 주소와 다를 수 있다. 단순히 최초 접속이 성공했다는 것만으로 자동 발견이 맞다고 볼 수 없다. <code>sentinel announce-ip</code>, <code>sentinel announce-port</code>나 replica의 광고 주소 설정을 검토하되 실제 버전의 옵션과 DNS 지원을 확인한다. DNS 이름을 쓴다면 이름 해석 지연과 장애도 의존성이다.</p>
+<h2 id="section-5">5. 설계 검토를 통과시키는 질문</h2>
+<p>설계도에서 A 한 칸을 지워 보자. 남은 Sentinel이 승인 가능한가? 최신 데이터를 가진 승격 후보가 있는가? 애플리케이션이 그 후보에 직접 접속 가능한가? 그 후보에 쓰기 권한과 영속성 설정이 준비되어 있는가? 이전 primary가 돌아왔을 때 어떤 복제 관계가 되는가? 다섯 질문 중 하나라도 답이 없으면 “세 대니까 HA”라는 결론을 내려서는 안 된다. 이 사고 실험은 프로세스 종료 실습보다 먼저 수행할 수 있고, 비용을 들이지 않고도 공통 장애 지점을 발견하게 해 준다.</p>
+<h2 id="section-6">실습 공통 토대: 감시망과 데이터망을 따로 확인하기</h2>
+<p>이 절은 09~12장을 각각 독립적으로 읽어도 실습 전제를 놓치지 않도록 제공하는 복습이다. Sentinel은 데이터를 저장하는 Redis의 다른 이름이 아니다. 데이터 Redis는 주문 상태를 읽고 쓰는 <strong>데이터 평면</strong>이고, Sentinel은 현재 쓰기를 받을 주 서버를 알려 주고 장애 전환을 조정하는 <strong>제어 평면</strong>이다. 운영자는 두 평면의 정상 여부를 각각 확인해야 한다. 감시가 정상이어도 Redis의 디스크가 가득 찰 수 있고, 데이터 읽기가 정상이어도 Sentinel 사이의 연결이 끊어져 다음 장애를 처리하지 못할 수 있다.</p>
+<p>물류센터에 비유하면 Redis primary는 출고 장부를 수정하는 현재 담당자, replica는 그 장부를 받아 적는 대기 담당자, Sentinel은 담당자 교체를 결정하는 관리위원이다. 장부 복사는 비동기다. 원 담당자가 출고 승인 도장을 찍은 순간 대기 담당자가 마지막 줄까지 받아 적었다는 뜻은 아니다. 관리위원 세 명이 교체에 동의해도 복사되지 않은 장부 한 줄을 복원할 수는 없다. 이 비유의 한계도 분명하다. Redis는 사람처럼 빠진 주문의 의미를 추론하거나 장부 두 권을 자동 병합하지 않는다. 어느 서버를 기준으로 삼을지 결정하고 나면 이전 서버는 새 기준의 데이터를 복제하게 된다.</p>
+<h3>격리된 실습 환경 만들기</h3>
+<p>아래는 로컬의 일회용 테스트 환경을 만드는 예제다. 이 교재에서 실행한 결과가 아니며 명령 뒤의 관찰 설명은 <strong>예상되는 관찰</strong>이다. 이미 같은 포트를 쓰는 서비스가 있으면 중단하고 빈 포트로 바꾼다. 인증을 생략하는 이유는 오직 loopback 실습의 복잡도를 낮추기 위해서다. 공유 호스트, 외부 공개 VM, 운영 서버에서는 그대로 사용하지 않는다. 방화벽으로 외부 접근을 차단하고 로컬 사용자에게도 민감한 데이터가 없는 환경을 쓴다. 운영 도입에는 인증, TLS, 비밀 관리, 독립 장애 도메인 배치가 추가로 필요하다.</p>
+<pre><code class="language-bash"># 필요한 프로그램이 설치되어 있는지와 실제 버전을 먼저 기록한다.
+redis-server --version
+redis-cli --version
+LAB=$(mktemp -d /tmp/redis-sentinel-study.XXXXXX)
+printf &#39;%s\n&#39; &quot;$LAB&quot;
+
+for p in 6379 6380 6381; do
+  mkdir -p &quot;$LAB/$p&quot;
+  cat &gt; &quot;$LAB/$p/redis.conf&quot; &lt;&lt;EOF
+port $p
+bind 127.0.0.1
+protected-mode yes
+dir $LAB/$p
+pidfile $LAB/$p/redis.pid
+logfile $LAB/$p/redis.log
+daemonize yes
+save &quot;&quot;
+appendonly no
+EOF
+  if [ &quot;$p&quot; != 6379 ]; then
+    printf &#39;replicaof 127.0.0.1 6379\n&#39; &gt;&gt; &quot;$LAB/$p/redis.conf&quot;
+  fi
+  redis-server &quot;$LAB/$p/redis.conf&quot;
+done
+
+for p in 26379 26380 26381; do
+  mkdir -p &quot;$LAB/$p&quot;
+  cat &gt; &quot;$LAB/$p/sentinel.conf&quot; &lt;&lt;EOF
+port $p
+bind 127.0.0.1
+protected-mode yes
+dir $LAB/$p
+pidfile $LAB/$p/sentinel.pid
+logfile $LAB/$p/sentinel.log
+daemonize yes
+sentinel monitor logistics-main 127.0.0.1 6379 2
+sentinel down-after-milliseconds logistics-main 5000
+sentinel failover-timeout logistics-main 60000
+sentinel parallel-syncs logistics-main 1
+EOF
+  redis-server &quot;$LAB/$p/sentinel.conf&quot; --sentinel
+done
+</code></pre>
+<p>여기서 <code>save &quot;&quot;</code>와 <code>appendonly no</code>는 실습을 단순화하기 위한 <strong>영속성 비활성화</strong>다. 재시작하면 데이터가 남는다고 기대하지 않는다. 운영에 이 설정을 복사해서는 안 된다. 세 Redis와 세 Sentinel이 한 컴퓨터에서 실행되므로 프로토콜은 관찰할 수 있지만 실제 고가용성은 제공하지 않는다. 컴퓨터 하나가 멈추면 여섯 프로세스가 동시에 사라진다. <code>daemonize</code>를 지원하지 않는 배포 환경이라면 각 프로세스를 별도 터미널에서 foreground로 시작하고 종료할 대상을 직접 추적한다.</p>
+<h3>정상 상태를 숫자와 관계로 기록하기</h3>
+<pre><code class="language-bash">redis-cli -p 6379 INFO replication
+redis-cli -p 6380 INFO replication
+redis-cli -p 26379 SENTINEL MASTER logistics-main
+redis-cli -p 26379 SENTINEL REPLICAS logistics-main
+redis-cli -p 26379 SENTINEL SENTINELS logistics-main
+redis-cli -p 26379 SENTINEL CKQUORUM logistics-main
+redis-cli -p 26379 SENTINEL GET-MASTER-ADDR-BY-NAME logistics-main
+</code></pre>
+<p>처음에는 6379가 master이고 다른 두 인스턴스가 그 서버를 복제하는 관계가 예상된다. 일부 출력 필드에는 호환성 때문에 과거 용어 <code>slave</code>가 남아 있다. 단어보다 역할과 연결 대상 주소를 읽는다. <code>master_link_status:up</code>은 복제 링크가 연결되었다는 뜻이지 데이터 유실 가능성이 없다는 증명은 아니다. <code>SENTINEL SENTINELS</code>는 요청받은 Sentinel 자신을 제외한 다른 감시자를 보여 주므로 정상적인 세 감시자 구성에서 목록의 두 항목을 보고 한 대가 사라졌다고 오해하지 않는다.</p>
+<p><code>CKQUORUM</code>은 현재 관점에서 장애 판단 정족수와 장애 전환 승인을 받을 수 있는지 검사하는 운영 진단이다. 이 결과가 정상이라고 미래의 복제 지연, 데이터 노드 장애, 클라이언트의 재연결 실패까지 검증되지는 않는다. 따라서 관찰 기록에는 Sentinel 응답만 쓰지 말고 Redis 역할, replica 연결, 애플리케이션 성공률을 함께 적는다. 서로 다른 Sentinel에 같은 조회를 반복해 인식이 일치하는지도 비교한다. 발견 정보가 전파되는 동안 짧은 차이가 있을 수 있으므로 한 번의 서로 다른 응답만으로 영구 분할을 선언하지 않는다.</p>
+<h3>실습을 마친 뒤의 정리</h3>
+<p>실습 전 포트가 비어 있었고 이 절에서만 생성한 인스턴스라는 것을 확인한 뒤, 테스트 데이터가 필요 없을 때만 각 포트를 종료한다. <code>killall redis-server</code>처럼 호스트의 모든 Redis를 종료하는 명령은 쓰지 않는다. 아래 종료 명령도 운영 포트에 그대로 실행하면 장애를 만들므로 현재 실습 대상임을 다시 확인한다.</p>
+<pre><code class="language-bash"># 일회용 실습 인스턴스만 대상으로 한다.
+for p in 26379 26380 26381 6379 6380 6381; do
+  redis-cli -h 127.0.0.1 -p &quot;$p&quot; SHUTDOWN NOSAVE
+done
+# 로그 분석이 끝날 때까지 $LAB 디렉터리는 보존한다.
+</code></pre>
+<p>종료 도중 연결이 닫혔다는 메시지는 종료 요청이 수락된 상황에서도 보일 수 있다. 프로세스와 포트 상태로 후속 확인한다. 로그에는 실제 주소와 운영 정보가 남으므로 공유 전에 확인한다. 이 실습의 목적은 명령을 외우는 것이 아니라, <strong>설정 → 발견 → 판단 → 승인 → 승격 → 재연결</strong>을 서로 다른 증거로 확인하는 습관을 만드는 것이다.</p>
+<h2 id="section-7">설계 워크숍: 배송 조회 서비스의 장애 행렬</h2>
+<p>서울 센터에 primary와 S1, 부산 센터에 R1과 S2, 별도 운영 구역에 R2와 S3를 배치한다고 가정하자. 여기서 지명은 네트워크 지연과 장애 도메인을 설명하기 위한 가상 이름이며 실제 권장 리전 조합이 아니다. 세 위치를 멀리 떨어뜨리면 공통 전원 장애 위험은 줄어들 수 있지만 복제 지연과 감시 오탐 위험이 커질 수 있다. <strong>거리의 독립성</strong>과 <strong>통신의 안정성</strong>을 함께 계산해야 한다.</p>
+<table>
+<thead>
+<tr>
+<th>고장 가정</th>
+<th>남은 감시자</th>
+<th>남은 승격 후보</th>
+<th>우선 확인할 것</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>primary 프로세스만 종료</td>
+<td>S1·S2·S3</td>
+<td>R1·R2</td>
+<td>replica 최신성, 전환·재연결 시간</td>
+</tr>
+<tr>
+<td>서울 호스트 전체 종료</td>
+<td>S2·S3</td>
+<td>R1·R2</td>
+<td>두 감시자 상호 통신과 후보 접근</td>
+</tr>
+<tr>
+<td>서울-부산 경로만 단절</td>
+<td>경로에 따라 관점이 다름</td>
+<td>단순 개수로 판단 불가</td>
+<td>모든 쌍의 실제 통신과 클라이언트 위치</td>
+</tr>
+<tr>
+<td>부산과 운영 구역의 공통 회선 장애</td>
+<td>S1만 고립되지 않고 남을 수도 있음</td>
+<td>primary만 정상일 수 있음</td>
+<td>과반 승인 불가와 기존 서비스 상태 구분</td>
+</tr>
+<tr>
+<td>애플리케이션의 Sentinel 접근만 차단</td>
+<td>감시자 자체는 정상</td>
+<td>후보는 정상</td>
+<td>기존 연결 유지와 새 발견 실패 구분</td>
+</tr>
+</tbody></table>
+<p>첫 줄과 둘째 줄의 차이를 설명할 수 있어야 한다. primary 프로세스만 죽는 시험에서는 같은 호스트의 S1이 살아 있다. 이 시험만 성공했다고 서울 호스트 전체 장애를 검증한 것이 아니다. 셋째 줄은 더 까다롭다. S3가 양쪽과 통신할 수 있는지, 어느 방향으로 패킷이 통과하는지에 따라 결과가 달라진다. “망이 끊겼다”는 말보다 출발지·목적지·포트·방향을 기록하는 편이 정확하다.</p>
+<h3>Spring 애플리케이션의 연결 설정 검토표</h3>
+<p>Spring 애플리케이션이 필요한 논리 정보는 <code>logistics-main</code>이라는 primary 그룹 이름, 여러 Sentinel의 접근 주소, Sentinel 인증 정보, 데이터 Redis 인증 정보다. 연결 팩토리가 Sentinel 모드로 초기화되는지 확인하고 단일 호스트 설정이 우연히 우선 적용되지 않는지도 검사한다. 프레임워크 버전에 따라 설정 속성의 접두사와 username 지원이 달라질 수 있으므로 이 장은 특정 Spring Boot 버전의 YAML을 보편적인 정답으로 제시하지 않는다.</p>
+<p>예를 들어 배포 설정에 Sentinel 목록을 넣었지만 직접 만든 <code>RedisConnectionFactory</code> bean이 6379를 고정해서 사용한다면, 설정 파일을 읽는 사람은 HA라고 생각해도 실제 애플리케이션은 단일 주소로 동작할 수 있다. 테스트에서는 단순 <code>PING</code> 대신 <strong>현재 연결 대상이 전환 후 바뀌는지</strong> 확인한다. 자격 증명은 별도로 마스킹하고 서버 주소와 연결 모드만 진단한다. 개발 환경에서 성공한 주소가 운영 컨테이너 내부에서도 해석되는지 검사한다.</p>
+<h3>메모리와 유지보수도 실패 행렬에 넣는다</h3>
+<p>R1이 승격되면 primary의 쓰기 부하와 복제 송신을 감당해야 한다. 평소 읽기만 담당하던 작은 서버를 저비용 replica로 두었다가 승격 직후 CPU나 메모리가 포화되면 전환은 성공했지만 서비스는 여전히 실패한다. 모든 승격 후보에 실제 primary 부하를 감당할 여유를 두거나 승격 가능성을 의도적으로 제한하고 그 결과 남는 후보 수를 계산한다. replica-priority를 바꾸는 일은 단순 선호도 지정이 아니라 실패 행렬을 바꾸는 작업이다.</p>
+<p>Sentinel이 세 개라도 유지보수로 하나를 내린 동안 다른 하나가 실패하면 과반이 사라진다. 따라서 감시자 업그레이드는 한 번에 하나씩 수행하고 재합류·발견을 확인한 뒤 다음 인스턴스로 넘어간다. 데이터 노드 유지보수와 감시자 유지보수를 같은 시간에 겹치지 않는 것이 안전한 출발점이다. 자동 배포 시스템이 모든 replica와 Sentinel을 같은 업데이트 그룹에 넣지 않았는지 확인한다.</p>
+<h3>설계 승인 기준을 문장으로 쓴다</h3>
+<p>좋은 기준은 “Sentinel 세 대 구축 완료”가 아니라 “임의의 한 장애 도메인을 잃어도 남은 감시자가 승인 가능하며, 적격 replica에 애플리케이션이 재연결하여 정해진 시간 안에 배송 조회를 회복한다”다. 여기에 데이터 조건을 붙인다. 배송 상태는 원장의 이벤트로 재구성 가능한 캐시이며, 전환 후 마지막 갱신이 빠졌으면 원장을 읽어 보완한다. Redis가 유일한 출고 원장이라면 같은 배치라도 손실 허용 기준이 달라져 추가 설계가 필요하다.</p>
+<p>마지막으로 설계 문서에 아직 시험하지 않은 고장을 명시한다. 프로세스 종료는 시험했지만 호스트 정지, 비대칭 분할, DNS 장애, 자격 증명 회전은 미시험이라고 쓰는 것이 정확하다. 미시험 항목을 숨기지 않아야 다음 검증의 우선순위를 정할 수 있다. 고가용성은 제품 이름이 아니라 구체적인 장애 모델에 대해 확보한 증거의 집합이다.</p>
+<h2 id="section-8">면접 질문과 깊이 있는 답변</h2>
+<p>답을 펼치기 전에 원리, 장애 반례, 운영 확인 방법의 세 순서로 말해 보자. 짧은 정의만 외우기보다 어떤 조건에서 그 설명이 깨지는지를 덧붙이는 것이 중요하다.</p>
+<details class="question"><summary>Sentinel과 replica는 어떻게 다른가요?</summary><div class="answer">
+
+<p>replica는 데이터의 복사본을 유지하는 데이터 노드이고 Sentinel은 감시·전환·주소 발견을 담당하는 제어 프로세스입니다. Sentinel을 세 개 추가해도 데이터 복사본이 세 개 늘지 않습니다. 설계도에는 두 종류를 별도 기호로 그리고 각 장애 때 무엇이 남는지 확인해야 합니다.</p>
+</div></details>
+
+<details class="question"><summary>왜 Sentinel 두 개에 quorum 1이면 부족한가요?</summary><div class="answer">
+
+<p>quorum은 장애 판단 조건이고 실제 전환에는 감시자 과반 승인이 필요합니다. 두 개의 과반은 두 개이므로 한 감시자가 사라지면 승인할 수 없습니다. 특히 primary와 감시자를 같은 호스트에 둔 두 호스트 구성에서 그 호스트 장애는 데이터 서버와 표 한 개를 동시에 없앱니다.</p>
+</div></details>
+
+<details class="question"><summary>Sentinel 세 개를 한 호스트에서 실행하면 HA인가요?</summary><div class="answer">
+
+<p>프로토콜 학습은 가능하지만 호스트 장애 내성은 없습니다. 프로세스 단위 고장만 분리되었을 뿐 전원·커널·네트워크 인터페이스를 공유합니다. 독립 장애 도메인의 범위를 명시하고, 한 도메인이 사라졌을 때 과반 감시자와 적격 replica가 남는지 검토해야 합니다.</p>
+</div></details>
+
+<details class="question"><summary>Sentinel은 애플리케이션 요청을 프록시하나요?</summary><div class="answer">
+
+<p>일반 데이터 명령의 프록시가 아닙니다. 클라이언트는 Sentinel에 논리 이름의 현재 primary 주소를 물은 다음 Redis 데이터 포트로 직접 접속합니다. 따라서 모든 잠재적 primary 주소에 클라이언트가 접근 가능해야 하고, 지원 클라이언트의 발견·재연결 동작도 테스트해야 합니다.</p>
+</div></details>
+
+<details class="question"><summary>컨테이너에서 최초 연결만 성공하면 충분한가요?</summary><div class="answer">
+
+<p>아닙니다. 자동 발견으로 알려지는 주소가 내부 전용 IP나 다른 포트일 수 있습니다. Sentinel 상호 통신, replica 발견, 클라이언트가 받는 새 primary 주소를 각각 확인해야 합니다. NAT·포트 매핑·DNS 설정을 바꿨다면 실제 전환 뒤 접근 경로까지 검증합니다.</p>
+</div></details>
+
+<details class="question"><summary>Sentinel 설정 파일은 왜 쓰기 가능해야 하나요?</summary><div class="answer">
+
+<p>단순한 시작 템플릿이 아니라 발견된 노드와 현재 구성·epoch 같은 상태를 저장하는 파일이기 때문입니다. 읽기 전용 마운트나 재배포 때 오래된 파일로 덮어쓰기하는 정책은 문제가 됩니다. 템플릿 배포와 런타임 상태 보존의 책임을 분리해야 합니다.</p>
+</div></details>
+
+<details class="question"><summary>Sentinel이 있으면 성공한 쓰기가 모두 보존되나요?</summary><div class="answer">
+
+<p>아닙니다. 데이터 복제는 비동기이므로 승인 후 replica에 전달되기 전에 primary가 실패하면 새 primary에 그 쓰기가 없을 수 있습니다. Sentinel은 전환을 조정할 뿐 복제되지 않은 값을 복원하지 못합니다. 원장·백업·재처리와 허용 손실 범위를 별도로 설계합니다.</p>
+</div></details>
+
+<details class="question"><summary>배치 검토에서 가장 먼저 그릴 것은 무엇인가요?</summary><div class="answer">
+
+<p>서버 개수보다 장애 도메인과 통신 경로입니다. 한 도메인을 지웠을 때 남은 감시자 승인 수, 승격 후보, 애플리케이션 접근 경로를 계산합니다. 그다음 실제 장애 시험으로 감지·전환·재연결·업무 대조 시간을 나누어 검증하면 설계와 운영이 연결됩니다.</p>
+</div></details>
+
+
+<h2 id="section-9">원문과 공식 확인 자료</h2>
+<p>이 장은 제공된 <code>Redis_Senior_Study/chapters/09_</code> 원문의 해당 주제를 한국어로 재구성하고 독립적인 학습 예제와 판단 절차를 추가했다. 제공 원문은 최신 버전 보증 자료가 아니므로 운영 적용 전 실제 Redis와 클라이언트 버전을 확인한다. 공식 링크는 2026-10-21 집필 시 확인했으며 이 장의 실습 명령을 실행했다는 뜻은 아니다.</p>
+<ul>
+<li><a href="https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/">Redis 공식 Sentinel 문서</a> — 배치·전환·인증·정족수·epoch의 기준.</li>
+<li><a href="https://redis.io/docs/latest/develop/reference/sentinel-clients/">Sentinel 클라이언트 구현 지침</a> — 발견과 재연결을 검토할 때 참고.</li>
+<li><a href="https://redis.io/docs/latest/commands/wait/">WAIT 명령의 보장 범위</a> — 복제 확인과 강한 일관성을 구분할 때 참고.</li>
+</ul>
+</article><nav aria-label="연재 이동"><a href="/posts/redis-study-08.html">← 복제 운영과 쓰기 제한 — 연결됨과 안전함을 구별하기</a><a href="/posts/redis-study-10.html">Sentinel 장애 전환과 운영 API →</a></nav><footer>Redis 학습 연재 · <a href="/learning/redis/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

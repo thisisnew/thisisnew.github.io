@@ -1,0 +1,192 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="슬롯 소유권 수렴, UPDATE, replica migration, 노드 제거와 reset을 구분하고 재합류 사고를 예방한다."><title>Redis 19 · Cluster 구성 전파와 복귀: 오래된 노드는 어떻게 현재를 배우는가 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/redis-study-19.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/redis-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="redis"><main><a href="/">← 전체 글</a> · <a href="/posts/redis-study-00.html">Redis 학습 지도</a><header><p class="meta">REDIS QUEST · 19 / 30 · DEEP STUDY</p><h1>Cluster 구성 전파와 복귀: 오래된 노드는 어떻게 현재를 배우는가</h1><p class="subtitle">슬롯 소유권 수렴, UPDATE, replica migration, 노드 제거와 reset을 구분하고 재합류 사고를 예방한다.</p><p class="note">첨부 Redis 학습 자료의 주제를 쉬운 설명과 공식 문서 근거로 재구성했습니다. 명령·설정의 버전 조건은 본문을 확인하세요. 장애 시나리오와 수치는 별도 표시가 없으면 학습용 가정이며, 코드가 실려 있다는 사실만으로 실행 검증을 의미하지 않습니다. <a href="/learning/redis/verification.html">검증 범위와 남은 한계</a></p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">복구는 전원을 켜는 순간 끝나지 않는다</a></li><li><a href="#section-2">1. 세 종류의 지도를 구분한다</a></li><li><a href="#section-3">2. 슬롯 맵의 기본 규칙</a></li><li><a href="#section-4">3. Heartbeat와 UPDATE는 같은 문제를 다른 방향으로 푼다</a></li><li><a href="#section-5">4. 오래된 primary가 복귀하는 실제 순서</a></li><li><a href="#section-6">5. 재합류와 재동기화는 별개의 완료 조건이다</a></li><li><a href="#section-7">6. replica migration: 데이터 샤딩과 다른 이동</a></li><li><a href="#section-8">7. barrier는 떠나는 쪽을 보호한다</a></li><li><a href="#section-9">8. configEpoch 충돌은 왜 생길 수 있는가</a></li><li><a href="#section-10">9. 노드 제거는 세 가지 작업으로 나누어야 한다</a></li><li><a href="#section-11">10. RESET SOFT와 HARD: 실수하면 데이터와 정체성을 잃는다</a></li><li><a href="#section-12">11. Java/Spring에서는 서버 주소를 정체성으로 저장하지 않는다</a></li><li><a href="#section-13">12. 읽기 전용 관찰 실습</a></li><li><a href="#section-14">13. 현실적인 재합류 사고 타임라인</a></li><li><a href="#section-15">14. Pub/Sub까지 확장해서 생각하기</a></li><li><a href="#section-16">면접과 설계 리뷰 Q&amp;A</a></li><li><a href="#section-17">정리와 참고</a></li></ol></aside><article><h2 id="section-1">복구는 전원을 켜는 순간 끝나지 않는다</h2>
+<p>장애가 났던 Redis 서버가 다시 켜졌다. 프로세스도 있고 PING도 성공한다. 이제 원래 primary로 돌아온 것일까? 그렇지 않다. 부재한 동안 replica가 승격되었고, 슬롯 일부가 다른 노드로 옮겨졌으며, 복제 관계도 달라졌을 수 있다. 오래된 서버는 “내가 기억하는 과거”를 들고 현재의 클러스터에 재합류한다. 이 과거가 현재를 덮어쓰지 않도록 하는 것이 구성 전파의 핵심이다.</p>
+<p>18장에서 선거를 통해 새 담당자를 정했다면 19장은 그 결정을 <strong>모든 노드가 학습하고, 늦게 돌아온 노드도 적절한 역할로 수렴하는 과정</strong>을 다룬다. 제공된 원문은 hash slot configuration propagation부터 노드 제거와 Pub/Sub까지 포함한다. 원문의 과거 운영 설명은 현재 명령 문서와 구분한다. 특히 <code>CLUSTER FORGET</code>의 전파 동작은 Redis 7.2에서 바뀐 부분이 있다.</p>
+<h2 id="section-2">1. 세 종류의 지도를 구분한다</h2>
+<p>Cluster 운영에서 “토폴로지”라고 부르는 정보는 한 덩어리처럼 보이지만 적어도 세 관점이 있다.</p>
+<table>
+<thead>
+<tr>
+<th>지도</th>
+<th>주된 질문</th>
+<th>보유 주체</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>슬롯 소유권 지도</td>
+<td>슬롯 8123을 어느 primary가 담당하는가?</td>
+<td>각 Redis 노드와 클라이언트</td>
+</tr>
+<tr>
+<td>복제 관계 지도</td>
+<td>이 replica가 누구를 따라가는가?</td>
+<td>Redis 노드</td>
+</tr>
+<tr>
+<td>접속 주소 지도</td>
+<td>노드 ID의 현재 endpoint는 무엇인가?</td>
+<td>Redis 노드와 클라이언트</td>
+</tr>
+</tbody></table>
+<p>슬롯 소유권이 같아도 replica의 배치는 달라질 수 있다. 노드 ID가 같아도 endpoint가 바뀔 수 있다. 클라이언트는 서버끼리의 구성 전파가 끝나기 전에 오래된 주소를 기억할 수 있다. 따라서 “CLUSTER INFO가 정상”이라는 한 문장으로 모든 종류의 지도와 모든 앱의 상태를 대표할 수는 없다.</p>
+<p>도서관 비유로 보면 슬롯 소유권은 어느 분관이 어떤 분류의 원본을 관리하는지, 복제 관계는 어느 분관이 어느 분관의 사본을 유지하는지, 주소는 실제 건물 위치다. 분관장의 권한이 새 사람에게 넘어갔다고 책 내용 자체가 자동으로 합쳐지는 것은 아니다. 마찬가지로 <strong>구성 수렴은 데이터 병합과 다르다.</strong></p>
+<h2 id="section-3">2. 슬롯 맵의 기본 규칙</h2>
+<p>새 노드는 처음부터 모든 슬롯의 소유자를 아는 것이 아니다. 논리적으로는 0부터 16383까지 각 슬롯에 “아직 모름”이 들어 있는 표를 생각할 수 있다. 알고 있는 노드가 어떤 슬롯을 담당한다고 알리면 빈 항목을 채운다. 이미 소유자가 있다면 같은 슬롯을 주장하는 새 정보의 configEpoch를 비교한다.</p>
+<p>가정상 처음 표가 다음과 같다고 하자.</p>
+<pre><code class="language-text">slot 100 → A, configEpoch 7
+slot 101 → A, configEpoch 7
+slot 102 → C, configEpoch 5
+</code></pre>
+<p>B가 승격되어 slot 100과 101을 configEpoch 12로 담당한다고 알린다. 이를 받은 노드는 두 항목을 B로 바꾼다. slot 102는 관련 없는 슬롯이므로 그대로 둔다. 이후 A가 configEpoch 7로 자신의 예전 주장을 반복해도 최신 정보가 후퇴하지 않는다. 이 비교는 사람의 “오래 일했으니 원래 주인”이라는 감정이 아니라 논리 버전에 따른다.</p>
+<p>여기서 버전 번호가 크다는 사실은 데이터의 키 개수, 마지막 수정 시각, 복제 offset이 크다는 뜻이 아니다. configEpoch는 <strong>소유권 주장의 버전</strong>이다. offset은 복제 스트림 위치이고 TTL은 키 수명이며 Unix timestamp는 시각이다. 운영 출력에서 숫자들이 많다고 서로 바꿔 비교하면 잘못된 복구 결정을 내린다.</p>
+<h2 id="section-4">3. Heartbeat와 UPDATE는 같은 문제를 다른 방향으로 푼다</h2>
+<p>Heartbeat에는 발신자가 알고 있는 자신의 역할과 슬롯 정보가 실린다. 새로운 primary는 이를 통해 새 소유권을 널리 알린다. 다른 노드가 정상적으로 주고받는 메시지 자체가 구성 전파의 운반 수단이 된다.</p>
+<p>UPDATE는 오래된 정보를 발견했을 때 반대 방향으로 알려주는 경로다. A가 돌아와 “slot 100은 나, epoch 7”이라고 알리면 이미 B의 epoch 12를 아는 C는 A에게 더 최신 구성을 알려줄 수 있다. A가 우연히 B에게 직접 접속하지 않아도 C를 통해 배울 수 있다는 점이 중요하다.</p>
+<p>전파에는 시간이 걸린다. 메시지는 유실될 수 있고 일부 노드는 계속 단절되어 있을 수 있다. “결국 수렴한다”는 성질에는 통신이 다시 가능해지고 구성이 안정되는 등의 조건이 들어 있다. 모든 링크가 영원히 끊긴 상태에서 모든 노드가 동일한 지도를 가지리라고 기대할 수는 없다. 운영에서 수렴 대기 시간을 관찰하는 이유도 여기에 있다.</p>
+<p>이 시기에 클라이언트는 다른 노드들로부터 서로 다른 redirect를 잠시 받을 수 있다. 각각의 노드는 자신의 관점에서 답한다. 클라이언트는 갱신과 bounded redirect를 처리해야 하며, 서버 운영자는 충돌이 잠깐의 전파 지연인지 오래 남은 미완료 상태인지 판단해야 한다. 새 정보를 빨리 배운 노드 하나만 조회하면 전체 수렴을 과대평가할 수 있다.</p>
+<h2 id="section-5">4. 오래된 primary가 복귀하는 실제 순서</h2>
+<p>A가 primary였고 B가 A의 replica였다고 가정하자. A가 장애로 사라진 동안 B가 승격하여 A의 모든 슬롯을 인계받았다. A는 자신의 로컬 구성 파일을 읽어 시작하므로 최초 순간에는 예전 역할과 슬롯을 기억할 수 있다.</p>
+<ol>
+<li>A가 기존에 알던 노드들과 통신을 시도한다.</li>
+<li>A는 예전 configEpoch와 슬롯 주장을 보낸다.</li>
+<li>최신 정보를 가진 노드가 B의 더 큰 configEpoch를 알려준다.</li>
+<li>A의 슬롯 맵에서 옛 슬롯들이 B 소유로 바뀐다.</li>
+<li>A가 마지막으로 담당하던 슬롯까지 잃으면 그 상황에 맞는 복제 관계로 전환한다.</li>
+<li>A는 새 primary를 복제하면서 현재 데이터셋을 따라간다.</li>
+<li>복제 상태와 데이터 접근이 정상화되어야 재합류를 완료한 것으로 본다.</li>
+</ol>
+<p>원문이 설명하는 일반 규칙은 <strong>자신의 마지막 슬롯을 가져간 노드를 복제하도록 바뀐다</strong>는 것이다. 단순한 failover에서는 그 노드가 B이므로 “예전 primary가 새 primary의 replica가 된다”고 말해도 맞는다. 하지만 A가 오래 떨어져 있는 동안 슬롯이 B와 C로 재분배되었다면 자동 전환 대상을 “언제나 최초 승격자 B”라고 외우면 틀릴 수 있다.</p>
+<p>replica들도 자신이 따르던 primary의 마지막 슬롯을 인계받은 노드 쪽으로 재구성될 수 있다. 이 규칙은 수렴을 위한 구성 동작이다. A에만 남은 최신처럼 보이는 업무 쓰기를 B로 자동 병합한다는 의미는 아니다. 데이터 복제 재동기화가 진행되면 과거 A의 데이터 일부는 버려질 수 있으므로, 불확실한 중요한 데이터가 있다면 무작정 강제 승격·재복제를 반복하지 말고 별도 증거 보존과 복구 판단을 해야 한다. <a href="https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/">공식 Cluster 명세</a></p>
+<h2 id="section-6">5. 재합류와 재동기화는 별개의 완료 조건이다</h2>
+<p>노드가 클러스터 구성상 replica로 바뀌었다고 데이터 복제가 즉시 따라잡혔다고 할 수 없다. 필요한 복제 이력이 남아 있으면 부분 동기화가 가능할 수 있고, 이력이 없거나 복제 ID 조건이 맞지 않으면 전체 동기화가 필요할 수 있다. 전체 동기화에는 데이터 전송과 로딩, 메모리·네트워크·디스크 비용이 든다.</p>
+<p>가정상 12GiB 데이터셋을 다시 받아야 한다고 하자. 실제 유효 전송 속도를 교육용 가정인 150MiB/s로 놓으면 순수 바이트 전송만 약 82초가 된다. 이 계산은 실제 Redis 성능 주장이 아니다. 스냅샷 생성, 압축, 프로토콜 오버헤드, 로딩, 동시 쓰기 반영을 제외한 하한에 가까운 단순 계산이다. 따라서 노드 PING이 1초 만에 살아났다고 보호 복제본까지 1초 만에 복구된 것은 아니다.</p>
+<p>복제 중인 replica를 읽기 대상으로 사용한다면 stale read 정책과 로딩 상태에 따라 사용자 영향이 달라진다. failover 직후 새 primary가 한동안 replica 없이 노출될 수도 있다. 운영 완료 조건에는 클러스터 상태뿐 아니라 각 primary의 유효한 replica 수, 링크 상태, 동기화 진행 여부와 지연을 넣어야 한다.</p>
+<h2 id="section-7">6. replica migration: 데이터 샤딩과 다른 이동</h2>
+<p>“migration”이라는 단어가 두 곳에 쓰여 혼란스럽다. 슬롯 migration은 키와 슬롯 책임을 다른 primary로 옮기는 리샤딩이다. replica migration은 어떤 replica가 <strong>따르는 primary를 바꾸는 것</strong>이다. 후자는 orphaned primary, 즉 정상 replica가 없는 primary를 다시 보호하기 위한 기능이다.</p>
+<p>가정한 구성이 다음과 같다고 하자.</p>
+<pre><code class="language-text">A → A1
+B → B1
+C → C1, C2
+</code></pre>
+<p>A가 장애가 나서 A1이 승격하면 A1은 primary지만 자신을 따라오는 정상 replica가 없을 수 있다. C 쪽에 여유가 있다면 C2가 A1의 replica로 이동할 수 있다. 이제 C는 C1이 보호하고 A1은 C2가 보호한다. 몇 시간 후 A1이 별개의 장애를 겪더라도 C2라는 후보가 생긴다. 자동 복제본 재배치는 시간에 따라 누적되는 독립 장애에 대한 여유를 회복하려는 장치다.</p>
+<p>하지만 존재하지 않는 replica를 만들어 주지는 않는다. 총 replica 수가 부족하거나 이동을 허용하는 조건이 안 맞으면 모든 primary를 보호할 수 없다. 이동 후 동기화가 끝나기 전에는 새 보호가 완성되지도 않는다. 원문의 “결국 각 primary에 replica가 생긴다”는 설명은 필요한 자원과 조건이 있는 안정된 구성에서 읽어야 한다.</p>
+<h2 id="section-8">7. barrier는 떠나는 쪽을 보호한다</h2>
+<p><code>cluster-migration-barrier</code>는 replica가 이동한 뒤 원래 primary에 남겨야 할 정상 replica 수와 관련된 설정이다. 예를 들어 2를 요구하면 하나가 떠나더라도 원래 primary에 두 개의 정상 replica가 남을 수 있어야 한다. “전체 클러스터에 최소 두 개” 또는 “대상 primary에 두 개를 만들어 준다”는 의미가 아니다.</p>
+<p>이동 후보 선택은 가장 많은 replica를 가진 쪽과 노드 ID 같은 결정 규칙으로 여러 replica가 동시에 몰려가는 현상을 줄이도록 설계되어 있다. 슬롯 소유권 선거처럼 모든 이동마다 과반수 합의를 수행하는 방식은 아니다. 일시적으로 각 replica의 관점이 달라 동시에 움직일 가능성도 있으며 안정화 후 다시 균형을 맞추는 구조다.</p>
+<p>운영에서는 자동 재배치가 가용 영역 배치까지 완벽하게 만족하는지 별도로 확인한다. 논리적으로 replica가 하나 있어도 primary와 같은 호스트·랙·가용 영역에 있으면 공통 장애에 취약하다. 자동 기능이 있다는 이유로 배치 정책과 감시를 없애지 않는다. 관리형 제품은 별도 배치 제어를 제공할 수 있으므로 Open Source의 동작을 그대로 적용한다고 단정하지 않는다.</p>
+<h2 id="section-9">8. configEpoch 충돌은 왜 생길 수 있는가</h2>
+<p>정상 선거에서는 새 epoch를 이용해 서로 구별되는 구성을 만들도록 설계되어 있다. 그런데 관리자가 강제 인계하거나 리샤딩 도구가 효율을 위해 로컬에서 epoch를 올리는 경로도 있다. 원문은 <code>CLUSTER FAILOVER TAKEOVER</code>와 수동 리샤딩을 이러한 예로 든다.</p>
+<p>동일 configEpoch를 가진 두 primary가 다른 슬롯을 담당한다면 즉시 같은 키를 놓고 충돌하는 것은 아니다. 그러나 구성이 끝내 수렴하도록 충돌 해소 규칙이 필요하다. 명세에서는 동일 epoch를 광고하는 primary들을 노드 ID로 비교하여 일부가 epoch를 올리는 결정 규칙을 설명한다. 이는 사람이 노드 이름을 보고 “더 중요한 서버”를 선택하는 과정이 아니다.</p>
+<p>운영자가 해야 할 일은 무작위로 epoch를 높여서 이기는 것이 아니다. 강제 takeover는 정상 과반수 승인 절차를 우회할 수 있으므로 네트워크 분할의 반대편에 여전히 쓰기를 받는 노드가 있는지, 어떤 데이터가 권위 있는 원장인지, 복구 후 어떻게 정리할지 판단해야 한다. 이 장의 실습에는 TAKEOVER를 넣지 않는다. 개념을 이해하는 것과 위험한 명령을 실행할 권한은 별개다.</p>
+<h2 id="section-10">9. 노드 제거는 세 가지 작업으로 나누어야 한다</h2>
+<p>primary D를 줄이려면 “프로세스 종료”만 해서는 안 된다. 먼저 D의 슬롯과 데이터를 다른 primary로 옮겨 책임을 비워야 한다. 그다음 클러스터 구성에서 D를 잊게 해야 한다. 마지막으로 재사용하거나 폐기할 인스턴스의 로컬 상태와 자원을 적절하게 처리한다.</p>
+<ul>
+<li><strong>데이터·슬롯 이전:</strong> 접근 가능한 데이터와 슬롯 커버리지를 유지한다.</li>
+<li><strong>멤버십 정리:</strong> 다른 노드가 D를 계속 발견하거나 연결하지 않게 한다.</li>
+<li><strong>인스턴스 처리:</strong> 재사용 여부에 맞춰 파일·역할·정체성을 관리한다.</li>
+</ul>
+<p><code>CLUSTER FORGET</code>은 데이터를 다른 노드로 옮기는 명령이 아니다. 운영자가 먼저 슬롯과 복제 관계를 정리해야 한다. 같은 노드를 자기 자신에게 잊으라고 하거나 replica가 자신의 현재 primary를 잊으려는 등 허용되지 않는 경우도 있다. 명령을 실패시킨 뒤 무조건 RESET으로 밀어붙이는 것은 좋은 복구 절차가 아니다.</p>
+<h3>원문과 현재 문서의 버전 차이</h3>
+<p>제공된 원문은 모든 잔여 노드에 FORGET을 보내고 60초 ban 기간 안에 정리하는 설명을 담고 있다. 현재 공식 명령 문서는 <strong>Redis 7.2.0부터 ban list가 gossip PING/PONG에 포함되어 삭제 정보가 전파되므로 대부분의 경우 한 번의 호출로 전파될 수 있다</strong>고 명시한다. 다만 단절·혼합 버전·운영 조건이 있으므로 단일 호출 성공을 전체 완료의 증거로 삼으면 안 된다. 모든 관련 노드의 멤버십에서 대상이 사라졌는지 검증하는 원칙은 그대로다. <a href="https://redis.io/docs/latest/commands/cluster-forget/">CLUSTER FORGET 버전 이력</a></p>
+<p>이 ban은 잠시 재발견을 막기 위한 것이지 보안 차단 목록이 아니다. 영구적인 네트워크 접근 통제, 인증 폐기, 인프라 삭제를 대신하지 않는다. 논리적으로 제거한 노드의 자격 증명과 네트워크 접근이 그대로 남아 있다면 보안 수명주기는 별도로 처리해야 한다.</p>
+<h2 id="section-11">10. RESET SOFT와 HARD: 실수하면 데이터와 정체성을 잃는다</h2>
+<p><code>CLUSTER RESET</code>은 노드를 재사용할 수 있도록 로컬 Cluster 상태를 초기화하는 관리 명령이다. SOFT와 HARD 모두 슬롯과 다른 노드 정보 등을 정리한다. replica였다면 primary 역할로 돌아가면서 데이터셋을 버리는 동작이 있으므로 단순한 캐시 새로고침으로 생각해서는 안 된다. 데이터가 있는 primary는 보호를 위해 reset이 거부된다.</p>
+<p>HARD는 추가로 epoch 관련 상태를 초기화하고 새 노드 ID를 만들므로 정체성까지 바뀐다. SOFT는 이러한 정체성의 일부를 유지한다. “HARD니까 더 깨끗해서 항상 좋다”가 아니라 재사용 목적, 기존 클러스터의 멤버십, 데이터 보존 필요와 추적 가능성을 보고 선택해야 한다.</p>
+<p>초기화 전에 FLUSHALL로 데이터를 없애면 되겠다는 생각은 특히 위험하다. 해당 노드가 유일하게 가진 업무 데이터일 수 있다. 이 장은 reset과 flush를 실행 가능한 복구 기본 절차로 제시하지 않는다. 폐기 전용 테스트 인스턴스라는 사실과 대상 노드 ID를 확인하고, 필요한 데이터가 다른 곳에서 복구 가능한지 증명한 후 별도 승인된 운영 절차로 처리한다.</p>
+<h2 id="section-12">11. Java/Spring에서는 서버 주소를 정체성으로 저장하지 않는다</h2>
+<p>흔한 실수는 “user 42는 redis-1:6379에 있다”는 정보를 애플리케이션 DB에 저장하거나, key hash를 노드 수로 나눈 자체 분배표를 만드는 것이다. Redis Cluster를 사용한다면 슬롯 배치와 리다이렉션을 Cluster-aware 클라이언트에 맡겨야 한다. failover와 리샤딩 뒤에도 업무 ID와 키 규칙은 같고 물리 위치만 바뀔 수 있어야 한다.</p>
+<p>아래는 역할 변화를 애플리케이션 코드에 박아 넣지 않는 구조 예시다. Cluster 연결 팩토리는 별도 구성되어 있다고 가정하며 이 클래스는 primary 주소를 알지 않는다.</p>
+<pre><code class="language-java">final class SessionSnapshotStore {
+    private final StringRedisTemplate redis;
+
+    SessionSnapshotStore(StringRedisTemplate redis) {
+        this.redis = redis;
+    }
+
+    void save(long userId, String payload, Duration ttl) {
+        if (ttl.isZero() || ttl.isNegative()) {
+            throw new IllegalArgumentException(&quot;ttl must be positive&quot;);
+        }
+        redis.opsForValue().set(&quot;session:{user:&quot; + userId + &quot;}:snapshot&quot;,
+                               payload, ttl);
+    }
+
+    String load(long userId) {
+        return redis.opsForValue().get(
+            &quot;session:{user:&quot; + userId + &quot;}:snapshot&quot;);
+    }
+}
+</code></pre>
+<p>이 예시는 로그인 권한의 유일한 원장을 권장하는 코드가 아니라 만료 가능한 스냅샷 저장 형태를 설명한다. 로그아웃·권한 회수처럼 오래된 데이터가 보안 의미를 가지는 경우 복제본 읽기와 캐시 fallback을 별도 검토한다. 재합류 중 stale read가 가능하다고 해서 “세션이니까 조금 늦어도 된다”고 일괄 판단해서는 안 된다.</p>
+<p>운영 메트릭에는 논리 shard 식별, endpoint, 연결 상태를 분리해서 넣는 것이 유용하다. 노드 ID나 주소가 바뀌면 시계열이 새로 시작할 수 있으므로 대시보드가 이를 정상 트래픽 증감과 혼동하지 않게 한다. 반대로 키 전체를 메트릭 태그로 넣으면 cardinality가 폭증하고 민감 정보가 노출될 수 있다. 사용자 단위 정보는 집계하거나 승인된 추적 시스템에서 제한적으로 다룬다.</p>
+<h2 id="section-13">12. 읽기 전용 관찰 실습</h2>
+<p>다음은 <strong>실행하지 않은 실습 안내이며 출력도 예상 의미만 설명한다</strong>. 로컬 격리 Cluster에서만 수행하고 실제 재합류를 유발하는 정지·시작은 전용 컨테이너/프로세스 관리 절차로 수행한다. 운영 클러스터에서 FORGET, RESET, TAKEOVER를 시험하지 않는다.</p>
+<pre><code class="language-bash"># 최소 두 primary에서 독립적으로 관찰한다.
+redis-cli -p 7000 CLUSTER NODES
+redis-cli -p 7001 CLUSTER NODES
+redis-cli -p 7000 CLUSTER SHARDS
+redis-cli -p 7000 CLUSTER INFO
+
+# 재합류 대상의 실제 역할과 복제 상태를 본다.
+redis-cli -p 7003 ROLE
+redis-cli -p 7003 INFO replication
+</code></pre>
+<p>첫 번째 기록에서는 노드 ID와 endpoint를 분리해 표에 적는다. 두 번째 기록에서는 각 primary의 슬롯 구간과 configEpoch를 적는다. 세 번째 기록에서는 replica가 누구를 따라가는지, 복제 링크가 연결되어 있는지, 동기화 중인지 적는다. 같은 항목을 여러 노드에서 읽어 관점 차이가 있는지도 확인한다.</p>
+<p>18장 실험에서 내렸던 primary를 다시 올렸다고 가정하고 이를 반복한다. 예상되는 단순 사례는 예전 primary가 승격된 새 primary의 replica로 바뀌는 것이다. 다만 여러 번의 리샤딩이나 failover를 섞었다면 단순 예상이 맞지 않을 수 있다. 이 경우 실제 마지막 슬롯 인계와 epoch를 따라 설명한다. 단순히 예상과 다르다는 이유로 수동으로 원래 역할을 강요하지 않는다.</p>
+<p>완료 조건은 다음 네 가지다. 관련 노드들이 같은 슬롯 소유자를 알고 있다. 기존 primary가 적절한 복제 관계로 바뀌었다. 전체 또는 부분 동기화가 끝나 링크가 안정되었다. 앱의 실제 키 접근이 정상이며 새로운 지속적 redirect나 timeout이 없다. 관찰만으로 설명할 수 없는 데이터 불일치가 있으면 실험 상태를 보존하고 원인을 조사한다.</p>
+<h2 id="section-14">13. 현실적인 재합류 사고 타임라인</h2>
+<p>교육용 가정으로 새벽 02:00에 primary A가 중단되었고 02:00:08에 B가 승격되었다고 하자. 02:05에 A가 다시 시작하여 PING에 응답했다. 당직자가 PING만 보고 복구 완료를 선언했다. 그러나 A는 B의 replica로 바뀌어 전체 동기화 중이고, B는 아직 완전히 따라잡은 replica가 없는 상태다. 02:06에 B가 메모리 압박으로 종료되면 두 번째 장애에 대한 여유가 충분하지 않을 수 있다.</p>
+<p>이 사건의 개선은 “A의 시작을 더 빨리 하기”만이 아니다. 복구 완료 체크에 복제 동기화와 보호 replica 수를 넣고, 전체 동기화 중 B의 메모리·디스크·네트워크 여유를 확인해야 한다. A가 복귀하면서 발생하는 부하 자체가 B를 압박할 수도 있다. 원래 장애의 원인과 재합류가 유발한 부하를 같은 시계열로 연결한다.</p>
+<p>또 다른 사고는 제거한 D가 다시 나타나는 경우다. 오래된 버전에서 일부 노드에만 FORGET을 보냈거나 단절된 노드가 오래된 멤버십을 퍼뜨릴 수 있다. 이때 D의 프로세스만 계속 죽이는 식으로 대응하면 실제 구성 문제는 남는다. 제거 절차의 대상 버전, ban 전파, 잔여 노드 관점과 재시작 자동화가 D를 되살리는지 모두 확인해야 한다.</p>
+<h2 id="section-15">14. Pub/Sub까지 확장해서 생각하기</h2>
+<p>원문 끝에는 일반 Pub/Sub과 sharded Pub/Sub이 등장한다. 일반 채널 발행은 Cluster 내 여러 노드로 전파되어 구독 위치를 추상화하지만, 메시지의 영속적인 복구 원장을 뜻하지 않는다. 연결이 끊긴 구독자가 놓친 메시지를 재합류 후 자동으로 전부 받는다고 가정하면 안 된다.</p>
+<p>Redis 7.0 이후 sharded Pub/Sub은 채널을 슬롯에 매핑하여 shard 범위로 전달을 제한하는 별도 모델이다. 이를 사용하면 클라이언트의 채널 라우팅과 토폴로지 변경 처리도 고려해야 한다. key 슬롯 소유권 수렴을 이해하면 채널이 어느 shard에 속하는지 설명하는 데 도움이 되지만, 일반 PUBLISH와 SPUBLISH를 같은 명령처럼 치환할 수는 없다.</p>
+<p>Spring에서 이벤트를 Pub/Sub으로 발행하는 시스템은 failover·재구독 기간의 메시지 유실을 업무적으로 허용하는지 먼저 판단한다. 반드시 다시 처리해야 하는 이벤트라면 별도의 내구성 있는 메시징/원장 설계가 필요하다. 토폴로지가 정상으로 돌아왔다고 과거 이벤트 누락까지 복구되었다는 뜻은 아니다. <strong>구성 복구, 데이터 복제 복구, 구독 복구, 업무 누락 복구</strong>는 다른 체크박스다.</p>
+<h2 id="section-16">면접과 설계 리뷰 Q&amp;A</h2>
+<details class="question"><summary>Q1. 오래된 primary가 돌아오면 자신의 데이터를 새 primary에 합치는가?</summary><div class="answer">
+
+<p>일반적인 자동 재합류는 업무 데이터를 양방향 병합하는 과정이 아니다. 최신 configEpoch에 따라 슬롯 소유권을 배우고 새 복제 관계를 따른다. 예전 primary에만 존재하는 쓰기는 보존되지 않을 수 있다. 중요한 원장의 불일치를 조사해야 한다면 재복제 전에 증거 보존과 데이터 권위 판단을 별도로 해야 한다.</p>
+</div></details>
+
+<details class="question"><summary>Q2. configEpoch가 큰 노드는 데이터도 가장 최신인가?</summary><div class="answer">
+
+<p>그렇게 단정할 수 없다. configEpoch는 슬롯 소유권 구성의 버전이다. 데이터의 복제 진행 정도는 offset과 복제 상태 등 다른 정보로 확인한다. 더 큰 configEpoch가 이기는 규칙은 클러스터의 담당자를 정하기 위한 것이며 모든 사용자 쓰기가 그 담당자에게 전달되었다는 내구성 증명이 아니다.</p>
+</div></details>
+
+<details class="question"><summary>Q3. UPDATE가 있는데 heartbeat 전파도 필요한 이유는?</summary><div class="answer">
+
+<p>Heartbeat는 정상적인 통신 과정에서 자신의 구성 정보를 계속 알리는 기본 경로다. UPDATE는 상대방이 오래된 정보를 주장할 때 최신 내용을 돌려주는 보정 경로다. 두 경로가 함께 작동하면 새 primary의 알림과 오래된 노드의 복귀를 처리할 수 있다. 어느 한 메시지가 모든 노드에 원자적으로 도착한다고 가정하지 않는다.</p>
+</div></details>
+
+<details class="question"><summary>Q4. replica migration과 resharding은 무엇이 다른가?</summary><div class="answer">
+
+<p>resharding은 슬롯과 키의 책임을 다른 primary로 옮긴다. replica migration은 복제본이 따르는 primary를 바꾸어 replica 없는 primary를 보호한다. 후자는 클러스터의 데이터 샤딩 경계를 직접 재분배하는 작업이 아니지만 새 primary와 동기화하는 자원 비용이 발생한다. 따라서 논리적으로 가볍게 보여도 운영 부하는 확인해야 한다.</p>
+</div></details>
+
+<details class="question"><summary>Q5. migration barrier가 2이면 어떤 의미인가?</summary><div class="answer">
+
+<p>replica가 원래 primary를 떠난 뒤에도 그 primary에 요구되는 정상 replica 수가 남아야 한다는 제약으로 이해한다. 대상 primary에 두 개를 만들어 주거나 클러스터 전체에 두 개만 있으면 된다는 뜻이 아니다. 여유 replica가 없으면 자동 이동으로 보호를 복구할 수 없으며 설정과 실제 장애 상태를 함께 봐야 한다.</p>
+</div></details>
+
+<details class="question"><summary>Q6. CLUSTER FORGET은 모든 노드에 보내야 하는가?</summary><div class="answer">
+
+<p>버전에 따라 설명이 달라진다. 제공된 오래된 설명은 모든 노드에 제한 시간 안에 보내는 절차를 강조한다. Redis 7.2.0부터는 ban list 전파가 추가되어 대부분 단일 호출로도 퍼질 수 있다. 하지만 단절이나 혼합 버전이 있으므로 실제 모든 관련 노드에서 대상이 사라졌다는 결과 검증은 반드시 필요하다.</p>
+</div></details>
+
+<details class="question"><summary>Q7. RESET HARD가 장애 복구의 빠른 해결책인가?</summary><div class="answer">
+
+<p>아니다. 구성과 정체성을 초기화하는 재사용 도구이며 데이터와 멤버십에 큰 영향을 준다. 문제의 증거를 없애고 복구를 더 어렵게 할 수 있다. 먼저 슬롯·데이터·복제 관계가 왜 어긋났는지 조사하고 목적에 맞는 절차를 선택해야 한다. 특히 데이터를 삭제하여 reset 조건을 억지로 맞추는 것은 일반적인 복구 방법이 아니다.</p>
+</div></details>
+
+<details class="question"><summary>Q8. 재합류 완료는 무엇으로 확인하는가?</summary><div class="answer">
+
+<p>프로세스 생존, 슬롯 구성 수렴, 올바른 역할과 복제 대상, 동기화 완료, 앱의 실제 요청 회복을 각각 확인한다. 그중 하나라도 빠지면 다음 장애를 견딜 여유나 사용자 기능이 회복되지 않았을 수 있다. Pub/Sub을 쓰면 재구독과 누락 이벤트 처리도 별도 확인한다. 한 번의 PING이나 한 노드의 출력만으로 완료를 선언하지 않는다.</p>
+</div></details>
+
+<h2 id="section-17">정리와 참고</h2>
+<p>구성 전파의 핵심은 최신 슬롯 소유권을 채택하고 오래된 주장을 후퇴시키는 것이다. 복귀한 노드는 과거의 직책을 보장받지 않으며 현재 구성에 맞는 replica가 될 수 있다. 자동 replica migration은 여유 자원을 재배치하지만 무에서 보호 자원을 만들지 않는다. 제거와 reset은 데이터 이전, 멤버십, 정체성이라는 서로 다른 수명주기를 건드린다.</p>
+<ul>
+<li>제공된 원문 19장: hash slots propagation, UPDATE, rejoin, replica migration, epoch collision, reset, forget와 Pub/Sub.</li>
+<li><a href="https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/">공식 Cluster 명세</a>: 일반 수렴 규칙의 교차 확인.</li>
+<li><a href="https://redis.io/docs/latest/commands/cluster-forget/">CLUSTER FORGET</a>: 7.2.0 이후 전파 차이와 예외 조건.</li>
+</ul>
+</article><nav aria-label="연재 이동"><a href="/posts/redis-study-18.html">← Cluster 장애 감지와 승격 합의: 의심에서 새 primary까지</a><a href="/posts/redis-study-20.html">지연 측정과 느린 명령: SLOWLOG 밖의 시간을 찾기 →</a></nav><footer>Redis 학습 연재 · <a href="/learning/redis/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

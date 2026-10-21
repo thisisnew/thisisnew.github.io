@@ -1,0 +1,197 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="C 문자열의 한계에서 출발해 SDS 헤더, 바이너리 안전성, 재할당 비용과 Java 직렬화의 연결을 이해한다."><title>Redis 30 · SDS 문자열 내부 구조: 길이를 기억하는 바이트 배열 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/redis-study-30.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/redis-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="redis"><main><a href="/">← 전체 글</a> · <a href="/posts/redis-study-00.html">Redis 학습 지도</a><header><p class="meta">REDIS QUEST · 30 / 30 · DEEP STUDY</p><h1>SDS 문자열 내부 구조: 길이를 기억하는 바이트 배열</h1><p class="subtitle">C 문자열의 한계에서 출발해 SDS 헤더, 바이너리 안전성, 재할당 비용과 Java 직렬화의 연결을 이해한다.</p><p class="note">첨부 Redis 학습 자료의 주제를 쉬운 설명과 공식 문서 근거로 재구성했습니다. 명령·설정의 버전 조건은 본문을 확인하세요. 장애 시나리오와 수치는 별도 표시가 없으면 학습용 가정이며, 코드가 실려 있다는 사실만으로 실행 검증을 의미하지 않습니다. <a href="/learning/redis/verification.html">검증 범위와 남은 한계</a></p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. 문자열 길이를 알려면 매번 끝까지 걸어야 할까?</a></li><li><a href="#section-2">2. C 문자열의 장점과 한계</a></li><li><a href="#section-3">3. 제공된 원문의 구조체는 개념 그림으로 읽는다</a></li><li><a href="#section-4">4. SDS 포인터는 헤더가 아니라 문자 버퍼를 가리킨다</a></li><li><a href="#section-5">5. len, alloc, 여유 공간을 숫자로 보기</a></li><li><a href="#section-6">6. 왜 길이 조회는 O(1)인가?</a></li><li><a href="#section-7">7. append는 언제 싸고 언제 비싼가?</a></li><li><a href="#section-8">8. 재할당은 포인터를 바꿀 수 있다</a></li><li><a href="#section-9">9. SDS와 Redis String 타입은 같은 층이 아니다</a></li><li><a href="#section-10">10. 안전한 로컬 실습: 0 바이트와 한글 길이</a></li><li><a href="#section-11">11. Java/Spring에서 문자 수와 바이트 수를 구분하기</a></li><li><a href="#section-12">12. 큰 문자열 장애를 SDS 관점으로 해석하기</a></li><li><a href="#section-13">13. 면접 질문과 상세 답변</a></li></ol></aside><article><h2 id="section-1">1. 문자열 길이를 알려면 매번 끝까지 걸어야 할까?</h2>
+<p>기차가 몇 칸인지 알아보는 두 방법이 있다. 맨 앞에서 끝까지 걸으며 세거나, 운행표에 기록된 칸 수를 읽을 수 있다. C의 전통적인 널 종료 문자열과 SDS의 길이 조회 차이를 이해하기 좋은 비유다. 널 종료 문자열은 끝을 나타내는 바이트를 찾아가고, SDS는 길이를 별도 메타데이터에 저장한다.</p>
+<p>하지만 운행표를 읽는 일이 빠르다고 기차에 객차를 붙이는 일까지 즉시 끝나는 것은 아니다. SDS도 길이 조회는 O(1)이지만 확장·복사·할당에는 다른 비용이 있다. 이 장의 핵심 문장은 다음과 같다.</p>
+<blockquote>
+<p><strong>SDS는 길이를 상수 시간에 알 수 있는 가변 길이 바이트 문자열이다. 모든 문자열 연산이 상수 시간이 되는 마법의 구조는 아니다.</strong></p>
+</blockquote>
+<p>SDS는 Simple Dynamic String의 약자다. Redis가 내부에서 문자열과 여러 버퍼를 다루는 데 사용하는 C 기반 라이브러리다. 여기서 문자열은 반드시 사람의 문장이 아니라 임의의 바이트 열이다. UTF-8 텍스트, 압축 결과, 이미지 조각, 직렬화된 데이터도 바이트로 표현할 수 있다.</p>
+<h2 id="section-2">2. C 문자열의 장점과 한계</h2>
+<p>전통적인 C 문자열은 <code>char</code> 배열의 끝에 <code>\0</code>, 즉 값이 0인 바이트를 놓는다.</p>
+<pre><code class="language-text">&#39;h&#39; &#39;e&#39; &#39;l&#39; &#39;l&#39; &#39;o&#39; &#39;\0&#39;
+</code></pre>
+<p><code>strlen</code>은 시작 주소부터 0 바이트를 만날 때까지 세기 때문에 길이가 n이면 일반적으로 O(n) 탐색이 필요하다. O(n)은 입력 크기에 비례하는 작업량을 뜻한다. n이 두 배가 되면 반드시 정확히 두 배 시간이 걸린다는 성능 예언은 아니지만 커질수록 더 많은 바이트를 확인해야 한다는 의미다.</p>
+<p>다음 데이터에는 가운데 0이 있다.</p>
+<pre><code class="language-text">&#39;A&#39; &#39;\0&#39; &#39;B&#39;
+</code></pre>
+<p>바이너리 데이터로는 3바이트지만 C 문자열 함수는 첫 0에서 끝났다고 생각할 수 있다. 이것이 전통적인 C 문자열 API와 바이너리 데이터를 섞을 때의 문제다. 또한 배열의 실제 용량을 자동으로 알지 못하므로 추가 복사 전에 충분한 공간이 있는지 호출자가 관리해야 한다.</p>
+<p>SDS는 길이와 할당 용량을 관리하는 메타데이터를 두어 이런 작업을 도와준다. 그러나 SDS를 쓴다고 C의 모든 메모리 안전 문제가 사라지는 것은 아니다. 잘못된 포인터, 잘못된 길이 인자, 해제 후 접근, 외부 C 문자열 함수 사용은 여전히 오류를 만들 수 있다.</p>
+<h2 id="section-3">3. 제공된 원문의 구조체는 개념 그림으로 읽는다</h2>
+<p>오래된 설명은 다음과 같은 구조를 보여 준다.</p>
+<pre><code class="language-c">/* 역사적 개념 모델. 현재 버전의 정확한 선언이 아니다. */
+struct old_style_header {
+    long len;
+    long free;
+    char buf[];
+};
+</code></pre>
+<p>이 그림은 “문자 데이터 앞에 길이와 여유 공간 정보가 있다”는 개념을 설명하는 데 유용하다. 하지만 현대 Redis의 SDS가 항상 두 개의 long 필드를 사용한다고 외우면 틀리다. 이 장은 구체적인 구현을 읽을 때 Redis 7.2 계열의 <code>sds.h</code>와 <code>sds.c</code>를 기준으로 한다.</p>
+<p>7.2 구현에는 길이 범위에 따라 <code>sdshdr5</code>, <code>sdshdr8</code>, <code>sdshdr16</code>, <code>sdshdr32</code>, <code>sdshdr64</code> 같은 헤더 형식이 있다. 일반적인 헤더는 사용 길이 <code>len</code>, 할당 용량 <code>alloc</code>, 형식을 나타내는 <code>flags</code>와 데이터 버퍼로 구성된다. 아주 작은 type 5는 길이를 flags에 압축해서 표현하고 별도 alloc 필드를 두지 않는 특수한 경우다. <a href="https://github.com/redis/redis/blob/7.2/src/sds.h">Redis 7.2 sds.h</a></p>
+<p>따라서 “SDS 헤더는 항상 몇 바이트다”라는 답은 부정확하다. 데이터 길이, 헤더 유형, 할당기와 객체 인코딩에 따라 전체 메모리 크기는 달라진다. 작은 문자열 수백만 개에서는 이런 헤더 절약이 중요할 수 있다.</p>
+<h2 id="section-4">4. SDS 포인터는 헤더가 아니라 문자 버퍼를 가리킨다</h2>
+<p>SDS 타입은 C 코드에서 문자 포인터처럼 사용된다. 개념적인 메모리 배치는 다음과 같다.</p>
+<pre><code class="language-text">할당 블록 시작                                  끝
+┌──────────────┬───────┬─────────────────┬──────┐
+│ 길이·용량 등 │ flags │ 실제 데이터     │ \0   │
+└──────────────┴───────┴─────────────────┴──────┘
+                        ↑
+                        sds 포인터
+</code></pre>
+<p>실제로는 사용 중인 데이터 뒤에 여유 공간이 있을 수 있고, 문자열 끝의 널 바이트는 현재 길이 위치에 있다. 그림은 헤더와 포인터 관계를 보여 주기 위해 단순화했다. <code>s[-1]</code> 위치의 flags에서 유형을 확인하고 그 유형에 맞는 헤더로 길이 등을 읽는 것이 중요한 아이디어다.</p>
+<p>이렇게 하면 기존 C 함수에 문자 데이터 시작 주소를 전달하기 편하다. 하지만 “C 문자열과 완전히 같은 방식으로 사용해도 안전하다”는 뜻은 아니다. 중간에 0 바이트가 있는 SDS를 <code>strlen</code>이나 <code>%s</code>에 넘기면 데이터 전체를 보지 못한다. SDS의 길이를 사용하는 API와 길이 인자를 받는 바이너리 API를 사용해야 한다.</p>
+<p>또한 <code>free(s)</code>처럼 문자 시작 포인터를 일반 해제 함수에 직접 넘기면 안 된다. 할당 블록의 시작은 앞의 헤더에 있기 때문이다. SDS를 생성한 방식에 맞는 <code>sdsfree</code>와 라이브러리의 소유권 규칙을 따른다. 포인터가 가리키는 위치와 메모리 할당 시작 위치를 구분하는 것이 C 내부 자료구조를 읽는 핵심이다.</p>
+<h2 id="section-5">5. len, alloc, 여유 공간을 숫자로 보기</h2>
+<p>길이가 5이고 할당 가능한 문자 공간이 12라고 가정하자. 일반 헤더의 개념으로는 다음과 같다.</p>
+<pre><code class="language-text">len   = 5  : 지금 의미 있는 데이터의 바이트 수
+alloc = 12 : 데이터 저장에 확보한 용량
+avail = 7  : 추가로 쓸 수 있는 공간, alloc - len
+</code></pre>
+<p>헤더 크기와 종료 널 바이트를 이 <code>alloc</code> 값에 무조건 포함해서 계산하지 않는다. SDS API에서 용량의 정의와 전체 할당 블록 크기의 정의를 구분한다. 실제 할당기는 요청한 바이트보다 큰 크기 등급으로 메모리를 줄 수 있으므로 실제 소비 메모리는 논리 길이와 같지 않다.</p>
+<p>문자열을 짧게 만들었다고 OS가 즉시 메모리를 돌려받는 것도 아니다. SDS가 버퍼를 유지할 수 있고, 해제하더라도 메모리 할당기가 나중의 재사용을 위해 보관할 수 있다. 따라서 <code>STRLEN</code> 감소와 Redis 프로세스 RSS 감소는 같은 관찰이 아니다. RSS는 실제 메모리에 올라와 있는 프로세스 페이지 크기를 나타내는 운영체제 지표다.</p>
+<p>작은 논리 데이터가 많은 경우에는 키 이름, Redis 객체, 해시 테이블 엔트리, 만료 정보 등 추가 메타데이터도 크다. 문자열 값의 바이트 수만 더해서 전체 Redis 메모리 사용량을 예측하면 크게 빗나갈 수 있다.</p>
+<h2 id="section-6">6. 왜 길이 조회는 O(1)인가?</h2>
+<p>SDS는 저장된 길이를 헤더에서 읽는다. 데이터 전체를 훑지 않는다. 헤더 유형을 판별하고 해당 길이 필드를 읽는 작업은 문자열 내용 길이가 늘어나도 수행 단계가 일정하다. 그래서 <code>sdslen</code>은 O(1)이라고 설명한다.</p>
+<p>Redis의 <code>STRLEN</code>도 문자열 값의 길이를 상수 시간에 반환하는 명령으로 문서화되어 있다. 하지만 명령 하나의 전체 왕복 시간이 0이 되는 것은 아니다. 네트워크 전송, 큐 대기, 키 조회, 프로토콜 응답 등의 고정 비용이 있다. <a href="https://redis.io/docs/latest/commands/strlen/">STRLEN</a></p>
+<p>O(1)은 “항상 1나노초”라는 뜻이 아니다. CPU 캐시 상태, 메모리 접근, 서버 부하에 따라 실제 시간은 달라진다. 알고리즘 복잡도는 입력 크기에 따라 작업량이 어떻게 증가하는지 설명하는 도구다. 정확한 지연은 측정해야 한다.</p>
+<p>길이도 문자 개수가 아니라 <strong>바이트 수</strong>다. UTF-8로 인코딩한 한글은 일반적으로 음절 하나가 여러 바이트를 차지한다. 사람이 보기에 하나의 글자인 이모지가 여러 유니코드 코드 포인트로 구성될 수도 있다. Redis가 UTF-8 문자를 해석해서 글자 수를 세어 주는 것이 아니다.</p>
+<h2 id="section-7">7. append는 언제 싸고 언제 비싼가?</h2>
+<p>길이 n인 SDS에 m바이트를 추가한다고 하자.</p>
+<h3>7.1 공간이 충분한 경우</h3>
+<p>현재 여유 공간에 새 데이터를 복사하고 길이를 갱신하며 끝의 널 바이트를 둔다. 추가 데이터 m바이트를 읽고 써야 하므로 기본적으로 O(m) 작업이 필요하다. m이 작은 고정 크기일 때만 그 복사 부분을 상수 시간처럼 볼 수 있다.</p>
+<h3>7.2 공간이 부족한 경우</h3>
+<p>더 큰 블록이 필요하다. 할당기가 같은 위치에서 늘릴 수 있으면 기존 데이터 이동을 피할 수도 있지만, 다른 위치로 옮기면 n바이트 기존 데이터도 복사해야 한다. 그러면 그 한 번의 확장은 O(n + m) 수준의 비용을 가질 수 있다. 할당과 메모리 접근의 실제 지연도 생긴다.</p>
+<h3>7.3 미리 여유 공간을 확보하는 이유</h3>
+<p>매번 정확히 필요한 크기만 늘리면 1바이트씩 추가할 때 반복 복사가 커질 수 있다. SDS는 확장 시 여유 공간을 더 확보하는 정책으로 재할당 횟수를 줄인다. Redis 7.2의 일반적인 greedy 확장 경로에서는 작은 크기 구간에서 배수 증가, 일정 임계값 이상에서 제한된 여유분 추가 방식을 볼 수 있다. 이는 버전과 호출 경로에 묶인 정책이며 모든 할당 함수가 같은 정책을 사용한다고 단정하지 않는다. <a href="https://github.com/redis/redis/blob/7.2/src/sds.c">Redis 7.2 sds.c</a></p>
+<p><strong>상각 비용</strong>은 여러 연산의 총비용을 연산 수로 나누어 이해하는 관점이다. 전형적인 기하급수 확장 배열에서는 드문 큰 복사 비용을 여러 작은 append에 나눠 설명할 수 있다. 그러나 SDS의 큰 크기 구간처럼 여유 증가가 제한되는 정책까지 무시하고 “모든 크기에서 무한히 append해도 엄밀하게 항상 상각 O(1)”이라고 일반화하면 안 된다. 개별 추가 데이터 복사 비용 m도 별도로 존재한다.</p>
+<h2 id="section-8">8. 재할당은 포인터를 바꿀 수 있다</h2>
+<p>다음은 SDS를 사용하는 C 코드의 개념 예시다. Redis 빌드의 헤더·할당기 연결이 필요하므로 이 조각 자체가 독립 실행 프로그램은 아니다.</p>
+<pre><code class="language-c">sds text = sdsnewlen(&quot;abc&quot;, 3);
+/* 생성 실패 정책은 사용하는 SDS API와 빌드에 맞게 처리한다. */
+text = sdscatlen(text, &quot;def&quot;, 3);
+/* 확장 후 반환된 포인터를 이후 접근에 사용한다. */
+size_t bytes = sdslen(text);
+sdsfree(text);
+</code></pre>
+<p>여기서 핵심은 <code>sdscatlen</code>의 반환값을 다시 저장한다는 점이다. 확장하면서 블록 위치가 바뀔 수 있기 때문이다. 기존 <code>text</code>를 다른 포인터가 기억하고 있었다면 그 포인터는 더 이상 유효하지 않을 수 있다. 문자열 중간을 가리키는 포인터도 같은 문제가 생긴다.</p>
+<p>메모리 부족을 NULL로 돌려주는 API를 사용한다면 원래 포인터를 잃지 않도록 임시 포인터를 사용한 실패 처리가 필요할 수 있다. 반대로 Redis의 특정 할당 경로는 메모리 부족 시 중단 정책을 가질 수 있으므로 일반 C 라이브러리의 realloc 처리와 완전히 같다고 가정하지 않는다. 정확한 함수 계약을 확인한다.</p>
+<p>Java에서는 가비지 컬렉터가 참조를 관리하므로 보통 이런 포인터 갱신을 직접 하지 않는다. 그렇다고 확장과 복사가 사라지는 것은 아니다. <code>StringBuilder</code>, 바이트 배열, 직렬화 버퍼도 내부 용량이 부족하면 새 메모리와 복사 비용이 발생할 수 있다. 메모리 안전성과 메모리 비용은 다른 개념이다.</p>
+<h2 id="section-9">9. SDS와 Redis String 타입은 같은 층이 아니다</h2>
+<p>사용자가 보는 Redis String 타입은 외부 데이터 모델이다. 내부에서는 정수 값으로 표현할 수 있는 경우 <code>int</code>, 작은 문자열을 객체와 함께 배치하는 <code>embstr</code>, 별도 문자열 버퍼를 사용하는 <code>raw</code> 같은 인코딩이 있을 수 있다. SDS는 그 내부 문자열 표현을 이해하는 구성 요소다.</p>
+<p>따라서 “모든 Redis String은 동일한 SDS 블록 하나다”라는 설명은 부정확하다. 숫자처럼 보이는 문자열이 정수 인코딩을 사용할 수도 있고, 수정 작업 때문에 인코딩이 바뀔 수도 있다. <code>OBJECT ENCODING</code>은 내부 표현을 관찰하는 데 도움이 되지만 애플리케이션의 업무 계약으로 고정하면 안 된다. <a href="https://redis.io/docs/latest/commands/object-encoding/">OBJECT ENCODING</a></p>
+<p>특정 길이 이하가 항상 embstr라는 임계값을 모든 버전의 영원한 규칙으로 외우지 않는다. 패치 버전과 구현을 확인한다. 이 장의 목적은 “작은 값의 할당 횟수와 메모리 배치를 최적화한다”는 원리를 이해하는 것이다. 실제 구현 예시는 <a href="https://github.com/redis/redis/blob/7.2/src/object.c">Redis 7.2 object.c</a>에서 확인할 수 있다.</p>
+<p>키도 문자열이고 값도 문자열일 수 있지만, 자료구조 안에 저장되는 방식과 수명은 다를 수 있다. 하나의 값에 대한 SDS 설명을 모든 키·컬렉션 원소·출력 버퍼의 전체 메모리 레이아웃으로 확대하지 않는다.</p>
+<h2 id="section-10">10. 안전한 로컬 실습: 0 바이트와 한글 길이</h2>
+<p>아래는 <strong>실행 결과가 아닌 예상 관찰 실습</strong>이다. Redis와 Python 3, redis-cli가 설치된 개발 환경을 가정한다. 새 빈 임시 데이터 디렉터리를 사용해 기존 RDB를 읽지 않도록 한다. 자동 저장을 끄는 것만으로 기존 파일 로드가 막히지는 않는다.</p>
+<pre><code class="language-bash">umask 077
+LAB=$(mktemp -d)
+printf &#39;실습 디렉터리: %s\n&#39; &quot;$LAB&quot;
+redis-server --bind 127.0.0.1 --port 16379 --dir &quot;$LAB&quot; \
+  --save &#39;&#39; --appendonly no
+</code></pre>
+<p>다른 터미널에서 바이너리 값을 표준 입력으로 전달한다. 이 실습에서는 <code>-x</code>가 마지막 인자를 표준 입력에서 읽게 하므로 셸 인자에 0 바이트를 넣으려 하지 않아도 된다.</p>
+<pre><code class="language-bash">python3 -c &#39;import sys; sys.stdout.buffer.write(b&quot;A\x00B&quot;)&#39; \
+  | redis-cli -h 127.0.0.1 -p 16379 -x SET lesson:binary
+redis-cli -h 127.0.0.1 -p 16379 STRLEN lesson:binary
+</code></pre>
+<p>예상 길이는 3이다. 가운데 0 바이트에서 끝난 것으로 처리하지 않는다. 다음은 UTF-8 한글이다.</p>
+<pre><code class="language-bash">python3 -c &#39;import sys; sys.stdout.buffer.write(&quot;가나다&quot;.encode(&quot;utf-8&quot;))&#39; \
+  | redis-cli -h 127.0.0.1 -p 16379 -x SET lesson:korean
+redis-cli -h 127.0.0.1 -p 16379 STRLEN lesson:korean
+</code></pre>
+<p>예상 길이는 9바이트다. 글자 세 개와 바이트 아홉 개를 구분한다. 인코딩을 명시한 이유는 터미널 환경이나 기본 문자 집합에 기대지 않기 위해서다.</p>
+<h3>10.1 추가와 내부 인코딩 관찰</h3>
+<pre><code class="language-bash">redis-cli -h 127.0.0.1 -p 16379 SET lesson:number 123
+redis-cli -h 127.0.0.1 -p 16379 OBJECT ENCODING lesson:number
+redis-cli -h 127.0.0.1 -p 16379 APPEND lesson:number xyz
+redis-cli -h 127.0.0.1 -p 16379 GET lesson:number
+redis-cli -h 127.0.0.1 -p 16379 OBJECT ENCODING lesson:number
+</code></pre>
+<p>최종 값은 <code>123xyz</code>가 예상된다. 처음에는 정수 인코딩이 관찰될 수 있고, 숫자가 아닌 내용을 붙이면 정수만으로 표현할 수 없는 문자열 경로로 바뀐다. 정확한 인코딩 이름과 전환 정책은 서버 버전에서 확인한다. 이 실험은 재할당 횟수나 SDS 헤더 용량을 직접 측정하지 않으므로 “이때 반드시 메모리가 이동했다”고 주장해서는 안 된다.</p>
+<p>실습 종료는 서버 터미널의 Ctrl-C로 수행한다. 종료를 확인한 후 실습 디렉터리를 삭제한다. 운영의 큰 문자열에 반복 APPEND를 수행하며 내부 구조를 시험하지 않는다.</p>
+<h2 id="section-11">11. Java/Spring에서 문자 수와 바이트 수를 구분하기</h2>
+<p>Java의 <code>String.length()</code>는 UTF-16 코드 단위 수다. UTF-8 바이트 수와 같지 않고, 사람이 인식하는 글자 수와도 항상 같지 않다. Redis에 저장하기 전 어떤 serializer를 사용했는지가 실제 바이트 배열을 결정한다.</p>
+<pre><code class="language-java">String text = &quot;가나다&quot;;
+int javaUnits = text.length();                 // 3
+byte[] utf8 = text.getBytes(StandardCharsets.UTF_8);
+int redisPayloadBytes = utf8.length;           // 9
+</code></pre>
+<p><code>StringRedisTemplate</code>는 문자열 직렬화에 적합하지만 바이너리 압축 데이터나 암호화 결과를 무조건 String으로 바꿔 저장하면 손상이 생길 수 있다. 바이너리는 byte[] serializer를 사용하는 적절한 RedisTemplate 또는 바이너리 API로 다룬다. 텍스트로 옮겨야 한다면 Base64 같은 명시적 인코딩을 쓰되 저장 크기가 증가한다는 비용을 계산한다.</p>
+<p>다음은 업무 경계를 설명하는 개념 코드다.</p>
+<pre><code class="language-java">byte[] payload = serializeOrder(order); // 형식과 버전을 명시한 직렬화
+if (payload.length &gt; MAX_CACHE_VALUE_BYTES) {
+    throw new IllegalArgumentException(&quot;cache value too large&quot;);
+}
+// byte[] 값을 그대로 보존하도록 설정한 Redis API에 전달한다.
+</code></pre>
+<p>제한은 Java 문자 수가 아니라 실제 전송 바이트 수를 기준으로 두는 것이 정확하다. 값이 커지면 네트워크, Redis 버퍼, Java 역직렬화, GC에도 비용이 생긴다. SDS가 길이를 빠르게 조회한다고 큰 값을 읽고 쓰는 비용까지 작아지지는 않는다.</p>
+<h2 id="section-12">12. 큰 문자열 장애를 SDS 관점으로 해석하기</h2>
+<p>한 키에 계속 APPEND하며 로그를 쌓는 설계를 생각해 보자. 처음에는 간단하고 빠르다. 하지만 값이 커질수록 확장 순간의 복사, 전체 GET 응답 크기, AOF·복제 전송량, 클라이언트 메모리 사용이 커진다. 한 키가 특정 클러스터 슬롯에 머무르면 여러 샤드로 자동 분산되지도 않는다.</p>
+<p>SDS의 여유 공간 정책은 확장 비용을 완화하는 내부 최적화이지 무제한 로그 저장을 권장하는 데이터 모델이 아니다. 로그라면 Stream이나 분할된 자료구조, 보존 기간과 크기 제한 등을 업무 요구에 맞게 검토한다. 자료형 변경도 소비 방식과 원자성, 순서 보장을 함께 검토해야 한다.</p>
+<p>복구는 단순히 큰 키를 DEL하는 것으로 끝내지 않는다. 큰 데이터 해제 비용과 서비스 영향이 있을 수 있으므로 적절한 삭제·비동기 해제 정책을 고려하고, 클라이언트가 같은 키를 다시 키우지 않도록 입력 한도를 고친다. 메모리가 즉시 RSS에서 줄지 않을 수 있다는 점도 모니터링 해석에 반영한다.</p>
+<h3>12.1 장애를 예방하는 관찰 항목</h3>
+<ul>
+<li>값 크기의 평균뿐 아니라 상위 백분위와 최대값.</li>
+<li>특정 키로 집중되는 쓰기와 전체 조회 빈도.</li>
+<li>큰 응답을 받는 Java 프로세스의 할당량과 GC.</li>
+<li>Redis 사용 메모리, RSS, 단편화와 출력 버퍼.</li>
+<li>복제와 AOF에 추가되는 쓰기 바이트.</li>
+<li>값 형식과 serializer 변경 후 실제 전송 크기.</li>
+</ul>
+<p>이 목록은 내부 구조 공부를 운영 지표로 연결한다. 구조체 필드 이름을 외우는 것보다 왜 값 크기 제한과 자료구조 선택이 필요한지 설명할 수 있는 것이 중요하다.</p>
+<h2 id="section-13">13. 면접 질문과 상세 답변</h2>
+<details class="question"><summary>Q1. SDS가 C 문자열보다 길이를 빨리 구하는 이유는 무엇인가요?</summary><div class="answer">
+
+<p>C의 널 종료 문자열은 끝의 0 바이트를 찾아야 하지만 SDS는 길이를 메타데이터에 저장한다. 헤더 유형을 확인하고 저장된 길이를 읽으므로 데이터 길이에 비례해 순회하지 않는다. 이것이 O(1) 길이 조회의 의미다.</p>
+<p>다만 O(1)은 실제 지연이 항상 같거나 모든 연산이 빠르다는 뜻이 아니다. 네트워크와 키 조회의 비용도 있고, 큰 데이터를 복사하거나 전송하는 비용은 크기에 비례한다. 길이 조회와 데이터 이동을 구분해야 한다.</p>
+</div></details>
+
+<details class="question"><summary>Q2. 바이너리 안전성이란 무엇인가요?</summary><div class="answer">
+
+<p>값 안의 모든 바이트를 데이터로 다룰 수 있고, 가운데 0 바이트 때문에 잘리지 않는 성질이다. SDS는 별도 길이를 가지고 있어 데이터 끝을 0 바이트만으로 판단하지 않는다. RESP도 길이를 사용하므로 적절한 클라이언트를 통해 바이너리 데이터를 전달할 수 있다.</p>
+<p>하지만 애플리케이션이 중간에 잘못된 문자 디코딩을 하면 데이터가 손상될 수 있다. 서버의 바이너리 안전성과 Java serializer의 안전성은 별개다. byte[]를 임의로 String으로 변환하지 않고 형식을 명시해야 한다.</p>
+</div></details>
+
+<details class="question"><summary>Q3. SDS의 APPEND는 항상 O(1)인가요?</summary><div class="answer">
+
+<p>아니다. m바이트를 추가하려면 적어도 그 데이터를 복사하는 비용이 있고, 공간이 부족해 새 블록으로 옮기면 기존 n바이트 복사도 필요할 수 있다. 개별 확장은 O(n + m) 수준의 비용을 가질 수 있다. 여유 공간 확보는 재할당 빈도를 줄인다.</p>
+<p>상각 분석을 설명할 때도 정책의 범위를 명시해야 한다. 배수 확장 모델과 큰 크기에서 제한된 여유를 추가하는 실제 정책을 무조건 같게 취급하면 안 된다. 길이 조회 O(1)과 확장 비용은 다른 주장이다.</p>
+</div></details>
+
+<details class="question"><summary>Q4. SDS 뒤에 널 바이트를 두는데 왜 바이너리 안전한가요?</summary><div class="answer">
+
+<p>널 바이트를 편의를 위해 추가하는 것과 길이를 판단하는 기준으로 사용하는 것은 다르다. SDS API는 저장된 길이를 사용하므로 내부 0 바이트도 데이터로 취급할 수 있다. 끝의 널 바이트는 일부 C API와의 호환에 도움이 된다.</p>
+<p>그렇다고 중간 0이 있는 데이터를 strlen이나 %s로 처리하면 전체 길이와 내용을 보존할 수 없다. 어떤 API가 길이를 받는지 확인하고 바이너리 데이터에는 길이 기반 API를 사용해야 한다.</p>
+</div></details>
+
+<details class="question"><summary>Q5. SDS 헤더는 항상 len과 free 두 필드인가요?</summary><div class="answer">
+
+<p>그 설명은 오래된 개념 모델이다. Redis 7.2 계열은 크기별 여러 헤더 유형을 사용하고 일반적인 유형에서 len, alloc, flags를 관리한다. 매우 작은 type 5는 길이를 flags에 담는 특수 표현을 쓴다. 따라서 헤더 크기를 하나의 상수로 외우면 틀릴 수 있다.</p>
+<p>내부 구조를 설명할 때는 버전을 명시하고 개념과 정확한 선언을 분리한다. 현재 운영 바이너리의 소스를 확인하는 것이 최종 기준이다.</p>
+</div></details>
+
+<details class="question"><summary>Q6. sdscatlen의 반환값을 저장해야 하는 이유는 무엇인가요?</summary><div class="answer">
+
+<p>확장하면서 메모리 블록이 다른 주소로 이동할 수 있기 때문이다. 반환된 새 포인터를 사용해야 하고 이전 포인터나 내부 바이트를 가리키던 포인터는 더 이상 유효하지 않을 수 있다. 이는 가변 버퍼를 다루는 C 코드의 중요한 소유권 문제다.</p>
+<p>메모리 부족 정책도 API에 따라 확인해야 한다. NULL 반환 방식이라면 원래 포인터를 잃지 않는 실패 처리가 필요하고, Redis의 특정 할당 경로는 다른 정책을 가질 수 있다. 함수 이름만으로 일반 realloc 계약을 추정하지 않는다.</p>
+</div></details>
+
+<details class="question"><summary>Q7. Redis String은 모두 SDS인가요?</summary><div class="answer">
+
+<p>외부의 String 자료형과 내부 인코딩은 다른 층이다. 정수 표현을 사용할 수 있는 값, 작은 문자열 최적화, 일반 문자열 표현 등 여러 인코딩이 있을 수 있다. SDS는 내부 문자열과 버퍼를 이해하는 중요한 구성 요소지만 모든 String의 전체 메모리 표현과 동일하지 않다.</p>
+<p>OBJECT ENCODING으로 현재 표현을 관찰할 수 있으나 업무 코드가 특정 인코딩에 의존하게 만들면 버전 변경에 취약하다. 내부 최적화는 관찰과 학습 대상으로 다루고 외부 명령 의미를 계약으로 사용한다.</p>
+</div></details>
+
+<details class="question"><summary>Q8. 한글 세 글자를 저장했는데 STRLEN이 9라면 오류인가요?</summary><div class="answer">
+
+<p>UTF-8로 인코딩한 ‘가나다’라면 정상이다. Redis STRLEN은 바이트 수를 반환한다. Java String.length는 UTF-16 코드 단위 수이므로 같은 값을 반환해야 할 이유가 없다. 사람이 인식하는 글자 수는 또 다른 개념이다.</p>
+<p>저장 한도와 네트워크 비용을 계산할 때는 실제 serializer가 만든 바이트 배열 길이를 사용한다. 사용자 화면의 글자 제한과 Redis 값 크기 제한을 별도로 설계해야 한다.</p>
+</div></details>
+
+<h3>공식 소스와 다음 학습 방향</h3>
+<ul>
+<li><a href="https://github.com/redis/redis/blob/7.2/src/sds.h">Redis 7.2 sds.h</a>: 헤더 유형, 길이·용량 접근.</li>
+<li><a href="https://github.com/redis/redis/blob/7.2/src/sds.c">Redis 7.2 sds.c</a>: 생성·확장·복사·해제 경로.</li>
+<li><a href="https://github.com/redis/redis/blob/7.2/src/object.c">Redis 7.2 object.c</a>: Redis 객체와 문자열 인코딩의 관계.</li>
+<li><a href="https://redis.io/docs/latest/commands/strlen/">STRLEN</a> / <a href="https://redis.io/docs/latest/commands/object-encoding/">OBJECT ENCODING</a>: 외부에서 관찰할 수 있는 동작.</li>
+</ul>
+<p>소스 링크의 7.2는 학습 기준 브랜치이며 최신 모든 버전의 구현을 뜻하지 않는다. 정밀한 분석은 실행 중인 패치 버전이나 커밋을 고정한다. 이 시리즈의 마지막에는 “Redis가 빠르다”를 한 문장으로 끝내지 않고, 자료구조·실행 모델·네트워크·영속성·운영 경계를 나누어 설명하는 관점을 남기는 것이 중요하다.</p>
+</article><nav aria-label="연재 이동"><a href="/posts/redis-study-29.html">← 이벤트 루프 내부 구조: 한 명의 지휘자가 수많은 연결을 다루는 법</a><a href="/posts/redis-study-00.html">학습 지도 ↗</a></nav><footer>Redis 학습 연재 · <a href="/learning/redis/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

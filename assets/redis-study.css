@@ -1,0 +1,4 @@
+[data-category="redis"],[data-filter="redis"],[data-category-link="redis"],body[data-series="redis"]{--series-ink:#923c42;--series-tint:#f8e4e3;--series-edge:#cf9193}
+body[data-series="redis"] .note{border-left:5px solid var(--series-edge);background:var(--series-tint)}
+body[data-series="redis"] nav{display:flex;flex-wrap:wrap;gap:20px;justify-content:space-between}
+body[data-series="redis"] article pre{max-width:100%;overflow-x:auto;white-space:pre}

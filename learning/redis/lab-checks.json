@@ -1,0 +1,56 @@
+{
+  "checked_at_utc": "2026-10-21T23:09:31.613940+00:00",
+  "status": "passed",
+  "scope": "isolated standalone Redis; Java 21 dependency-free RESP2 teaching client",
+  "not_tested": [
+    "Spring Data Redis/Lettuce integration",
+    "Sentinel failover",
+    "Redis Cluster",
+    "replication durability",
+    "RDB/AOF recovery",
+    "TLS/ACL policy",
+    "load/performance",
+    "network partitions/concurrent oversell stress"
+  ],
+  "source_sha256": "7529d0fe736f37a8996764db03ddea0aa212c9e8650e8d59cdda1946f239cfa2",
+  "java_version": "openjdk version \"21.0.12.1\" 2026-08-18\nOpenJDK Runtime Environment (build 21.0.12.1+1-1-deb13u1-Debian)\nOpenJDK 64-Bit Server VM (build 21.0.12.1+1-1-deb13u1-Debian, mixed mode, sharing)",
+  "compiler_version": "javac 21.0.12.1",
+  "redis_version": "Redis server v=7.2.5 sha=00000000:0 malloc=libc bits=64 build=b83c020dac904a15",
+  "compile": "passed",
+  "stdout": "PASS get-set-utf8-ttl-incr\nPASS pipeline-ordered-replies\nPASS multi-exec-runtime-error-no-rollback\nPASS lua-stock-guard-idempotent-token\nPASS lua-runtime-error-no-rollback",
+  "checks": [
+    {
+      "name": "get-set-utf8-ttl-incr",
+      "status": "passed"
+    },
+    {
+      "name": "pipeline-ordered-replies",
+      "status": "passed"
+    },
+    {
+      "name": "multi-exec-runtime-error-no-rollback",
+      "status": "passed"
+    },
+    {
+      "name": "lua-stock-guard-idempotent-token",
+      "status": "passed"
+    },
+    {
+      "name": "lua-runtime-error-no-rollback",
+      "status": "passed"
+    }
+  ],
+  "own_server_stopped": true,
+  "temporary_data_removed": true,
+  "runner_negative_check": {
+    "name": "missing-server executable refuses run",
+    "status": "passed",
+    "exit_code": 1
+  },
+  "redis_build_provenance": {
+    "source_url": "https://download.redis.io/releases/redis-7.2.5.tar.gz",
+    "observed_archive_sha256": "5981179706f8391f03be91d951acafaeda91af7fac56beffb2701963103e423d",
+    "build_command": "make -j2 MALLOC=libc BUILD_TLS=no OPT='-O2' redis-server",
+    "independent_signature_verified": false
+  }
+}

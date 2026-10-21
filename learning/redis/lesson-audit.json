@@ -1,0 +1,470 @@
+[
+  {
+    "n": 0,
+    "title": "Redis 학습 지도와 기초 다지기: 명령어에서 장애 설계까지",
+    "source": "00-roadmap.md",
+    "sourceSha256": "7f9ed12ed3bdb5d94911eb3dd81fd9d3dd93779aec3dfc24828c154d9177c281",
+    "characters": 16198,
+    "sections": 14,
+    "questions": 10,
+    "officialLinks": [
+      "https://github.com/thisisnew/thisisnew.github.io/tree/main/examples/redis-lab",
+      "https://redis.io/docs/latest/develop/data-types/",
+      "https://redis.io/docs/latest/commands/set/",
+      "https://redis.io/docs/latest/develop/reference/eviction/",
+      "https://redis.io/docs/latest/commands/expire/",
+      "https://redis.io/docs/latest/develop/using-commands/transactions/",
+      "https://redis.io/docs/latest/develop/using-commands/pipelining/",
+      "https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/",
+      "https://docs.spring.io/spring-data/redis/reference/redis/transactions.html"
+    ]
+  },
+  {
+    "n": 1,
+    "title": "설정 파일과 실행 구성 — Redis가 실제로 읽는 설정을 추적하기",
+    "source": "01-configuration.md",
+    "sourceSha256": "c2a91330133afb1c634d5f7a1480a256d6aeaea647e66446e79f46e71469332e",
+    "characters": 11989,
+    "sections": 13,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/config/",
+      "https://redis.io/docs/latest/commands/config-get/",
+      "https://redis.io/docs/latest/commands/config-set/",
+      "https://redis.io/docs/latest/commands/config-rewrite/",
+      "https://redis.io/docs/latest/develop/reference/eviction/"
+    ]
+  },
+  {
+    "n": 2,
+    "title": "운영 환경과 메모리 여유 — maxmemory 밖에서 벌어지는 일",
+    "source": "02-os-memory.md",
+    "sourceSha256": "eeaf5390a2fc30f60fb05dc9ea5dab515e2d77d533cb7999ea89966730d39ad3",
+    "characters": 13309,
+    "sections": 13,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/admin/",
+      "https://redis.io/docs/latest/commands/info/",
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/",
+      "https://redis.io/docs/latest/develop/reference/eviction/"
+    ]
+  },
+  {
+    "n": 3,
+    "title": "메모리 인코딩과 자료 모델링 — 같은 데이터도 담는 방법에 따라 다르다",
+    "source": "03-memory-encoding.md",
+    "sourceSha256": "b8a1de5015cfd55a139ba98165784f4895c409315a2af167f28e60566255994a",
+    "characters": 13394,
+    "sections": 14,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/memory-optimization/",
+      "https://redis.io/docs/latest/commands/hexpire/",
+      "https://redis.io/docs/latest/commands/redis-7-4-commands/",
+      "https://redis.io/docs/latest/commands/object-encoding/",
+      "https://redis.io/docs/latest/commands/memory-usage/",
+      "https://redis.io/docs/latest/commands/setbit/"
+    ]
+  },
+  {
+    "n": 4,
+    "title": "영속성 선택과 RDB — 스냅샷이 지키는 시점과 잃을 수 있는 시간",
+    "source": "04-rdb-persistence.md",
+    "sourceSha256": "d7a9576185c6839e3523f09ae9d925969ef2ae7781409526d207bcf6768dfab2",
+    "characters": 12351,
+    "sections": 14,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/",
+      "https://redis.io/docs/latest/commands/bgsave/",
+      "https://redis.io/docs/latest/commands/save/",
+      "https://redis.io/docs/latest/commands/info/",
+      "https://redis.io/docs/latest/commands/expire/",
+      "https://redis.io/docs/latest/commands/lastsave/"
+    ]
+  },
+  {
+    "n": 5,
+    "title": "AOF 기록·재작성·복구 — 성공 응답과 디스크 내구성 사이",
+    "source": "05-aof.md",
+    "sourceSha256": "a20f4114673e8f474668bb3dc0b0171da8567706ed4e83c11d668a1441a5970f",
+    "characters": 14692,
+    "sections": 15,
+    "questions": 9,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/",
+      "https://redis.io/docs/latest/commands/waitaof/",
+      "https://redis.io/docs/latest/commands/bgrewriteaof/",
+      "https://redis.io/docs/latest/commands/info/",
+      "https://redis.io/docs/latest/commands/wait/"
+    ]
+  },
+  {
+    "n": 6,
+    "title": "백업과 재해 복구 — 파일 생성이 아니라 복원 가능한 상태를 증명하기",
+    "source": "06-backup-dr.md",
+    "sourceSha256": "29f082aeabdccd6b58d2f4f882dde388ef22c4ae44287770e9ade01b676123f4",
+    "characters": 15871,
+    "sections": 16,
+    "questions": 9,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/",
+      "https://redis.io/docs/latest/commands/bgsave/",
+      "https://redis.io/docs/latest/commands/info/",
+      "https://redis.io/docs/latest/commands/lastsave/",
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/replication/"
+    ]
+  },
+  {
+    "n": 7,
+    "title": "복제 원리와 재동기화 — 같은 이력의 어디까지 따라왔는가",
+    "source": "07-replication-sync.md",
+    "sourceSha256": "81ba02eef51e6ba3f3db8c753841a52bc012c85ff46ac75ead53c48310643e2a",
+    "characters": 14924,
+    "sections": 17,
+    "questions": 9,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/replication/",
+      "https://redis.io/docs/latest/commands/wait/",
+      "https://redis.io/docs/latest/commands/waitaof/",
+      "https://redis.io/docs/latest/commands/info/",
+      "https://redis.io/docs/latest/commands/role/",
+      "https://redis.io/docs/latest/commands/replicaof/"
+    ]
+  },
+  {
+    "n": 8,
+    "title": "복제 운영과 쓰기 제한 — 연결됨과 안전함을 구별하기",
+    "source": "08-replication-operations.md",
+    "sourceSha256": "7558aefce2cca171f573a5fbb87fe6265af4d932f3defbb93da8a92240a76aac",
+    "characters": 17118,
+    "sections": 16,
+    "questions": 9,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/replication/",
+      "https://raw.githubusercontent.com/redis/redis/7.2/redis.conf",
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl/",
+      "https://redis.io/docs/latest/commands/info/",
+      "https://redis.io/docs/latest/commands/role/",
+      "https://redis.io/docs/latest/commands/wait/"
+    ]
+  },
+  {
+    "n": 9,
+    "title": "Sentinel 역할과 배치 설계",
+    "source": "09-sentinel-topology.md",
+    "sourceSha256": "f1086189c942d7a051698e4a318ffbb6833bf5bad0e333acfd644e9534f7a93c",
+    "characters": 11922,
+    "sections": 9,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/",
+      "https://redis.io/docs/latest/develop/reference/sentinel-clients/",
+      "https://redis.io/docs/latest/commands/wait/"
+    ]
+  },
+  {
+    "n": 10,
+    "title": "Sentinel 장애 전환과 운영 API",
+    "source": "10-sentinel-failover-api.md",
+    "sourceSha256": "5fef6bdfb69e920f5e203f0ec989a4837a5d8dbb2545e5ecdbdadbf3a2b91da9",
+    "characters": 12534,
+    "sections": 9,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/",
+      "https://redis.io/docs/latest/develop/reference/sentinel-clients/",
+      "https://redis.io/docs/latest/commands/wait/"
+    ]
+  },
+  {
+    "n": 11,
+    "title": "Sentinel 인증과 장애 판단",
+    "source": "11-sentinel-auth-detection.md",
+    "sourceSha256": "d68ab4cdfbf4be7b3cb87915492cb7131bba3524edbf686005d23d79ba224dc9",
+    "characters": 12997,
+    "sections": 9,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/",
+      "https://redis.io/docs/latest/develop/reference/sentinel-clients/",
+      "https://redis.io/docs/latest/commands/wait/"
+    ]
+  },
+  {
+    "n": 12,
+    "title": "Sentinel 합의와 네트워크 분할",
+    "source": "12-sentinel-consensus-partition.md",
+    "sourceSha256": "7ed7e93273322ef96cbda52861085e80445205c3d911931a3dbec7ca8447f9c3",
+    "characters": 12780,
+    "sections": 10,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/",
+      "https://redis.io/docs/latest/develop/reference/sentinel-clients/",
+      "https://redis.io/docs/latest/commands/wait/"
+    ]
+  },
+  {
+    "n": 13,
+    "title": "Cluster 샤딩과 보장 범위",
+    "source": "13-cluster-sharding-guarantees.md",
+    "sourceSha256": "86b085072edf27438737a0f1a3c14057dd3628c72c2f845105f20b7cc20f5715",
+    "characters": 11940,
+    "sections": 10,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/",
+      "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/",
+      "https://redis.io/docs/latest/commands/cluster-failover/"
+    ]
+  },
+  {
+    "n": 14,
+    "title": "Cluster 구축과 리샤딩 실습",
+    "source": "14-cluster-lab-resharding.md",
+    "sourceSha256": "0e37abec2cc93ab4deb94477ea78233c7f4f511a1cd010dab43b074dff6291e4",
+    "characters": 12185,
+    "sections": 9,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/",
+      "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/",
+      "https://redis.io/docs/latest/commands/cluster-failover/"
+    ]
+  },
+  {
+    "n": 15,
+    "title": "Cluster 장애 전환과 노드 변경",
+    "source": "15-cluster-failover-node-changes.md",
+    "sourceSha256": "29eebdb4aabf84acb6861bc1c22a948f8575811c267335f6cb11d1d8d1adc4f0",
+    "characters": 12605,
+    "sections": 11,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/",
+      "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/",
+      "https://redis.io/docs/latest/commands/cluster-failover/"
+    ]
+  },
+  {
+    "n": 16,
+    "title": "Cluster 설계 목표와 슬롯 모델",
+    "source": "16-cluster-design-slot-model.md",
+    "sourceSha256": "cdd786061e091b33e191557b2ad7368a742bf2fe2c8bafde15ec8139a3521afd",
+    "characters": 13102,
+    "sections": 11,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/",
+      "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/",
+      "https://redis.io/docs/latest/commands/cluster-failover/"
+    ]
+  },
+  {
+    "n": 17,
+    "title": "MOVED와 ASK: 이사 중인 데이터에 정확히 도착하기",
+    "source": "17-moved-ask-multikey.md",
+    "sourceSha256": "0a8803c33d7a288e2b487463a3c170dbded7d258ec690a68b5cb1aa98abe1c77",
+    "characters": 12610,
+    "sections": 14,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/",
+      "https://redis.io/docs/latest/commands/asking/",
+      "https://redis.io/docs/latest/commands/cluster-setslot/"
+    ]
+  },
+  {
+    "n": 18,
+    "title": "Cluster 장애 감지와 승격 합의: 의심에서 새 primary까지",
+    "source": "18-cluster-failover-consensus.md",
+    "sourceSha256": "4fed8d2ed4fa3c84c32f4092a73080de4e9d2436176bb11b20254de2f4a467e6",
+    "characters": 13269,
+    "sections": 15,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/"
+    ]
+  },
+  {
+    "n": 19,
+    "title": "Cluster 구성 전파와 복귀: 오래된 노드는 어떻게 현재를 배우는가",
+    "source": "19-cluster-propagation-rejoin.md",
+    "sourceSha256": "707609e2a1caf6c0827055a8a61765c7d17db33c9dee29f37cf32166690f0bf1",
+    "characters": 14175,
+    "sections": 17,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/",
+      "https://redis.io/docs/latest/commands/cluster-forget/"
+    ]
+  },
+  {
+    "n": 20,
+    "title": "지연 측정과 느린 명령: SLOWLOG 밖의 시간을 찾기",
+    "source": "20-latency-slow-commands.md",
+    "sourceSha256": "195cd231061079a4e1948fbaaf106470f85cb85989ab4926de52b20f4702d014",
+    "characters": 14101,
+    "sections": 16,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/commands/slowlog/",
+      "https://redis.io/docs/latest/commands/scan/",
+      "https://redis.io/docs/latest/commands/unlink/",
+      "https://docs.spring.io/spring-data/redis/reference/redis/pipelining.html",
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/"
+    ]
+  },
+  {
+    "n": 21,
+    "title": "fork·메모리·디스크 지연: 백그라운드 작업이 요청을 멈추는 이유",
+    "source": "21-fork-memory-disk-latency.md",
+    "sourceSha256": "5307e6ccbed287c522b65b1034996c293de428a01cf8d98d5c0563c96de80247",
+    "characters": 15480,
+    "sections": 19,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/",
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/"
+    ]
+  },
+  {
+    "n": 22,
+    "title": "Latency 모니터로 원인 찾기 — 느린 순간의 시간을 연결하기",
+    "source": "22-latency-monitor.md",
+    "sourceSha256": "658044c003362fb2972be44c9d03378d6e9e38736260a04cd3652870f919e1c2",
+    "characters": 16551,
+    "sections": 17,
+    "questions": 9,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency-monitor/",
+      "https://redis.io/docs/latest/commands/slowlog-get/",
+      "https://redis.io/docs/latest/commands/latency-latest/",
+      "https://redis.io/docs/latest/commands/latency-history/",
+      "https://redis.io/docs/latest/commands/slowlog/",
+      "https://redis.io/docs/latest/commands/info/"
+    ]
+  },
+  {
+    "n": 23,
+    "title": "벤치마크와 처리량 해석 — 빠르다는 숫자에 조건을 붙이기",
+    "source": "23-benchmark.md",
+    "sourceSha256": "90385af8a5bc60165c0565054e80b30a0df79921f350ba565cfd74664903c729",
+    "characters": 18552,
+    "sections": 21,
+    "questions": 10,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/benchmarks/",
+      "https://redis.io/docs/latest/develop/using-commands/pipelining/",
+      "https://redis.io/docs/latest/commands/info/"
+    ]
+  },
+  {
+    "n": 24,
+    "title": "보안 경계와 인증: 비밀번호 앞에 네트워크가 있다",
+    "source": "24-security-auth.md",
+    "sourceSha256": "8bb1a0f69d9b76d17283ee17025a1e20e0a222a86b95b8afe19ad9aa1d908f4f",
+    "characters": 12176,
+    "sections": 11,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/security/",
+      "https://redis.io/docs/latest/commands/auth/",
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl/",
+      "https://docs.spring.io/spring-boot/appendix/application-properties/index.html"
+    ]
+  },
+  {
+    "n": 25,
+    "title": "ACL 최소 권한 설계: 누가 어떤 명령으로 어느 키에 접근하는가",
+    "source": "25-acl.md",
+    "sourceSha256": "0a77c2c619a9f7940003d5776988cbac9fb3d7f513f52e552335b0d887fe662e",
+    "characters": 12036,
+    "sections": 10,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl/",
+      "https://redis.io/docs/latest/commands/acl-setuser/",
+      "https://redis.io/docs/latest/commands/acl-save/",
+      "https://redis.io/docs/latest/commands/acl-load/",
+      "https://redis.io/docs/latest/commands/acl-dryrun/"
+    ]
+  },
+  {
+    "n": 26,
+    "title": "TLS와 통신 구간 보호: 암호화보다 중요한 상대의 신원",
+    "source": "26-tls.md",
+    "sourceSha256": "8765cfbaeeb2ca078c16f8babecc73cb17dcbbc0d1d8992f51a2323abff528fa",
+    "characters": 12219,
+    "sections": 9,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/security/encryption/",
+      "https://docs.openssl.org/3.0/man1/openssl-s_client/",
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/security/",
+      "https://docs.spring.io/spring-boot/appendix/application-properties/index.html"
+    ]
+  },
+  {
+    "n": 27,
+    "title": "CPU 프로파일링: Redis가 느린 이유를 함수까지 추적하기",
+    "source": "27-cpu-profiling.md",
+    "sourceSha256": "c953dc5b03d3bd0e815842d56a39c806a356c9340544340727f3dac4e40f8ca1",
+    "characters": 11852,
+    "sections": 11,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/cpu-profiling/",
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/",
+      "https://redis.io/docs/latest/commands/slowlog/"
+    ]
+  },
+  {
+    "n": 28,
+    "title": "종료 시그널과 안전한 재시작: 프로세스가 끝나는 것과 데이터가 안전한 것은 다르다",
+    "source": "28-shutdown-signals.md",
+    "sourceSha256": "e281e47cffc1715caac98311a6361dcea2b574313a4520d4cc7fda63551b7d9b",
+    "characters": 11755,
+    "sections": 11,
+    "questions": 8,
+    "officialLinks": [
+      "https://redis.io/docs/latest/operate/oss_and_stack/reference/signals/",
+      "https://redis.io/docs/latest/commands/shutdown/",
+      "https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/"
+    ]
+  },
+  {
+    "n": 29,
+    "title": "이벤트 루프 내부 구조: 한 명의 지휘자가 수많은 연결을 다루는 법",
+    "source": "29-event-loop.md",
+    "sourceSha256": "d732440a594d1012a9fb4495cc68fb765f808b74a415dbd6403d8359abee47a3",
+    "characters": 11943,
+    "sections": 13,
+    "questions": 8,
+    "officialLinks": [
+      "https://github.com/redis/redis/blob/7.2/src/ae.h",
+      "https://github.com/redis/redis/blob/7.2/src/ae_epoll.c",
+      "https://github.com/redis/redis/blob/7.2/src/networking.c",
+      "https://github.com/redis/redis/blob/7.2/src/ae.c",
+      "https://redis.io/docs/latest/commands/blpop/"
+    ]
+  },
+  {
+    "n": 30,
+    "title": "SDS 문자열 내부 구조: 길이를 기억하는 바이트 배열",
+    "source": "30-sds.md",
+    "sourceSha256": "c72b322746c618fad6d0eadd1e4523554bad6a366180be4726da5e9d77c4e329",
+    "characters": 13348,
+    "sections": 13,
+    "questions": 8,
+    "officialLinks": [
+      "https://github.com/redis/redis/blob/7.2/src/sds.h",
+      "https://redis.io/docs/latest/commands/strlen/",
+      "https://github.com/redis/redis/blob/7.2/src/sds.c",
+      "https://redis.io/docs/latest/commands/object-encoding/",
+      "https://github.com/redis/redis/blob/7.2/src/object.c"
+    ]
+  }
+]

@@ -1,0 +1,465 @@
+{
+  "input": "Redis_Senior_Study(1).zip",
+  "sha256": "90e148f88c628a78f7623ccfea1f07cd86206240075c67d7af3edb69b38f52cf",
+  "scope": "30 operational study chapters; not complete Redis developer docs",
+  "chapters": [
+    {
+      "chapter": 1,
+      "supplied_filename": "01_설정_파일과_실행_구성.md",
+      "sha256": "c363c8cbd57570c6918f69ef9a6ab3808ca4b9bde124b91664d8cd1718a8a230",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/config/",
+        "https://redis.io/docs/latest/commands/config-set",
+        "https://redis.io/docs/latest/commands/config-get",
+        "https://redis.io/docs/latest/commands/config-rewrite",
+        "https://redis.io/docs/latest/commands/expire",
+        "https://redis.io/docs/latest/develop/reference/eviction"
+      ]
+    },
+    {
+      "chapter": 2,
+      "supplied_filename": "02_운영_환경과_메모리_여유.md",
+      "sha256": "1d2d51cdb904f866ed2a07a6c48dc5481cea5ce10e727173047d63e880fcbdb8",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/admin/",
+        "https://redis.io/docs/latest/develop/get-started/faq#background-saving-fails-with-a-fork-error-on-linux",
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency#latency-induced-by-transparent-huge-pages",
+        "https://redis.io/docs/latest/commands/latency-doctor",
+        "https://redis.io/docs/latest/commands/memory-doctor",
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/security",
+        "https://redis.io/docs/latest/commands/config-set",
+        "https://redis.io/docs/latest/commands/config",
+        "https://redis.io/docs/latest/commands/info",
+        "https://redis.io/docs/latest/commands/client-pause",
+        "https://redis.io/docs/latest/commands/monitor",
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel",
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/scaling"
+      ]
+    },
+    {
+      "chapter": 3,
+      "supplied_filename": "03_메모리_인코딩과_자료_모델링.md",
+      "sha256": "241185de5171c5a8e00478df0ba433a806234dcccbbd07ab1ee9825df4c21329",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/memory-optimization/",
+        "https://redis.io/docs/latest/commands/getrange",
+        "https://redis.io/docs/latest/commands/setrange",
+        "https://redis.io/docs/latest/commands/getbit",
+        "https://redis.io/docs/latest/commands/setbit",
+        "https://redis.io/docs/latest/commands/hget",
+        "https://redis.io/docs/latest/commands/hset",
+        "https://redis.io/docs/latest/commands/config-set",
+        "https://redis.io/docs/latest/develop/reference/eviction"
+      ]
+    },
+    {
+      "chapter": 4,
+      "supplied_filename": "04_영속성_선택과_RDB.md",
+      "sha256": "2b8f6ebcba75d23c69e9e169f990cad76c96ee2d3fa899d6a85cde5ef99240a6",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/",
+        "https://redis.io/docs/latest/operate/rs/databases/configure/database-persistence",
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/replication#partial-resynchronizations-after-restarts-and-failovers",
+        "https://redis.io/docs/latest/commands/flushall",
+        "https://redis.io/docs/latest/commands/save",
+        "https://redis.io/docs/latest/commands/bgsave"
+      ]
+    },
+    {
+      "chapter": 5,
+      "supplied_filename": "05_AOF_기록과_재작성_및_복구.md",
+      "sha256": "32360a3079f86af6222397baf55d215158ccbecef9f80c534762a0f81291df91",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/",
+        "https://redis.io/docs/latest/commands/set",
+        "https://redis.io/docs/latest/commands/bgrewriteaof",
+        "https://redis.io/docs/latest/commands/config-rewrite"
+      ]
+    },
+    {
+      "chapter": 6,
+      "supplied_filename": "06_백업과_재해_복구.md",
+      "sha256": "2fffdbb269bbd9591dfa94cc0a25046918d0e0d479a28be67eb7c8a0c2628fe0",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/",
+        "https://redis.io/docs/latest/commands/bgsave",
+        "https://redis.io/docs/latest/commands/bgrewriteaof",
+        "https://redis.io/docs/latest/commands/config-set",
+        "https://redis.io/docs/latest/commands/info",
+        "https://redis.io/docs/latest/commands/config-rewrite",
+        "https://redis.io/docs/latest/commands/backup",
+        "https://redis.io/docs/latest/commands/backup-start",
+        "https://redis.io/docs/latest/commands/backup-seal",
+        "https://redis.io/docs/latest/commands/backup-list",
+        "https://redis.io/docs/latest/commands/backup-cleanup",
+        "https://redis.io/docs/latest/commands/backup-status",
+        "https://redis.io/docs/latest/commands/backup-abort"
+      ]
+    },
+    {
+      "chapter": 7,
+      "supplied_filename": "07_복제_원리와_재동기화.md",
+      "sha256": "0ab1f18506dc3ec6d37953d480198a7f68071e4dfdff609f9e8c61de27ce9aad",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/replication/",
+        "https://redis.io/docs/latest/commands/wait",
+        "https://redis.io/docs/latest/commands/psync",
+        "https://redis.io/docs/latest/commands/sync"
+      ]
+    },
+    {
+      "chapter": 8,
+      "supplied_filename": "08_복제_운영과_쓰기_제한.md",
+      "sha256": "fed0e514a0e4e5303bb9845695730872dc388add9e25d4de7e9dbddfad7199e0",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/replication/",
+        "https://redis.io/docs/latest/commands/replicaof",
+        "https://redis.io/docs/latest/commands/config-set",
+        "https://redis.io/docs/latest/commands/debug",
+        "https://redis.io/docs/latest/commands/config",
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/security",
+        "https://redis.io/docs/latest/commands/sunionstore",
+        "https://redis.io/docs/latest/commands/zinterstore",
+        "https://redis.io/docs/latest/commands/sunion",
+        "https://redis.io/docs/latest/commands/zinter",
+        "https://redis.io/docs/latest/commands/sort",
+        "https://redis.io/docs/latest/commands/sort_ro",
+        "https://redis.io/docs/latest/commands/eval",
+        "https://redis.io/docs/latest/commands/evalsha",
+        "https://redis.io/docs/latest/commands/eval_ro",
+        "https://redis.io/docs/latest/commands/evalsha_ro",
+        "https://redis.io/docs/latest/commands/expire",
+        "https://redis.io/docs/latest/commands/del",
+        "https://redis.io/docs/latest/commands/info",
+        "https://redis.io/docs/latest/commands/role",
+        "https://redis.io/docs/latest/commands/shutdown"
+      ]
+    },
+    {
+      "chapter": 9,
+      "supplied_filename": "09_Sentinel_역할과_배치_설계.md",
+      "sha256": "10434e201d444c651cff6cd24b0c5a6a38b4a4fd6ef4938a416d23beb1951e78",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/",
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/scaling",
+        "https://redis.io/docs/latest/commands/info",
+        "https://redis.io/docs/latest/commands/replicaof"
+      ]
+    },
+    {
+      "chapter": 10,
+      "supplied_filename": "10_Sentinel_장애_전환과_운영_API.md",
+      "sha256": "670db082248ae9cf4491d685cf076f6bb05c60218c9fc1f47bae35de64ebeafd",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/",
+        "https://redis.io/docs/latest/commands/subscribe",
+        "https://redis.io/docs/latest/commands/config-get",
+        "https://redis.io/docs/latest/commands/info",
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl",
+        "https://redis.io/docs/latest/commands/auth",
+        "https://redis.io/docs/latest/commands/command",
+        "https://redis.io/docs/latest/commands/hello",
+        "https://redis.io/docs/latest/commands/role",
+        "https://redis.io/docs/latest/commands/unsubscribe",
+        "https://redis.io/docs/latest/commands/psubscribe",
+        "https://redis.io/docs/latest/commands/punsubscribe",
+        "https://redis.io/docs/latest/commands/config-set",
+        "https://redis.io/docs/latest/commands/publish",
+        "https://redis.io/docs/latest/commands/replicaof",
+        "https://redis.io/docs/latest/commands/script-kill"
+      ]
+    },
+    {
+      "chapter": 11,
+      "supplied_filename": "11_Sentinel_인증과_장애_판단.md",
+      "sha256": "3c39284db95d7f7ed52bb1e0d3bbe33756f30ce0caf131973977fbe0f59fd36f",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/",
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl",
+        "https://redis.io/docs/latest/commands/auth",
+        "https://redis.io/docs/latest/develop/reference/sentinel-clients",
+        "https://redis.io/docs/latest/commands/info"
+      ]
+    },
+    {
+      "chapter": 12,
+      "supplied_filename": "12_Sentinel_합의와_네트워크_분할.md",
+      "sha256": "848a3dd911e333b9fe59ed53c69bde7699334d1122ca778d1f31d201fc1179b9",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/",
+        "https://redis.io/docs/latest/commands/info"
+      ]
+    },
+    {
+      "chapter": 13,
+      "supplied_filename": "13_Cluster_샤딩과_보장_범위.md",
+      "sha256": "aa83c24de43d9f8013841efdfbec8af83ce1de2c8629f24d2c4071808a5362a4",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/",
+        "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec",
+        "https://redis.io/docs/latest/commands/wait"
+      ]
+    },
+    {
+      "chapter": 14,
+      "supplied_filename": "14_Cluster_구축과_리샤딩_실습.md",
+      "sha256": "8aa83fef07159cc3ade0b05c7db022f370940b7789d1c6dc76cc45dbc3be660e",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/",
+        "https://redis.io/docs/latest/develop/clients",
+        "https://redis.io/docs/latest/commands/incr"
+      ]
+    },
+    {
+      "chapter": 15,
+      "supplied_filename": "15_Cluster_장애_전환과_노드_변경.md",
+      "sha256": "ca5cad6b4ac33b812b3bb544bdd0a5c1d00bd4188fdac4b8f148cc5e1265bced",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/",
+        "https://redis.io/docs/latest/commands/cluster-nodes",
+        "https://redis.io/docs/latest/commands/cluster-failover",
+        "https://redis.io/docs/latest/commands/cluster-meet",
+        "https://redis.io/docs/latest/commands/cluster-replicate",
+        "https://redis.io/docs/latest/commands/cluster-forget",
+        "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec",
+        "https://redis.io/docs/latest/commands/bgrewriteaof"
+      ]
+    },
+    {
+      "chapter": 16,
+      "supplied_filename": "16_Cluster_설계_목표와_슬롯_모델.md",
+      "sha256": "83f063f17591d66be081dba875e7c167916839dcfa0cdb8e959f7c9711658b92",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/",
+        "https://redis.io/docs/latest/commands/select",
+        "https://redis.io/docs/latest/commands/wait",
+        "https://redis.io/docs/latest/commands/keys",
+        "https://redis.io/docs/latest/commands/scan",
+        "https://redis.io/docs/latest/commands/sort",
+        "https://redis.io/docs/latest/commands/cluster-reset",
+        "https://redis.io/docs/latest/commands/cluster-nodes",
+        "https://redis.io/docs/latest/commands/cluster-meet",
+        "https://redis.io/docs/latest/commands/ping"
+      ]
+    },
+    {
+      "chapter": 17,
+      "supplied_filename": "17_MOVED와_ASK_및_다중_키_연산.md",
+      "sha256": "6aae90635092e2186f35db8f163d0d0886b82fb3a6e874a2442078373cd2a78b",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/",
+        "https://redis.io/docs/latest/commands/cluster-shards",
+        "https://redis.io/docs/latest/commands/cluster-slots",
+        "https://redis.io/docs/latest/commands/cluster",
+        "https://redis.io/docs/latest/commands/cluster-addslots",
+        "https://redis.io/docs/latest/commands/cluster-delslots",
+        "https://redis.io/docs/latest/commands/cluster-addslotsrange",
+        "https://redis.io/docs/latest/commands/cluster-delslotsrange",
+        "https://redis.io/docs/latest/commands/cluster-setslot",
+        "https://redis.io/docs/latest/commands/asking",
+        "https://redis.io/docs/latest/commands/migrate",
+        "https://redis.io/docs/latest/commands/readonly",
+        "https://redis.io/docs/latest/commands/readwrite"
+      ]
+    },
+    {
+      "chapter": 18,
+      "supplied_filename": "18_Cluster_장애_감지와_승격_합의.md",
+      "sha256": "130e053198df5e7891506d0e9480e8f3d62ee3c08fb5ffb5594eb4900acc4c5a",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/"
+      ]
+    },
+    {
+      "chapter": 19,
+      "supplied_filename": "19_Cluster_구성_전파와_복귀.md",
+      "sha256": "c18f669d252a3081bd87a06433d6c7734e15ea909a29cb5f3949bdd8546b5dc4",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/",
+        "https://redis.io/docs/latest/commands/cluster-addslots",
+        "https://redis.io/docs/latest/commands/cluster-failover",
+        "https://redis.io/docs/latest/commands/cluster-set-config-epoch",
+        "https://redis.io/docs/latest/commands/cluster-reset",
+        "https://redis.io/docs/latest/commands/flushall",
+        "https://redis.io/docs/latest/commands/cluster-forget"
+      ]
+    },
+    {
+      "chapter": 20,
+      "supplied_filename": "20_지연_측정과_느린_명령.md",
+      "sha256": "5d4f20e31e0111f6e54aacabaadbf16d2aad93d8a0a48736926a4ca049e2f5f4",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/",
+        "https://redis.io/docs/latest/commands/slowlog",
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency-monitor",
+        "https://redis.io/docs/latest/commands/bgsave",
+        "https://redis.io/docs/latest/commands/bgrewriteaof",
+        "https://redis.io/docs/latest/commands/get",
+        "https://redis.io/docs/latest/commands/set",
+        "https://redis.io/docs/latest/commands/lpush",
+        "https://redis.io/docs/latest/commands/sort",
+        "https://redis.io/docs/latest/commands/lrem",
+        "https://redis.io/docs/latest/commands/sunion",
+        "https://redis.io/docs/latest/commands/keys",
+        "https://redis.io/docs/latest/commands/scan",
+        "https://redis.io/docs/latest/commands/sscan",
+        "https://redis.io/docs/latest/commands/hscan",
+        "https://redis.io/docs/latest/commands/zscan"
+      ]
+    },
+    {
+      "chapter": 21,
+      "supplied_filename": "21_fork와_메모리_및_디스크_지연.md",
+      "sha256": "349c48f4cb720458a616311cee799019d358d2ff94eb8f103f9b5bb72cc710cd",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/",
+        "https://redis.io/docs/latest/commands/info",
+        "https://redis.io/docs/latest/commands/expireat",
+        "https://redis.io/docs/latest/commands/config-set"
+      ]
+    },
+    {
+      "chapter": 22,
+      "supplied_filename": "22_Latency_모니터로_원인_찾기.md",
+      "sha256": "2ab3fa45a464abe390c62d3f040105c0f9c2cd555168c89eec7904d9a3a2ab10",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency-monitor/",
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency",
+        "https://redis.io/docs/latest/commands/bgrewriteaof",
+        "https://redis.io/docs/latest/commands/latency",
+        "https://redis.io/docs/latest/commands/latency-latest",
+        "https://redis.io/docs/latest/commands/latency-history",
+        "https://redis.io/docs/latest/commands/latency-reset",
+        "https://redis.io/docs/latest/commands/latency-graph",
+        "https://redis.io/docs/latest/commands/latency-doctor"
+      ]
+    },
+    {
+      "chapter": 23,
+      "supplied_filename": "23_벤치마크와_처리량_해석.md",
+      "sha256": "1127023537e852a08cb23efc5b282848d613d5905c1c6cc495203e978002be34",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/benchmarks/",
+        "https://redis.io/docs/latest/develop/using-commands/pipelining"
+      ]
+    },
+    {
+      "chapter": 24,
+      "supplied_filename": "24_보안_경계와_인증.md",
+      "sha256": "df62cc9fc9bfa3893eb713b2a6b6a0859a1334ae0521018ddd8200959ceb8f33",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/security/",
+        "https://redis.io/docs/latest/commands/flushall",
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl",
+        "https://redis.io/docs/latest/commands/auth",
+        "https://redis.io/docs/latest/commands/eval",
+        "https://redis.io/docs/latest/commands/evalsha"
+      ]
+    },
+    {
+      "chapter": 25,
+      "supplied_filename": "25_ACL_최소_권한_설계.md",
+      "sha256": "98b663e53e1bcb15234fa7a5d76ea3356ac24670176ee9dbd64ecbbeed48920d",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl/",
+        "https://redis.io/docs/latest/commands/auth",
+        "https://redis.io/docs/latest/commands/flushall",
+        "https://redis.io/docs/latest/commands/flushdb",
+        "https://redis.io/docs/latest/commands/swapdb",
+        "https://redis.io/docs/latest/commands/acl-list",
+        "https://redis.io/docs/latest/commands/hello",
+        "https://redis.io/docs/latest/commands/acl-cat",
+        "https://redis.io/docs/latest/commands/keys",
+        "https://redis.io/docs/latest/commands/publish",
+        "https://redis.io/docs/latest/commands/subscribe",
+        "https://redis.io/docs/latest/commands/psubscribe",
+        "https://redis.io/docs/latest/commands/acl-setuser",
+        "https://redis.io/docs/latest/commands/acl-load",
+        "https://redis.io/docs/latest/commands/acl",
+        "https://redis.io/docs/latest/commands/get",
+        "https://redis.io/docs/latest/commands/acl-getuser",
+        "https://redis.io/docs/latest/commands/set",
+        "https://redis.io/docs/latest/commands/replicaof",
+        "https://redis.io/docs/latest/commands/config",
+        "https://redis.io/docs/latest/commands/debug",
+        "https://redis.io/docs/latest/commands/save",
+        "https://redis.io/docs/latest/commands/monitor",
+        "https://redis.io/docs/latest/commands/shutdown",
+        "https://redis.io/docs/latest/commands/select",
+        "https://redis.io/docs/latest/commands/command",
+        "https://redis.io/docs/latest/commands/client",
+        "https://redis.io/docs/latest/commands/echo",
+        "https://redis.io/docs/latest/commands/ping",
+        "https://redis.io/docs/latest/commands/migrate",
+        "https://redis.io/docs/latest/commands/restore",
+        "https://redis.io/docs/latest/commands/sort",
+        "https://redis.io/docs/latest/commands/info",
+        "https://redis.io/docs/latest/commands/del",
+        "https://redis.io/docs/latest/commands/dump",
+        "https://redis.io/docs/latest/commands/rename",
+        "https://redis.io/docs/latest/commands/exists",
+        "https://redis.io/docs/latest/commands/dbsize",
+        "https://redis.io/docs/latest/commands/scan",
+        "https://redis.io/docs/latest/commands/expire",
+        "https://redis.io/docs/latest/commands/ttl",
+        "https://redis.io/docs/latest/commands/watch",
+        "https://redis.io/docs/latest/commands/multi",
+        "https://redis.io/docs/latest/commands/exec",
+        "https://redis.io/docs/latest/operate/oss_and_stack/stack-with-enterprise/release-notes/redisce/redisos-8.0-release-notes#potentially-breaking-changes-to-acls",
+        "https://redis.io/docs/latest/commands/strlen",
+        "https://redis.io/docs/latest/commands/type",
+        "https://redis.io/docs/latest/commands/sismember",
+        "https://redis.io/docs/latest/commands/copy",
+        "https://redis.io/docs/latest/develop/reference/key-specs#logical-operation-flags",
+        "https://redis.io/docs/latest/commands/acl-genpass",
+        "https://redis.io/docs/latest/commands/config-rewrite",
+        "https://redis.io/docs/latest/commands/acl-save"
+      ]
+    },
+    {
+      "chapter": 26,
+      "supplied_filename": "26_TLS와_통신_구간_보호.md",
+      "sha256": "dbbaff97a918ec530ff6289c1ceb025029e9cae58d9a8aa04ef6dfa7dc919018",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/security/encryption/"
+      ]
+    },
+    {
+      "chapter": 27,
+      "supplied_filename": "27_CPU_프로파일링.md",
+      "sha256": "6aa85c7d9715fb754f4ebbe520d094cbdb4554543064a6a18f1797b519052df9",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/cpu-profiling/"
+      ]
+    },
+    {
+      "chapter": 28,
+      "supplied_filename": "28_종료_시그널과_안전한_재시작.md",
+      "sha256": "72199e8c93779ba7ee8ff88a1023889fea7d9c3638f85a5befb3f6d5dd0f4d92",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/reference/signals/",
+        "https://redis.io/docs/latest/commands/shutdown",
+        "https://redis.io/docs/latest/commands/script-kill",
+        "https://redis.io/docs/latest/commands/client-pause",
+        "https://redis.io/docs/latest/commands/failover",
+        "https://redis.io/docs/latest/commands/cluster-failover"
+      ]
+    },
+    {
+      "chapter": 29,
+      "supplied_filename": "29_이벤트_루프_내부_구조.md",
+      "sha256": "d22d9c07da077859f6d197605dece9356ebd14473aa7ce8f170bce199ac4d55b",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/reference/internals/internals-rediseventlib/"
+      ]
+    },
+    {
+      "chapter": 30,
+      "supplied_filename": "30_SDS_문자열_내부_구조.md",
+      "sha256": "0f80897a414acce539b75c6c5dbb9bc030073505447c6bb54f8751c95768edae",
+      "official_urls": [
+        "https://redis.io/docs/latest/operate/oss_and_stack/reference/internals/internals-sds/"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,221 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="네트워크 격리, 인증, 권한, 전송 암호화를 구분하고 Java 서비스의 Redis 접근을 안전하게 설계한다."><title>Redis 24 · 보안 경계와 인증: 비밀번호 앞에 네트워크가 있다 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/redis-study-24.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/redis-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="redis"><main><a href="/">← 전체 글</a> · <a href="/posts/redis-study-00.html">Redis 학습 지도</a><header><p class="meta">REDIS QUEST · 24 / 30 · DEEP STUDY</p><h1>보안 경계와 인증: 비밀번호 앞에 네트워크가 있다</h1><p class="subtitle">네트워크 격리, 인증, 권한, 전송 암호화를 구분하고 Java 서비스의 Redis 접근을 안전하게 설계한다.</p><p class="note">첨부 Redis 학습 자료의 주제를 쉬운 설명과 공식 문서 근거로 재구성했습니다. 명령·설정의 버전 조건은 본문을 확인하세요. 장애 시나리오와 수치는 별도 표시가 없으면 학습용 가정이며, 코드가 실려 있다는 사실만으로 실행 검증을 의미하지 않습니다. <a href="/learning/redis/verification.html">검증 범위와 남은 한계</a></p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. Redis 비밀번호를 설정했는데 왜 여전히 위험할까?</a></li><li><a href="#section-2">2. 요청 경로를 그리면 방어선이 보인다</a></li><li><a href="#section-3">3. bind, 방화벽, protected mode는 서로 대체재가 아니다</a></li><li><a href="#section-4">4. AUTH는 로그인이지 암호화가 아니다</a></li><li><a href="#section-5">5. 프로토콜의 안전성과 업무 입력의 안전성</a></li><li><a href="#section-6">6. Java/Spring에서 설정과 권한을 연결하기</a></li><li><a href="#section-7">7. 안전한 로컬 실습: 접속, 인증, 권한을 따로 관찰하기</a></li><li><a href="#section-8">8. 사고 시나리오: 공개 포트를 발견했다면</a></li><li><a href="#section-9">8.1 위협 모델을 작은 표로 남기기</a></li><li><a href="#section-10">9. 면접에서 설명해 보기</a></li><li><a href="#section-11">10. 운영 전 확인할 질문</a></li></ol></aside><article><h2 id="section-1">1. Redis 비밀번호를 설정했는데 왜 여전히 위험할까?</h2>
+<p>은행 금고를 생각해 보자. 금고 비밀번호는 중요하지만, 누구나 금고 앞에 서서 하루 종일 비밀번호를 시도할 수 있는 건물은 좋은 보안 설계가 아니다. 건물 출입 통제, 직원 신원 확인, 업무별 권한, CCTV, 비상 대응도 필요하다. Redis에서도 비밀번호는 여러 방어선 중 하나다. <strong>Redis는 신뢰할 수 있는 애플리케이션이 제한된 네트워크에서 접근하도록 배치하는 것이 출발점</strong>이다. 인터넷 사용자의 브라우저가 Redis에 직접 연결하는 구조가 아니라, 애플리케이션이 사용자 인증과 업무 규칙을 확인하고 필요한 Redis 작업만 수행하는 구조가 기본이다. <a href="https://redis.io/docs/latest/operate/oss_and_stack/management/security/">Redis 보안 모델</a></p>
+<p>비유의 한계도 있다. 네트워크 안에 있다는 사실이 신뢰할 수 있는 직원이라는 뜻은 아니다. 같은 사설망의 서버가 침해될 수도 있고, 개발자가 실수로 운영 인증 정보를 노출할 수도 있다. 그래서 네트워크를 닫은 뒤에도 인증과 최소 권한을 적용한다. 반대로 비밀번호가 있다고 해서 공개 네트워크 노출을 정당화하지 않는다.</p>
+<p>이 장에서 말하는 <strong>인증</strong>은 “누구인지 확인하기”, <strong>인가</strong>는 “그 사람이 이 작업을 해도 되는지 판단하기”, <strong>암호화</strong>는 “이동하는 내용을 제삼자가 읽거나 바꾸기 어렵게 하기”다. 이 세 단어를 구분하면 상당수 보안 설정의 목적이 명확해진다.</p>
+<h2 id="section-2">2. 요청 경로를 그리면 방어선이 보인다</h2>
+<pre><code class="language-text">브라우저 / 외부 API 호출자
+       │ HTTPS, 사용자 로그인, 요청 크기 제한
+       ▼
+Java 애플리케이션
+       │ 사설 경로 + TLS + Redis 서비스 계정
+       ▼
+Redis
+       │ 최소 OS 권한, 제한된 데이터 디렉터리
+       ▼
+RDB/AOF 파일과 백업 저장소
+</code></pre>
+<p>각 화살표에서 서로 다른 질문을 해야 한다.</p>
+<table>
+<thead>
+<tr>
+<th>경계</th>
+<th>확인할 질문</th>
+<th>대표 수단</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>인터넷 → 애플리케이션</td>
+<td>누가 어떤 업무를 요청하는가?</td>
+<td>로그인, 업무 인가, 입력 검증</td>
+</tr>
+<tr>
+<td>애플리케이션 → Redis</td>
+<td>어떤 서버가 접속할 수 있는가?</td>
+<td>방화벽, 보안 그룹, 네트워크 정책</td>
+</tr>
+<tr>
+<td>Redis 연결 수립</td>
+<td>어떤 서비스 계정인가?</td>
+<td>ACL 사용자와 비밀번호</td>
+</tr>
+<tr>
+<td>Redis 명령 실행</td>
+<td>어떤 명령과 키를 사용할 수 있는가?</td>
+<td>ACL 명령·키·채널 규칙</td>
+</tr>
+<tr>
+<td>연결 위의 데이터</td>
+<td>도청·변조·위장 서버를 막는가?</td>
+<td>TLS와 인증서 검증</td>
+</tr>
+<tr>
+<td>Redis → 파일</td>
+<td>프로세스가 어디에 쓸 수 있는가?</td>
+<td>비특권 OS 계정, 파일 권한</td>
+</tr>
+<tr>
+<td>운영자 → 백업</td>
+<td>누가 내려받고 복구할 수 있는가?</td>
+<td>저장소 접근 제어, 감사, 암호화</td>
+</tr>
+</tbody></table>
+<p>사설 IP는 주소 체계일 뿐 완성된 보안 정책이 아니다. 넓은 사설망 전체를 허용하면 무관한 서비스도 Redis에 접근할 수 있다. “애플리케이션 서브넷”보다 “이 Redis를 사용하는 워크로드” 수준으로 허용 범위를 좁힐 수 있는지 검토한다. 관리자 접근은 업무 트래픽과 별도 경로로 관리하고, 긴급 접근의 승인과 기록도 남긴다.</p>
+<h2 id="section-3">3. bind, 방화벽, protected mode는 서로 대체재가 아니다</h2>
+<h3>3.1 bind: 어디에서 연결을 받을 것인가</h3>
+<p><code>bind 127.0.0.1</code>은 프로세스가 IPv4 루프백 주소에서 연결을 받게 한다. 루프백은 그 네트워크 공간 안에서 자기 자신을 가리킨다. 개발 노트북 한 대에서는 이해하기 쉽지만, 컨테이너의 <code>127.0.0.1</code>은 일반적으로 호스트나 다른 컨테이너의 주소가 아니다. “같은 서버니까 localhost로 연결한다”는 가정이 컨테이너에서는 틀릴 수 있다.</p>
+<p>운영에서 특정 사설 인터페이스에 바인딩하면 불필요한 수신 경로를 줄일 수 있다. 그러나 허용된 인터페이스로 들어오는 모든 클라이언트를 자동으로 안전하게 만드는 것은 아니다. 방화벽은 출발지와 목적지, 포트 등 연결 조건을 제한한다. 두 장치는 서로 다른 지점에서 작동한다.</p>
+<h3>3.2 protected mode: 실수 방지 장치</h3>
+<p>protected mode는 위험한 기본 노출 상황에서 외부 요청을 제한하기 위한 안전장치다. 모든 구성에서 동일하게 작동하는 방화벽이 아니다. 동작 조건은 서버 버전과 바인딩·인증 설정을 함께 확인해야 한다. 연결 오류를 빨리 없애려고 <code>protected-mode no</code>부터 넣으면 보호 장치를 꺼서 문제가 사라진 것처럼 보일 뿐이다.</p>
+<p>연결이 안 될 때는 다음 순서를 따른다.</p>
+<ol>
+<li>서버가 어떤 주소와 포트에서 듣는지 확인한다.</li>
+<li>애플리케이션이 실제로 사용하는 DNS 이름과 네트워크 경로를 확인한다.</li>
+<li>방화벽 및 컨테이너 포트 공개 범위를 확인한다.</li>
+<li>Redis 로그에서 보호 모드, 인증, TLS 오류를 구분한다.</li>
+<li>필요한 경로만 허용한 뒤 다시 테스트한다.</li>
+</ol>
+<p>“일단 전체 허용, 나중에 제한”은 나중에 누가 무엇을 제한할지 책임이 사라지는 방식이다. 개발 실습조차 호스트 포트를 공개할 때 <code>127.0.0.1:16379:6379</code>처럼 로컬 주소를 명시하는 습관이 좋다.</p>
+<h2 id="section-4">4. AUTH는 로그인이지 암호화가 아니다</h2>
+<p>Redis 6부터 ACL 사용자 이름을 사용하는 인증이 도입되었다. <code>AUTH 사용자명 비밀번호</code>는 특정 사용자로 인증하고, 과거 방식인 <code>AUTH 비밀번호</code>는 <code>default</code> 사용자를 대상으로 한다. <code>requirepass</code>는 호환성을 위한 방식이며 서비스별 계정을 나누려면 ACL이 적합하다. <a href="https://redis.io/docs/latest/commands/auth/">AUTH 명령</a></p>
+<p>중요한 사실은 평문 TCP 연결 위의 AUTH도 평문 프로토콜이라는 점이다. 긴 비밀번호를 사용해도 통신을 엿볼 수 있는 공격자에게 비밀번호가 전달되는 문제를 해결하지 못한다. 그 부분은 TLS의 책임이다. 반대로 TLS만 켜고 누구나 모든 명령을 실행할 수 있게 해도 권한 통제가 완성되지 않는다.</p>
+<p>비밀번호는 사람이 외우기 좋은 문장보다 충분한 난수를 사용하는 서비스용 비밀로 취급한다. 소스 코드, Git 저장소, 위키, 메신저, 티켓에 붙이지 않는다. 개발과 운영은 서로 다른 값을 사용한다. 인증 정보를 가진 서비스가 많을수록 교체 범위가 넓어지므로 서비스별 사용자 분리는 사고 대응 비용도 줄인다.</p>
+<h3>4.1 인증 정보가 새는 의외의 경로</h3>
+<p>다음 형태는 설명하기 편하지만 운영 절차로 권장하지 않는다.</p>
+<pre><code class="language-text">redis-cli -a 실제비밀번호
+redis://사용자:실제비밀번호@서버:6379
+</code></pre>
+<p>명령행 인자는 프로세스 조회나 실행 기록에 남을 수 있고, URI는 오류 로그나 APM 태그에 수집될 수 있다. 셸의 <code>set -x</code>는 명령과 확장된 변수를 출력한다. 환경 변수도 같은 권한의 프로세스나 진단 덤프를 통해 노출될 수 있으므로 완전한 금고가 아니다. 비밀 관리 시스템에서 최소 권한으로 주입하고, 로그 마스킹과 덤프 접근 통제를 함께 설계한다.</p>
+<p>수동 접속에는 지원되는 <code>redis-cli --askpass</code>로 대화형 입력을 사용하는 편이 낫다. 이때도 터미널 녹화, 공유 화면, 셸 이력 정책을 고려해야 한다. 임시 파일을 쓴다면 접근 권한을 제한하고 삭제하며, 삭제가 이미 만들어진 백업 사본까지 제거하는 것은 아님을 기억한다.</p>
+<h2 id="section-5">5. 프로토콜의 안전성과 업무 입력의 안전성</h2>
+<p>Redis의 RESP 프로토콜은 문자열 길이를 함께 전달한다. 클라이언트 라이브러리로 명령과 인자를 분리해서 보내면 값 안의 줄바꿈이나 따옴표가 자동으로 다른 Redis 명령이 되지 않는다. 그러나 “Redis에는 인젝션이 없으므로 입력 검증이 필요 없다”는 결론은 틀리다.</p>
+<p>첫째, 사용자가 키 이름 전체를 정할 수 있게 하면 다른 사용자의 데이터를 읽는 업무 인가 문제가 생긴다. 둘째, 사용자가 Lua 소스 코드 조각을 만들게 하면 코드 주입 문제가 생긴다. 셋째, 값의 크기와 요청 빈도를 제한하지 않으면 합법적인 SET만으로도 메모리나 대역폭을 소진할 수 있다. 넷째, 큰 컬렉션 전체 조회를 외부 요청 하나에 연결하면 서버와 애플리케이션 모두에 과도한 작업을 만들 수 있다.</p>
+<pre><code class="language-java">// 개념 예제: 로그인 결과에서 얻은 tenantId만 사용한다.
+String tenantId = authenticatedPrincipal.tenantId();
+String safeId = validateItemId(request.itemId());
+String key = &quot;tenant:&quot; + tenantId + &quot;:item:&quot; + safeId;
+String value = stringRedisTemplate.opsForValue().get(key);
+</code></pre>
+<p>여기서 <code>validateItemId</code>는 허용 문자와 최대 길이를 검사하는 애플리케이션 함수다. Redis가 키 이름을 해석해 테넌트 소유권을 자동 보증해 주지 않는다. 요청 본문이 넘겨준 <code>tenantId</code>를 그대로 믿으면 키 접두사를 사용해도 권한 우회가 가능하다.</p>
+<p>Lua를 사용한다면 스크립트 본문을 고정하고 <code>KEYS</code>와 <code>ARGV</code>로 데이터를 전달한다. 데이터를 코드 문자열에 이어 붙이지 않는다. 또한 스크립트는 입력에 따라 실행량이 커질 수 있으므로 크기와 반복 횟수를 제한해야 한다. <strong>프로토콜 경계가 안전하다는 사실과 자원 사용량이 안전하다는 사실은 다른 주장</strong>이다.</p>
+<h2 id="section-6">6. Java/Spring에서 설정과 권한을 연결하기</h2>
+<p>아래는 Spring Boot 3 계열에서 사용하는 설정 형태의 예다. 실제 사용 버전의 설정 메타데이터를 확인하고, 비밀 값은 저장소 밖에서 주입한다. TLS의 신뢰 저장소와 호스트 이름 검증은 다음 장에서 별도로 다룬다.</p>
+<pre><code class="language-yaml">spring:
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      username: ${REDIS_USERNAME}
+      password: ${REDIS_PASSWORD}
+      connect-timeout: 2s
+      timeout: 1s
+      ssl:
+        enabled: true
+</code></pre>
+<p>여기서 두 타임아웃은 “보안 설정” 그 자체는 아니지만 장애의 증폭을 막는 데 중요하다. 연결 실패 때 요청마다 무한히 기다리면 웹 서버의 작업 스레드가 고갈될 수 있다. 인증 실패를 무한 재시도해도 잘못된 비밀번호가 저절로 바뀌지는 않는다. 연결 장애와 인증 실패를 분류하고, 비밀 교체가 진행 중이면 새 연결에 새 인증 정보가 적용되는지도 확인한다.</p>
+<p>연결 풀이나 연결 재사용이 있으면 기존 연결은 계속 성공하는데 새 연결만 실패하는 상황이 생긴다. 교체 직후 PING 한 번이 성공했다고 전체 서비스가 새 자격 증명을 사용한다고 단정하지 않는다. 인스턴스별 재연결, 배치 작업, 장애 조치 후 연결, 장기 유휴 연결의 재생성을 시험해야 한다.</p>
+<p>Spring의 <code>StringRedisTemplate</code>가 사용하는 GET/SET만 보고 ACL을 정하면 시작 단계의 연결 협상이나 상태 검사에서 실패할 수 있다. 라이브러리와 설정에 따라 PING, HELLO, SELECT, CLIENT 하위 명령 등을 사용할 수 있다. 필요한 동작을 관찰해 명시적으로 허용하되, 오류를 숨기려고 <code>+@all</code>로 확대하지 않는다.</p>
+<h2 id="section-7">7. 안전한 로컬 실습: 접속, 인증, 권한을 따로 관찰하기</h2>
+<p>이 실습은 실제 실행 결과 보고가 아니라 <strong>독립된 로컬 인스턴스에서 기대할 관찰을 안내하는 절차</strong>다. 운영 주소를 넣지 않는다. Redis 7 이상과 <code>redis-cli</code>가 설치된 개발 환경을 가정한다. 공개 포트가 아닌 <code>127.0.0.1:16379</code>만 사용한다.</p>
+<p>먼저 <code>umask 077; LAB=$(mktemp -d)</code>로 새 빈 임시 디렉터리를 만든다. 아래 설정의 <code>dir</code>에는 그 디렉터리의 절대 경로를 넣고 설정 파일도 그 안에 작성한다. <code>save &quot;&quot;</code>은 자동 저장을 끄는 설정이지 기존 RDB 로드를 막는 설정이 아니므로 빈 데이터 디렉터리 지정이 필수다. 비밀번호 없는 사용자 <code>lesson</code>은 네트워크·권한의 구분을 배우기 위한 로컬 실험용이며 운영에 복사하면 안 된다.</p>
+<pre><code class="language-conf">bind 127.0.0.1
+port 16379
+dir /새로만든/빈/임시디렉터리
+protected-mode yes
+save &quot;&quot;
+appendonly no
+user default off
+user lesson on nopass ~lesson:* -@all +ping +get +set
+</code></pre>
+<p>설정 파일의 절대 경로를 지정해 포그라운드로 시작한다. 포그라운드는 실행한 터미널에서 프로세스 로그와 종료를 직접 볼 수 있는 방식이다.</p>
+<pre><code class="language-bash">redis-server &quot;$LAB/redis.conf&quot;
+</code></pre>
+<p>다른 터미널에서 접속한다.</p>
+<pre><code class="language-bash">redis-cli -h 127.0.0.1 -p 16379
+</code></pre>
+<p>대화형 CLI에서 다음을 순서대로 입력한다.</p>
+<pre><code class="language-text">PING
+AUTH lesson anything
+PING
+SET lesson:hello world
+GET lesson:hello
+GET other:hello
+</code></pre>
+<p>예상 관찰은 첫 PING의 <code>NOAUTH</code>, AUTH 이후 PING의 <code>PONG</code>, 허용된 키의 성공, 마지막 GET의 <code>NOPERM</code>이다. <code>nopass</code> 사용자는 비밀번호를 요구하지 않으므로 예제의 임의 문자열은 비밀이 아니다. 이 예제는 강한 인증을 검증하는 실험이 아니라 “연결됨”, “사용자와 연결됨”, “이 명령이 허용됨”의 세 단계를 나눠 보는 실험이다. 강한 인증은 다음 장의 별도 비밀 주입 절차로 추가한다.</p>
+<p>종료할 때는 서버를 실행한 터미널에서 Ctrl-C를 사용한다. 이 실습은 영속화를 껐고 유일한 데이터도 실습용이므로 재시작하면 데이터가 사라지는 것이 정상이다. 서버 종료를 확인하고 임시 설정과 디렉터리를 삭제한다. 다른 Redis의 PID나 디렉터리를 재사용하지 않는다.</p>
+<h2 id="section-8">8. 사고 시나리오: 공개 포트를 발견했다면</h2>
+<p>“비밀번호가 있으니 괜찮다”는 판정부터 하지 않는다. 먼저 접근 경로를 제한하고 정상 서비스의 연결 영향도를 확인한다. 다음으로 노출 시작 시점과 범위, 접근 로그와 네트워크 로그, ACL 변경 이력, 설정 변경 이력, 비정상 키 증가, 영속화 파일과 호스트의 변경 흔적을 확보한다. 증거를 없앨 수 있는 무분별한 재시작과 파일 삭제를 피한다.</p>
+<p>비밀번호를 교체하는 것은 필요할 수 있지만 그것만으로 복구가 끝나지는 않는다. 공격자가 이미 데이터를 읽었거나 바꿨다면 자격 증명 교체로 과거 유출과 오염이 되돌아가지 않는다. 호스트 침해 가능성이 있으면 신뢰할 수 있는 이미지에서 재구축하고 검증된 백업으로 복구하는 판단이 필요하다. 업무별로 캐시 재생성 가능한 데이터와 원장처럼 복구해야 하는 데이터를 구분한다.</p>
+<p>또한 같은 자격 증명이 개발·운영·다른 Redis에서 재사용되었는지 확인한다. 서비스별 계정을 사용했다면 사고 범위를 좁힐 수 있고, 연결별 인증 주체를 추적하기도 쉽다. 대응을 마친 뒤에는 노출 탐지와 구성 검증을 배포 과정에 포함한다. 반복되는 사고를 담당자의 주의력만으로 해결하려고 하지 않는다.</p>
+<h2 id="section-9">8.1 위협 모델을 작은 표로 남기기</h2>
+<p>보안 검토의 출발점은 두려운 공격 이름을 나열하는 것이 아니라 보호할 대상과 실패 경로를 정하는 것이다. 주문 캐시라면 값의 변조가 잘못된 가격을 만들 수 있고, 세션 저장소라면 조회 권한의 유출이 로그인 상태와 연결될 수 있다. 같은 Redis라도 데이터의 업무 의미에 따라 대응 우선순위가 달라진다.</p>
+<p>작은 팀이라면 자산, 접근 주체, 허용 동작, 실패 시 영향, 탐지 증거의 다섯 열로 표를 만든다. “앱 계정 유출”이라는 행에는 그 계정이 읽을 수 있는 키 범위와 교체할 서비스 목록을 적는다. “백업 링크 유출”이라는 행에는 Redis ACL이 아니라 저장소 공유 권한과 다운로드 기록을 적는다. 이렇게 하면 하나의 보안 기능을 모든 위험에 대응시키는 실수를 줄일 수 있다.</p>
+<p>변경 후에는 실제 구성에서 표의 주장이 참인지 검사한다. 문서에 사설망이라고 적힌 것과 클라우드 보안 그룹이 전체 인터넷을 허용하지 않는다는 증거는 다르다. 설계, 배포 상태, 관측 결과가 함께 맞아야 한다.</p>
+<h2 id="section-10">9. 면접에서 설명해 보기</h2>
+<details class="question"><summary>Q1. Redis에 강한 비밀번호를 설정하면 인터넷에 노출해도 괜찮나요?</summary><div class="answer">
+
+<p>아니다. 비밀번호는 인증 수단이며 네트워크 공격 표면을 제거하지 않는다. 공개 포트는 인증 시도, 프로토콜 처리, 연결 자원 소비 등의 기회를 제공한다. 먼저 신뢰된 애플리케이션만 연결할 수 있게 하고, 그 안에서 ACL과 TLS를 적용한다. 보안은 한 장치가 완벽하다는 가정보다 한 장치가 실패해도 다음 장치가 피해를 제한하는 구조가 중요하다.</p>
+<p>면접에서는 “방화벽을 켭니다”에서 멈추지 말고 허용할 출발지, 관리 접근 경로, 컨테이너 포트 공개, 모니터링 주체까지 설명하면 좋다. 비밀번호가 유출되었을 때도 네트워크 경계가 남아 있는지를 질문해 볼 수 있다.</p>
+</div></details>
+
+<details class="question"><summary>Q2. 인증, 인가, TLS의 차이를 예로 설명해 주세요.</summary><div class="answer">
+
+<p>AUTH로 <code>catalog-reader</code> 사용자임을 확인하는 것이 인증이다. 그 사용자가 <code>catalog:*</code> 키에 GET만 실행하도록 제한하는 것이 인가다. 서버와 클라이언트 사이 데이터를 암호화하고 인증서로 서버 신원을 확인하는 것은 TLS의 역할이다. 비밀번호가 맞아도 SET 권한은 없을 수 있고, TLS 연결이 성공해도 Redis 계정 인증은 실패할 수 있다.</p>
+<p>문제를 진단할 때도 이 구분을 사용한다. TLS 핸드셰이크 오류는 Redis 명령 실행 이전에 발생하고, NOAUTH는 인증 상태, NOPERM은 허용 규칙 문제를 가리킨다. 모두를 “Redis 연결 오류”로 묶으면 잘못된 설정을 수정하기 쉽다.</p>
+</div></details>
+
+<details class="question"><summary>Q3. protected mode가 있으면 방화벽은 생략할 수 있나요?</summary><div class="answer">
+
+<p>생략할 수 없다. protected mode는 특정 위험 구성에서 실수를 막는 안전장치이며 환경 전체의 접근 정책을 표현하지 않는다. 구성 변경으로 동작 조건이 달라질 수도 있다. 방화벽과 네트워크 정책은 접근 가능한 주체를 제한하고, bind는 수신 인터페이스를 제한하며, 인증은 연결 주체의 자격 증명을 확인한다.</p>
+<p>문제 해결을 위해 보호 모드를 끄기 전에 실제 수신 주소와 클라이언트 경로를 확인한다. 컨테이너 네트워크의 localhost 혼동을 인증 문제로 오인하는 사례처럼, 원인을 잘못 분류하면 보호 설정만 약화시키게 된다.</p>
+</div></details>
+
+<details class="question"><summary>Q4. Redis는 문자열 길이를 전송하므로 입력 검증이 필요 없나요?</summary><div class="answer">
+
+<p>필요하다. 길이가 명시된 프로토콜은 데이터가 명령 경계로 오해되는 문제를 줄인다. 하지만 다른 사용자의 키를 선택하거나, 지나치게 큰 값을 쓰거나, 비싼 연산을 반복하는 문제는 별개다. 안전한 클라이언트 라이브러리를 사용하면서 키 소유권, 데이터 크기, 요청 빈도도 제한해야 한다.</p>
+<p>Lua 소스를 문자열로 조립하는 경우에는 코드와 데이터 경계가 다시 무너질 수 있다. 고정 스크립트와 인자 전달을 사용하고, 입력이 실행 시간에 미치는 영향까지 확인한다. 프로토콜 안전성을 애플리케이션 전체의 안전성으로 확대 해석하지 않는 것이 핵심이다.</p>
+</div></details>
+
+<details class="question"><summary>Q5. 인증 정보를 환경 변수로 옮기면 안전해지나요?</summary><div class="answer">
+
+<p>소스 저장소에 직접 넣는 것보다 나을 수 있지만 완전한 해결책은 아니다. 환경 변수는 프로세스 진단, 덤프, 설정 출력, 잘못된 로깅으로 유출될 수 있다. 비밀 저장소 접근 권한, 주입 과정, 로그 마스킹, 교체 절차까지 포함해야 한다. 애플리케이션이 연결 URI 전체를 예외 메시지에 남기지 않는지도 점검한다.</p>
+<p>중요한 기준은 저장 위치 하나가 아니라 비밀의 전체 수명이다. 누가 생성하고 읽으며, 어디에 전달되고, 언제 교체하며, 이전 값을 어떻게 폐기하는지가 설명되어야 운영 가능한 보안이 된다.</p>
+</div></details>
+
+<details class="question"><summary>Q6. 비밀번호 교체 후 일부 인스턴스만 실패하는 이유는 무엇일까요?</summary><div class="answer">
+
+<p>기존 연결과 새 연결이 다르게 동작하기 때문이다. 이미 인증된 연결을 재사용하는 인스턴스는 정상처럼 보이고, 새로 연결하는 인스턴스는 새 설정이 없어서 실패할 수 있다. 배치 작업, 장애 조치 후 재연결, 유휴 연결 만료처럼 평소 드문 경로에서 뒤늦게 문제가 나타날 수도 있다.</p>
+<p>따라서 교체는 새 자격 증명 허용, 애플리케이션 전파, 새 연결 검증, 이전 자격 증명 제거의 순서로 설계한다. 보안 사고라면 이전 세션을 즉시 끊을 필요도 있지만 그때의 가용성 영향과 재연결 정책을 함께 판단해야 한다.</p>
+</div></details>
+
+<details class="question"><summary>Q7. Redis를 root로 실행하면 왜 위험한가요?</summary><div class="answer">
+
+<p>Redis 프로세스가 침해되었을 때 행사할 수 있는 OS 권한이 커지기 때문이다. 업무에 필요한 데이터 디렉터리만 쓰는 전용 비특권 계정으로 실행하면 피해 범위를 제한할 수 있다. 이것은 ACL과 다른 계층의 권한이다. ACL은 Redis 명령을 제어하고 OS 권한은 파일과 프로세스 자원 접근을 제어한다.</p>
+<p>관리 명령 제한, 읽기 전용 이미지, 파일 권한, 비밀 마운트 권한을 함께 검토한다. 어느 하나만 적용했다고 임의 코드 실행이나 데이터 유출 가능성이 사라지는 것은 아니지만, 계층별 제한은 사고 시 확산을 줄인다.</p>
+</div></details>
+
+<details class="question"><summary>Q8. 캐시 데이터만 저장한다면 보안을 느슨하게 해도 되나요?</summary><div class="answer">
+
+<p>그렇지 않다. 캐시에도 개인정보나 인증 관련 값이 있을 수 있고, 캐시 오염은 잘못된 가격·권한·응답을 만들 수 있다. 데이터가 사라져도 재생성할 수 있다는 사실은 유출이나 변조를 허용한다는 뜻이 아니다. 캐시 전체 삭제는 원본 데이터베이스에 요청을 몰아 서비스 장애를 만들기도 한다.</p>
+<p>데이터 기밀성, 무결성, 가용성을 각각 평가해야 한다. 재생성이 쉬운 캐시라면 복구 전략은 단순해질 수 있지만 네트워크 제한과 최소 권한 원칙은 여전히 필요하다. 복구 시에도 캐시를 한 번에 채워 원본을 압박하지 않도록 속도를 조절한다.</p>
+</div></details>
+
+<h2 id="section-11">10. 운영 전 확인할 질문</h2>
+<ul>
+<li>Redis 포트에 접근 가능한 주체를 실제 연결 경로로 설명할 수 있는가?</li>
+<li>관리자, 애플리케이션, 복제, 모니터링 자격 증명이 분리되어 있는가?</li>
+<li>인증 실패와 권한 실패를 분리해 알림을 받는가?</li>
+<li>비밀이 로그·URI·프로세스 인자에 노출되지 않는가?</li>
+<li>TLS의 암호화뿐 아니라 서버 이름과 신뢰 체인도 검증하는가?</li>
+<li>비밀 교체 때 기존 연결과 새 연결을 모두 시험하는가?</li>
+<li>Redis 프로세스와 백업 저장소에 최소 OS·저장소 권한이 적용되어 있는가?</li>
+</ul>
+<p>이 질문에 구체적인 증거로 답할 수 있다면 비밀번호 설정을 넘어 보안 경계를 설계한 것이다. 다음 장에서는 그 경계 안에서 사용자별로 명령과 데이터 접근을 제한하는 ACL을 살펴본다.</p>
+<h3>공식 참고 자료와 버전 경계</h3>
+<ul>
+<li><a href="https://redis.io/docs/latest/operate/oss_and_stack/management/security/">Redis security</a>: 전체 보안 모델. 오래된 자료의 명령 이름 변경 방식은 현재의 권장 ACL 설계를 대신하지 않는다.</li>
+<li><a href="https://redis.io/docs/latest/commands/auth/">AUTH</a>: 사용자 이름을 포함한 인증과 호환 형식.</li>
+<li><a href="https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl/">Redis ACL</a>: Redis 6 이후 사용자 기반 접근 제어.</li>
+</ul>
+<p>제공된 학습 원문의 주제를 바탕으로 설명을 재구성했다. 실습은 로컬 전용이며 이 글에서 실행을 완료했다고 주장하지 않는다. 배포판과 관리형 서비스는 사용 가능한 설정 및 관리 명령이 다를 수 있다.</p>
+<p>Spring 설정명은 <a href="https://docs.spring.io/spring-boot/appendix/application-properties/index.html">Spring Boot 공식 설정 목록</a>과 프로젝트에 고정된 버전의 메타데이터를 대조한다. <code>latest</code> 문서의 버전과 프로젝트 버전이 같다고 가정하지 않는다.</p>
+</article><nav aria-label="연재 이동"><a href="/posts/redis-study-23.html">← 벤치마크와 처리량 해석 — 빠르다는 숫자에 조건을 붙이기</a><a href="/posts/redis-study-25.html">ACL 최소 권한 설계: 누가 어떤 명령으로 어느 키에 접근하는가 →</a></nav><footer>Redis 학습 연재 · <a href="/learning/redis/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

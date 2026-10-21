@@ -64,3 +64,13 @@ boundaries, runs Kafka 4.3.1 + Spring integration, then deploys static pages onl
 - 근거·검증 범위: `learning/aws/verification.html`
 - AWS 실계정 통합·성능 테스트는 실행하지 않았으며 모든 장애·수치 예시는 학습용 가정입니다.
 - 기존 픽셀 스킨을 유지하고 AWS 카테고리는 옅은 녹색 계열로 구분합니다.
+
+## Redis 학습 연재
+
+- 학습 지도: `/posts/redis-study-00.html`, 본문 01~30편.
+- 원고: `content/redis/NN-*.md`; 첫 문단 JSON 메타데이터 `{n,title,desc}`.
+- 생성: `npm ci && npm run build:redis`. 다른 시리즈 원고/페이지를 재생성하지 않으며 홈페이지의 Redis 블록만 갱신합니다.
+- 구조 검사: `npm run check:redis && python3 tools/verify_site.py`.
+- 브라우저 검사: `node scripts/check-redis-browser.cjs` 및 `node tools/check_categories.cjs` (Playwright + Chromium 필요; `CHROME_PATH` 선택 가능).
+- 검증 범위: `learning/redis/verification.html`. 생성·구조 검사와 실제 코드 실행·장애 검증·배포 검증은 서로 다릅니다.
+- 공통 픽셀 스킨을 유지하며 Redis는 연한 적색으로 구분합니다.

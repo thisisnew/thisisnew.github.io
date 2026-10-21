@@ -1,0 +1,263 @@
+{
+  "checkedAt": "2026-10-21T23:13:19.587591+00:00",
+  "scope": "Initial URL checks cover only chapters available at that time; full final HTTP validation was blocked by execution environment network policy. Official sources were consulted during authoring; HTTP success alone is not a factual audit.",
+  "results": [
+    {
+      "url": "https://docs.spring.io/spring-data/redis/reference/redis/transactions.html",
+      "chapters": [
+        "00-roadmap.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://docs.spring.io/spring-data/redis/reference/redis/transactions.html",
+      "sha256": "68839c99b8a78d624eeb5948b20d09b0c2c1b7064852617ecc0eb53cde082713",
+      "bytesRead": 47757
+    },
+    {
+      "url": "https://redis.io/docs/latest/commands/acl-dryrun/",
+      "chapters": [
+        "25-acl.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/commands/acl-dryrun/",
+      "sha256": "a4a82e09e71d46da1275561a48156c712131df2f0815c7cf36dbb737ac817ebf",
+      "bytesRead": 243771
+    },
+    {
+      "url": "https://redis.io/docs/latest/commands/acl-load/",
+      "chapters": [
+        "25-acl.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/commands/acl-load/",
+      "sha256": "26ac7a14369e4493f2064fcdfe0cebb8b0c28e4bfbb180240532ff3d89624b1f",
+      "bytesRead": 241730
+    },
+    {
+      "url": "https://redis.io/docs/latest/commands/acl-save/",
+      "chapters": [
+        "25-acl.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/commands/acl-save/",
+      "sha256": "735d364ff914bfbf44b1d7dc5479de988b41cb8f4b3f431394cfa97648268c81",
+      "bytesRead": 240826
+    },
+    {
+      "url": "https://redis.io/docs/latest/commands/acl-setuser/",
+      "chapters": [
+        "25-acl.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/commands/acl-setuser/",
+      "sha256": "c472323e2881ab1b0124beb75eb43af41f2d9395bffd6f8c3ee34d173c35b2f1",
+      "bytesRead": 258559
+    },
+    {
+      "url": "https://redis.io/docs/latest/commands/asking/",
+      "chapters": [
+        "17-moved-ask-multikey.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/commands/asking/",
+      "sha256": "e61d6bf14eab50760c32062010d6825627e5d2e89cb4a3e3bea764c62452d311",
+      "bytesRead": 232330
+    },
+    {
+      "url": "https://redis.io/docs/latest/commands/auth/",
+      "chapters": [
+        "24-security-auth.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/commands/auth/",
+      "sha256": "bfb6ff2b1d4ff734e6e8dd254403eae581eb39b38dcb4ba14523bab4519072c3",
+      "bytesRead": 471750
+    },
+    {
+      "url": "https://redis.io/docs/latest/commands/cluster-setslot/",
+      "chapters": [
+        "17-moved-ask-multikey.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/commands/cluster-setslot/",
+      "sha256": "02b2f995dc1087de5de6614e3e6f9fb236bc110a66964277efd3638fe7cdcf77",
+      "bytesRead": 251097
+    },
+    {
+      "url": "https://redis.io/docs/latest/commands/config-get/",
+      "chapters": [
+        "01-configuration.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/commands/config-get/",
+      "sha256": "ed056f50d8b596a6984480c7214e136a2327f493aa76549e7c8251ab0146bef9",
+      "bytesRead": 245758
+    },
+    {
+      "url": "https://redis.io/docs/latest/commands/config-rewrite/",
+      "chapters": [
+        "01-configuration.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/commands/config-rewrite/",
+      "sha256": "71386f4c031ac609cee707ab54897a21e0ca5f943e580c5db9a004bf9f8dfd6b",
+      "bytesRead": 242419
+    },
+    {
+      "url": "https://redis.io/docs/latest/commands/config-set/",
+      "chapters": [
+        "01-configuration.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/commands/config-set/",
+      "sha256": "56c1306bf6554144e165c14e01a2c87659da4c747f8b44f8c646e338d251b5a2",
+      "bytesRead": 246636
+    },
+    {
+      "url": "https://redis.io/docs/latest/commands/expire/",
+      "chapters": [
+        "00-roadmap.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/commands/expire/",
+      "sha256": "b8efee49075118001f34a0c69fa409e3abb0ca3f44449142c0b1128fba2a4c95",
+      "bytesRead": 1491972
+    },
+    {
+      "url": "https://redis.io/docs/latest/commands/info/",
+      "chapters": [
+        "02-os-memory.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/commands/info/",
+      "sha256": "ed667a6df3d9b6ba7a2e3056dbb44e9f44d45c88e9a4087a3c96bc996979a7ac",
+      "bytesRead": 537353
+    },
+    {
+      "url": "https://redis.io/docs/latest/commands/set/",
+      "chapters": [
+        "00-roadmap.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/commands/set/",
+      "sha256": "1af969aa0c80461b224a07cf1a21702d872302827ced147af27d3326aa274574",
+      "bytesRead": 659903
+    },
+    {
+      "url": "https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/",
+      "chapters": [
+        "00-roadmap.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/",
+      "sha256": "ccf133f22308f4bdd90dc11093b61e264623acda011e92681b276b8e21ceea90",
+      "bytesRead": 146859
+    },
+    {
+      "url": "https://redis.io/docs/latest/develop/data-types/",
+      "chapters": [
+        "00-roadmap.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/develop/data-types/",
+      "sha256": "4ada7f82866277468b4637e19ac3394f0171c61693ce6049173d5f2bbad0fb20",
+      "bytesRead": 137283
+    },
+    {
+      "url": "https://redis.io/docs/latest/develop/reference/eviction/",
+      "chapters": [
+        "00-roadmap.md",
+        "01-configuration.md",
+        "02-os-memory.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/develop/reference/eviction/",
+      "sha256": "9234f0e1f1876c0b4717cb2563e31332802ad0f22d59b125b99a9a0984d2070e",
+      "bytesRead": 133002
+    },
+    {
+      "url": "https://redis.io/docs/latest/develop/using-commands/pipelining/",
+      "chapters": [
+        "00-roadmap.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/develop/using-commands/pipelining/",
+      "sha256": "3169e9acc5072aed4e51dd7a103eaa84ffb07e30bbe840fc0cea9d5e7cb94ad0",
+      "bytesRead": 125775
+    },
+    {
+      "url": "https://redis.io/docs/latest/develop/using-commands/transactions/",
+      "chapters": [
+        "00-roadmap.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/develop/using-commands/transactions/",
+      "sha256": "afbd5e71028e09b8a84a97d07a7603bb03403a19adb30f39c60f9f158e2e62e0",
+      "bytesRead": 126794
+    },
+    {
+      "url": "https://redis.io/docs/latest/operate/oss_and_stack/management/admin/",
+      "chapters": [
+        "02-os-memory.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/operate/oss_and_stack/management/admin/",
+      "sha256": "53316fe5c3f6024a36bc8b7ce1f59cc2e6a04bf8a34ab034ac6ed711bceba554",
+      "bytesRead": 125318
+    },
+    {
+      "url": "https://redis.io/docs/latest/operate/oss_and_stack/management/config/",
+      "chapters": [
+        "01-configuration.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/operate/oss_and_stack/management/config/",
+      "sha256": "20e9fe415eb9e9b98374804ab4a6a5a7e3d19a8be76b1cb3d8c1b89dbb891b8d",
+      "bytesRead": 121805
+    },
+    {
+      "url": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/",
+      "chapters": [
+        "02-os-memory.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/",
+      "sha256": "ce810d1c25bace3e632ac365721f3c96300240d27691defc883038e877f1bf35",
+      "bytesRead": 162334
+    },
+    {
+      "url": "https://redis.io/docs/latest/operate/oss_and_stack/management/security/",
+      "chapters": [
+        "24-security-auth.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/operate/oss_and_stack/management/security/",
+      "sha256": "2d12b5ba96581e94bcb572ceadd44a3b38da70c50d8b3d998541413e2dfc55a0",
+      "bytesRead": 132141
+    },
+    {
+      "url": "https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl/",
+      "chapters": [
+        "24-security-auth.md",
+        "25-acl.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl/",
+      "sha256": "8dd5be94d7e50b28f30e7873549475ebb11dc41036d70a3b90cf325d3ab7637d",
+      "bytesRead": 171452
+    },
+    {
+      "url": "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/",
+      "chapters": [
+        "17-moved-ask-multikey.md"
+      ],
+      "status": 200,
+      "finalUrl": "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/",
+      "sha256": "b254bd2f146ac6937eff2b9c28d0e630305bc22f2f6a74dfebb0684f13ca4516",
+      "bytesRead": 240896
+    }
+  ],
+  "notReachable": [],
+  "status": "partial",
+  "fullValidationBlocker": "검증 환경의 외부 접속 제한으로 최종 전체 HTTP 검사를 완료하지 못했습니다.",
+  "recordedAt": "2026-10-21T23:19:49.032790+00:00"
+}

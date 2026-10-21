@@ -1,0 +1,262 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="사용자·명령·키·채널 규칙을 조합하고 ACL 저장, 비밀 교체, Java 클라이언트 검증까지 연결한다."><title>Redis 25 · ACL 최소 권한 설계: 누가 어떤 명령으로 어느 키에 접근하는가 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/redis-study-25.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/redis-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="redis"><main><a href="/">← 전체 글</a> · <a href="/posts/redis-study-00.html">Redis 학습 지도</a><header><p class="meta">REDIS QUEST · 25 / 30 · DEEP STUDY</p><h1>ACL 최소 권한 설계: 누가 어떤 명령으로 어느 키에 접근하는가</h1><p class="subtitle">사용자·명령·키·채널 규칙을 조합하고 ACL 저장, 비밀 교체, Java 클라이언트 검증까지 연결한다.</p><p class="note">첨부 Redis 학습 자료의 주제를 쉬운 설명과 공식 문서 근거로 재구성했습니다. 명령·설정의 버전 조건은 본문을 확인하세요. 장애 시나리오와 수치는 별도 표시가 없으면 학습용 가정이며, 코드가 실려 있다는 사실만으로 실행 검증을 의미하지 않습니다. <a href="/learning/redis/verification.html">검증 범위와 남은 한계</a></p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">1. 로그인에 성공했다는 말의 다음 문장</a></li><li><a href="#section-2">2. 권한은 세 질문을 동시에 통과해야 한다</a></li><li><a href="#section-3">3. SETUSER는 설정 파일 덮어쓰기가 아니라 변경 연산이다</a></li><li><a href="#section-4">4. 키 패턴은 데이터베이스를 완전히 분리하지 않는다</a></li><li><a href="#section-5">5. 자격 증명은 ACL 문자열보다 더 긴 수명을 가진다</a></li><li><a href="#section-6">6. 실행 중 변경과 재시작 후 유지되는 변경</a></li><li><a href="#section-7">7. 서비스 계정, 복제 계정, Sentinel 계정</a></li><li><a href="#section-8">8. 안전한 로컬 실습: 실행하지 않고 권한을 시험하기</a></li><li><a href="#section-9">9. Spring 애플리케이션의 권한 계약</a></li><li><a href="#section-10">10. 면접 질문과 상세 답변</a></li></ol></aside><article><h2 id="section-1">1. 로그인에 성공했다는 말의 다음 문장</h2>
+<p>회사 출입증이 있다고 모든 문서함을 열 수 있는 것은 아니다. 고객 지원 직원에게는 고객 문의를 읽는 권한이 필요하지만 급여 정보를 수정할 권한은 필요하지 않다. Redis의 ACL, 즉 Access Control List는 이와 비슷하다. 연결을 특정 사용자와 연결하고, 그 사용자가 실행할 수 있는 명령과 접근할 수 있는 키·채널을 제한한다.</p>
+<p>그러나 출입증 비유에는 한계가 있다. Redis 사용자 한 명이 실제 직원 한 명을 뜻하지는 않는다. 보통 <code>catalog-api</code>, <code>order-worker</code>, <code>metrics-reader</code>처럼 애플리케이션 역할을 나타낸다. 같은 계정을 여러 서비스가 공유하면 최소 권한의 교집합이 아니라 필요한 권한의 합집합을 주게 되기 쉽다. 사고가 났을 때 어느 서비스의 자격 증명을 폐기해야 하는지도 불명확해진다.</p>
+<p><strong>ACL 설계의 단위는 편리한 공용 계정이 아니라 책임과 데이터 경계가 같은 역할</strong>이다. 쓰기 작업이 필요하지 않은 조회 서비스에는 쓰기 권한을 주지 않고, 업무 서비스에는 종료·설정 변경 같은 운영 권한을 주지 않는 것이 출발점이다.</p>
+<h2 id="section-2">2. 권한은 세 질문을 동시에 통과해야 한다</h2>
+<p>명령 <code>GET shop:product:42</code>를 생각해 보자.</p>
+<ol>
+<li>이 연결은 활성 사용자로 인증되었는가?</li>
+<li>그 사용자는 GET 명령을 사용할 수 있는가?</li>
+<li>그 사용자는 <code>shop:product:42</code> 키에 접근할 수 있는가?</li>
+</ol>
+<p>GET을 허용했다고 모든 키를 읽을 수 있는 것이 아니고, <code>shop:*</code>를 허용했다고 모든 명령을 실행할 수 있는 것도 아니다. Pub/Sub를 사용한다면 채널 권한이라는 별도 축도 필요하다. 키 접두사와 채널 이름이 같아 보여도 같은 권한 목록이 아니다.</p>
+<table>
+<thead>
+<tr>
+<th>규칙</th>
+<th>뜻</th>
+<th>주의점</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>on</code> / <code>off</code></td>
+<td>새 인증 허용 / 차단</td>
+<td>off만으로 기존 연결이 즉시 끊기는 것은 아님</td>
+</tr>
+<tr>
+<td><code>+get</code> / <code>-set</code></td>
+<td>명령 허용 / 제거</td>
+<td>규칙은 순서대로 적용됨</td>
+</tr>
+<tr>
+<td><code>-@all</code></td>
+<td>모든 명령을 기본 차단</td>
+<td>필요한 명령을 뒤에서 추가</td>
+</tr>
+<tr>
+<td><code>~shop:*</code></td>
+<td>일치하는 키 접근 허용</td>
+<td>명령 권한은 별도로 필요</td>
+</tr>
+<tr>
+<td><code>resetkeys</code></td>
+<td>기존 키 규칙 제거</td>
+<td>누적된 규칙 정리 시 중요</td>
+</tr>
+<tr>
+<td><code>&amp;events:*</code></td>
+<td>Pub/Sub 채널 패턴 허용</td>
+<td>일반 키 패턴과 독립적</td>
+</tr>
+<tr>
+<td><code>resetchannels</code></td>
+<td>채널 권한 초기화</td>
+<td>버전별 기본값 추정 대신 명시</td>
+</tr>
+<tr>
+<td><code>&gt;비밀번호</code></td>
+<td>허용 비밀번호 추가</td>
+<td>셸 리다이렉션 문자와 충돌 가능</td>
+</tr>
+<tr>
+<td><code>&lt;비밀번호</code></td>
+<td>해당 비밀번호 제거</td>
+<td>기존 세션 폐기와는 별도</td>
+</tr>
+<tr>
+<td><code>reset</code></td>
+<td>사용자 권한·상태 초기화</td>
+<td>기존 사용자에 적용하면 즉시 영향</td>
+</tr>
+</tbody></table>
+<p>Redis 7 이상에서는 읽기·쓰기 키 패턴과 selector도 제공한다. 도입 버전과 정확한 규칙은 공식 문서에서 확인해야 한다. <a href="https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl/">ACL 규칙</a></p>
+<h2 id="section-3">3. SETUSER는 설정 파일 덮어쓰기가 아니라 변경 연산이다</h2>
+<p>다음 명령을 순서대로 실행했다고 생각해 보자.</p>
+<pre><code class="language-text">ACL SETUSER reader +get
+ACL SETUSER reader +set
+</code></pre>
+<p>두 번째 명령은 첫 번째 권한을 지우지 않는다. 기존 사용자에 SET 권한을 추가한다. 배포 스크립트를 여러 번 실행하면 의도하지 않은 권한이 계속 남을 수 있다. 선언적 구성을 원한다면 필요한 초기화 규칙을 명시하고, 변경 전후의 사용자 상태를 비교해야 한다.</p>
+<p>새 사용자의 예시는 다음처럼 해석할 수 있다. 아래의 <code>nopass</code>는 암호 없는 <strong>로컬 실습 전용</strong>이다.</p>
+<pre><code class="language-text">ACL SETUSER lesson-reader reset on nopass resetkeys ~lesson:* resetchannels -@all +ping +get
+</code></pre>
+<p>왼쪽부터 기존 상태를 초기화하고, 사용자를 켜고, 비밀번호 없는 실습 모드를 정하고, 키 범위를 지정하고, 채널은 허용하지 않고, 명령을 전부 막은 다음 PING과 GET만 추가한다. 규칙 순서를 반대로 써서 마지막에 <code>-@all</code>을 놓으면 앞서 추가한 명령 권한도 제거한다. <a href="https://redis.io/docs/latest/commands/acl-setuser/">ACL SETUSER</a></p>
+<p>운영 계정에 <code>reset</code>을 적용하면 기존 비밀번호와 권한이 함께 바뀔 수 있다. 따라서 “항상 reset으로 시작하라”가 아니라 <strong>새 계정 준비와 기존 계정 변경을 구분하라</strong>가 더 정확하다. 기존 계정은 관리자 연결 확보, 최종 규칙 검토, 애플리케이션 영향 확인, 되돌릴 규칙 준비 후 변경한다.</p>
+<h3>3.1 기본 거부가 이해하기 쉬운 이유</h3>
+<p><code>+@all -@dangerous</code>는 간단해 보이지만 업무가 정말 필요한 명령 목록을 표현하지 않는다. 명령 분류와 서버 기능이 바뀌면 허용 범위도 다시 검토해야 한다. 특히 넓은 허용은 새 명령이나 모듈이 추가될 때 권한 확대를 놓치기 쉽다. 반면 <code>-@all +get +mget +ping</code>은 무엇을 허용했는지 명확하다.</p>
+<p>물론 명시적 허용도 유지 비용이 있다. 클라이언트 업그레이드가 새로운 연결 초기화 명령을 보내면 검증이 필요하다. 이 비용을 줄이려면 실제 업무 시나리오와 연결 수명 주기를 자동 테스트로 고정한다. 최소 권한은 한 번 적어 놓는 문자열이 아니라 코드 변경과 함께 검증하는 계약이다.</p>
+<h2 id="section-4">4. 키 패턴은 데이터베이스를 완전히 분리하지 않는다</h2>
+<p><code>~tenant:a:*</code>는 허용할 키 이름을 제한한다. 하지만 사용자가 키 인자를 받지 않는 전역 명령까지 실행할 수 있다면 키 패턴만으로 격리가 완성되지 않는다. 예를 들어 전체 데이터를 지우는 종류의 명령을 허용하면서 키 패턴이 그 영향을 부분 집합으로 잘라 줄 것이라 기대해서는 안 된다. 명령 자체를 차단해야 한다.</p>
+<p>같은 Redis의 테넌트는 CPU, 메모리, 네트워크, 장애 영역을 공유한다. A 테넌트가 허용된 키에 큰 값을 많이 저장하면 B 테넌트의 응답 시간과 메모리에도 영향을 줄 수 있다. ACL은 명령과 이름 공간의 접근 통제이지 CPU·메모리 할당량을 보증하는 독립 실행 환경이 아니다.</p>
+<p>여러 키를 사용하는 명령도 주의한다. <code>MGET tenant:a:1 tenant:b:2</code>처럼 허용되지 않은 키가 섞이면 요청이 권한 검사에서 실패할 수 있다. 클러스터에서는 여기에 해시 슬롯 제약이 더해진다. ACL을 통과했다고 서로 다른 슬롯의 다중 키 연산이 가능해지는 것은 아니다. 권한 오류와 CROSSSLOT 오류는 서로 다른 계층이다.</p>
+<h3>4.1 읽기와 쓰기를 분리하는 패턴</h3>
+<p>Redis 7 이상의 <code>%R~패턴</code>, <code>%W~패턴</code>은 읽기와 쓰기 키 접근을 분리한다. 그러나 “읽기 전용 계정”은 키 규칙만으로 만드는 것이 아니다. 허용 명령도 함께 제한해야 하고, 명령이 사용하는 키의 접근 성격을 고려해야 한다. 어떤 명령은 한 키에서 읽고 다른 키에 쓴다. 실제 사용할 명령과 인자로 검증하는 이유가 여기에 있다.</p>
+<p>selector는 여러 권한 묶음 중 한 묶음이 요청을 완전히 허용하는 방식으로 생각하면 좋다. 서로 다른 묶음의 일부 권한을 무조건 합쳐 요청 전체를 허용하는 것으로 이해하면 안 된다. 단순한 역할은 기본 규칙만으로 표현하고, selector가 필요하면 각 허용·거부 사례를 표로 만들어 시험한다. 복잡한 ACL 한 줄보다 설명 가능한 작은 계정 여러 개가 나을 때가 있다.</p>
+<h2 id="section-5">5. 자격 증명은 ACL 문자열보다 더 긴 수명을 가진다</h2>
+<p>ACL은 비밀번호를 추가하거나 제거할 수 있고 내부적으로 해시 표현을 사용한다. 그렇다고 관리 화면에 표시되는 해시를 공개해도 된다는 뜻은 아니다. 짧거나 재사용된 비밀번호는 오프라인 추측 위험이 있고, 계정 이름·키 패턴도 내부 구조를 드러낼 수 있다. <code>ACL LIST</code>, <code>ACL GETUSER</code>, ACL 파일은 제한된 운영 자료로 취급한다.</p>
+<p>셸에서 다음처럼 입력하면 <code>&gt;</code>가 출력 리다이렉션으로 처리될 수 있다.</p>
+<pre><code class="language-text">잘못된 생각: redis-cli ACL SETUSER app &gt;secret
+</code></pre>
+<p>문법을 인용하면 셸 해석 문제는 피할 수 있지만 비밀이 명령행 인자나 이력에 남는 문제는 여전히 남는다. 따라서 운영 절차는 단순히 “따옴표를 붙인다”로 끝나면 안 된다. 비밀 관리 시스템, 보호된 설정 파일 또는 비밀을 로그에 남기지 않는 관리 클라이언트를 이용하고, 전송 구간도 TLS로 보호한다.</p>
+<h3>5.1 중단을 줄이는 교체 순서</h3>
+<ol>
+<li>새 난수 비밀번호를 비밀 저장소에 생성한다.</li>
+<li>기존 사용자가 새 비밀번호도 허용하게 한다. 기존 값은 잠시 유지한다.</li>
+<li>애플리케이션 인스턴스와 배치·운영 도구에 새 값을 전파한다.</li>
+<li><strong>새 연결</strong>을 만들어 인증과 대표 업무를 검증한다.</li>
+<li>이전 비밀번호를 제거한다.</li>
+<li>필요하면 기존 연결도 식별해 종료하고 재연결을 확인한다.</li>
+<li>ACL 저장과 모든 관련 노드의 일관성을 확인한다.</li>
+</ol>
+<p>평상시 교체와 유출 사고 대응은 목표가 다르다. 유출 사고에서는 호환 기간을 짧게 하고 기존 세션을 끊는 판단이 필요할 수 있다. 반대로 아무 준비 없이 모든 연결을 끊으면 재접속 폭주로 장애가 커질 수 있다. 보안과 가용성의 판단을 절차 안에 명시해야 한다.</p>
+<h2 id="section-6">6. 실행 중 변경과 재시작 후 유지되는 변경</h2>
+<p><code>ACL SETUSER</code> 성공은 현재 프로세스의 사용자 상태가 바뀌었다는 뜻이다. 디스크의 설정이 바뀌었다는 뜻은 아니다. 외부 ACL 파일을 쓰는 구성에서는 <code>aclfile</code> 경로를 정하고 <code>ACL SAVE</code>로 저장하는 흐름을 검토한다. 설정 파일 안에 사용자 규칙을 두는 구성과 외부 ACL 파일 구성은 혼동하지 않아야 한다. <code>ACL LOAD</code>는 파일의 규칙을 읽는 작업이므로 현재 메모리 상태와 파일이 다르면 권한이 바뀔 수 있다. <a href="https://redis.io/docs/latest/commands/acl-save/">ACL SAVE</a>와 <a href="https://redis.io/docs/latest/commands/acl-load/">ACL LOAD</a></p>
+<p>여기에는 세 가지 진실의 원천이 충돌할 수 있다.</p>
+<pre><code class="language-text">현재 Redis 메모리의 ACL
+        ↕
+현재 호스트의 ACL 파일
+        ↕
+배포 시스템 / 비밀 저장소 / 선언적 설정
+</code></pre>
+<p>운영자가 ACL SAVE를 했더라도 다음 배포가 오래된 파일을 덮어쓰면 권한이 되돌아갈 수 있다. 따라서 저장 확인만 하지 말고 재배포와 재시작 후의 상태까지 검증한다. RDB에 업무 데이터가 저장된다는 사실과 ACL 배포 정책이 보존된다는 사실은 구분해야 한다.</p>
+<p>복제나 클러스터가 ACL 운영 정책을 자동으로 전부 동기화해 줄 것이라고 가정하지 않는다. 장애 조치 후보, Sentinel이 접근할 노드, 클러스터의 각 노드에 필요한 계정과 인증 경로를 배포 체계로 일관되게 관리한다. 정상 primary에서만 시험하면 failover 후 인증 실패를 놓칠 수 있다.</p>
+<h2 id="section-7">7. 서비스 계정, 복제 계정, Sentinel 계정</h2>
+<p>애플리케이션 계정은 업무 키와 명령만 필요하다. 복제 연결은 복제 프로토콜을 위해 필요한 명령과 설정이 다르고, Sentinel은 상태 파악과 장애 조치를 위해 별도 관리 동작이 필요하다. 세 역할을 공용 관리자 계정 하나로 해결하면 한 서비스의 비밀 유출이 인프라 전체 권한으로 이어질 수 있다.</p>
+<p>정확한 최소 명령은 사용 버전과 기능에 따라 달라진다. 오래된 블로그의 Sentinel 권한 목록을 그대로 복사하기보다 해당 버전 공식 가이드와 실제 장애 조치 시험을 기준으로 한다. 정상 상태 조회만 성공하는 계정은 충분하지 않을 수 있다. 승격, 재구성, 재접속, 복제 복구 단계까지 성공해야 한다.</p>
+<p>모니터링도 관리자 계정이 필요하다고 단정하지 않는다. 수집하는 INFO 섹션이나 CLIENT 관련 동작을 식별하고 필요한 권한을 나눈다. 모니터링 시스템은 많은 서버에 접속하므로 그 비밀의 유출 범위가 특히 클 수 있다. 읽기 전용이라는 이름보다 실제 명령 목록이 중요하다.</p>
+<h2 id="section-8">8. 안전한 로컬 실습: 실행하지 않고 권한을 시험하기</h2>
+<p>이 절차는 Redis 7 이상을 대상으로 한 <strong>예상 관찰 실습</strong>이며 이 글 작성 중 실제 실행한 결과가 아니다. 별도 로컬 프로세스를 <code>127.0.0.1:16379</code>에서 실행하고 영속화를 끈다. 이 실습의 암호 없는 관리자와 사용자는 외부에 노출해서는 안 된다.</p>
+<pre><code class="language-bash">umask 077
+LAB=$(mktemp -d)
+redis-server --bind 127.0.0.1 --port 16379 --dir &quot;$LAB&quot; \
+  --save &#39;&#39; --appendonly no
+redis-cli -h 127.0.0.1 -p 16379
+</code></pre>
+<p>서버는 별도 터미널에서 포그라운드로 실행한다. 새 빈 <code>dir</code>은 기존 작업 디렉터리의 RDB를 실수로 읽지 않도록 한다. 자동 저장을 껐다는 사실만으로 기존 파일 로드가 차단되지는 않는다. 두 번째 터미널의 CLI에서 다음을 입력한다.</p>
+<pre><code class="language-text">ACL SETUSER lesson-reader reset on nopass ~lesson:* resetchannels -@all +get +ping
+ACL DRYRUN lesson-reader GET lesson:one
+ACL DRYRUN lesson-reader SET lesson:one value
+ACL DRYRUN lesson-reader GET private:one
+SET lesson:one hello
+</code></pre>
+<p>첫 DRYRUN은 허용을 나타내는 <code>OK</code>, 둘째는 명령 권한 거부, 셋째는 키 권한 거부가 예상된다. 정확한 오류 문장은 버전에 따라 다를 수 있다. DRYRUN은 실제 GET이나 SET을 실행하지 않는다. 네 번째 명령의 값 저장은 현재 관리자 연결에서 실제 수행하는 별도 동작이다. <a href="https://redis.io/docs/latest/commands/acl-dryrun/">ACL DRYRUN</a></p>
+<p>새 CLI를 열고 다음을 시험한다.</p>
+<pre><code class="language-text">AUTH lesson-reader ignored
+GET lesson:one
+SET lesson:one changed
+GET private:one
+</code></pre>
+<p>GET은 <code>hello</code>, SET과 다른 접두사 GET은 NOPERM이 예상된다. 이 사용자의 <code>nopass</code>는 인증 비밀 시험을 생략하기 위한 장치다. 운영에서는 반드시 강한 비밀번호 또는 서비스에서 지원하는 인증 체계를 사용한다.</p>
+<p>관리자 연결에서 <code>ACL LOG 10</code>을 확인하면 거부 원인을 조사하는 데 도움이 된다. 출력에 사용자·키 이름 등 민감한 운영 정보가 포함될 수 있으므로 외부에 그대로 붙이지 않는다. 종료는 서버 터미널의 Ctrl-C로 수행하고, 다른 서비스가 이 포트를 사용하지 않았음을 확인한다.</p>
+<h3>8.1 DRYRUN이 증명하지 않는 것</h3>
+<p>DRYRUN 성공은 ACL 판정의 성공이다. 키 존재 여부, 값 타입, 메모리 여유, 클러스터 슬롯 일치, 네트워크 안정성, 비밀 배포 상태까지 증명하지 않는다. 따라서 배포 검증은 다음 두 계층으로 나눈다.</p>
+<ul>
+<li>정적 권한 검증: 대표 명령과 인자를 DRYRUN으로 허용·거부 검사한다.</li>
+<li>실제 연결 검증: 애플리케이션과 같은 클라이언트로 새 연결을 만들고 제한된 실습 키를 사용한다.</li>
+</ul>
+<p>거부해야 할 요청도 테스트해야 한다. GET 성공만 확인하면 잘못된 <code>~*</code>와 올바른 <code>~lesson:*</code>를 구분할 수 없다. 운영 변경에서는 안전한 읽기와 별도 검증 키를 사용하고, 파괴적 명령을 실제 실행해 차단 여부를 알아내려 하지 않는다.</p>
+<h2 id="section-9">9. Spring 애플리케이션의 권한 계약</h2>
+<p>다음은 업무 코드의 일부다.</p>
+<pre><code class="language-java">public String findProduct(String id) {
+    // id의 길이와 문자 제한은 애플리케이션에서 검사한다.
+    return redis.opsForValue().get(&quot;catalog:product:&quot; + id);
+}
+</code></pre>
+<p>이 코드만 보면 GET 권한이면 충분해 보인다. 하지만 실행 환경에는 연결 인증, 프로토콜 협상, 상태 검사, 재연결, 직렬화, 캐시 무효화 작업이 있다. <code>@Cacheable</code> 같은 추상화는 직접 작성하지 않은 명령을 실행할 수 있다. 캐시를 지우는 방식도 설정에 따라 키 검색과 삭제를 포함할 수 있으므로 실제 RedisCache 설정을 검토해야 한다.</p>
+<p>검증 시나리오를 “메서드 한 번 호출”보다 넓게 잡는다.</p>
+<table>
+<thead>
+<tr>
+<th>시나리오</th>
+<th>확인할 내용</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>처음 부팅</td>
+<td>새 연결 인증과 초기화 명령</td>
+</tr>
+<tr>
+<td>정상 조회</td>
+<td>허용 접두사 GET과 캐시 미스</td>
+</tr>
+<tr>
+<td>정상 갱신</td>
+<td>필요한 쓰기·만료 명령</td>
+</tr>
+<tr>
+<td>재연결</td>
+<td>연결을 새로 만들 때 같은 권한으로 성공</td>
+</tr>
+<tr>
+<td>다른 테넌트</td>
+<td>키 패턴 거부와 애플리케이션 인가</td>
+</tr>
+<tr>
+<td>장애 조치</td>
+<td>새 primary에 계정과 비밀이 존재</td>
+</tr>
+<tr>
+<td>라이브러리 업그레이드</td>
+<td>새 초기화 명령이나 동작 변화</td>
+</tr>
+</tbody></table>
+<p><code>NOPERM</code>이 발생했다고 즉시 <code>+@all</code>을 부여하지 않는다. ACL LOG와 클라이언트 동작을 확인하고 그 명령이 정말 업무에 필요한지 판단한다. 불필요한 기능을 끄는 것이 권한을 넓히는 것보다 나을 수 있다.</p>
+<h3>권한 검증 결과를 남길 때</h3>
+<p>승인된 역할 이름, 서버 버전, 허용한 명령 목록, 거부되어야 하는 대표 요청, 재시작 후 검증 결과를 함께 기록한다. 실제 비밀번호와 전체 ACL 해시는 보고서에 붙이지 않는다. 다음 담당자가 같은 검증을 재현할 수 있으면서 비밀은 전달하지 않는 기록이 목표다.</p>
+<h2 id="section-10">10. 면접 질문과 상세 답변</h2>
+<details class="question"><summary>Q1. GET 권한과 ~cache:* 규칙 중 하나만 있으면 읽을 수 있나요?</summary><div class="answer">
+
+<p>일반적인 키 접근 명령에서는 둘 다 필요하다. 명령 권한은 어떤 동작을 할 수 있는지, 키 규칙은 그 동작이 어떤 이름의 데이터에 적용될 수 있는지를 제한한다. GET만 허용하고 키가 없으면 키 접근이 거부되며, 키 패턴만 주고 GET을 허용하지 않아도 명령 실행이 거부된다.</p>
+<p>이 둘을 분리해서 테스트해야 한다. 허용 키 GET, 금지 키 GET, 허용 키 SET을 각각 시험하면 명령과 데이터 범위를 독립적으로 검증할 수 있다. 성공 사례만 시험하면 넓게 열린 권한을 발견하기 어렵다.</p>
+</div></details>
+
+<details class="question"><summary>Q2. ACL SETUSER를 두 번 실행하면 두 번째 설정으로 교체되나요?</summary><div class="answer">
+
+<p>일반적으로 기존 사용자에 규칙을 추가·제거하는 변경으로 작동한다. <code>+get</code> 다음에 <code>+set</code>을 실행하면 GET과 SET이 모두 남는다. 전체 최종 상태를 선언하려면 reset 계열 규칙과 순서를 명시해야 한다. 다만 운영 사용자 reset은 비밀번호와 기존 권한에 즉시 영향을 줄 수 있으므로 무심코 적용하면 안 된다.</p>
+<p>배포 시스템이 원하는 상태와 현재 상태를 비교하고, 변경 후 ACL GETUSER로 검증하는 방식이 좋다. 명령 성공 여부뿐 아니라 최종 권한 상태가 의도와 일치하는지를 검사해야 한다.</p>
+</div></details>
+
+<details class="question"><summary>Q3. ~tenant:*만 설정하면 안전한 멀티테넌시가 되나요?</summary><div class="answer">
+
+<p>키 이름 접근의 한 경계는 만들지만 완전한 격리는 아니다. 전역 관리 명령을 별도로 차단해야 하고, CPU·메모리·연결 수·대역폭은 같은 인스턴스에서 공유된다. 허용된 명령의 과도한 사용도 다른 테넌트에 영향을 줄 수 있다.</p>
+<p>민감도와 자원 격리 요구가 높으면 별도 인스턴스나 서비스 경계가 필요할 수 있다. ACL은 접근 통제 도구라는 범위를 분명히 하고, 업무 인가와 자원 제한을 함께 설명하는 것이 정확하다.</p>
+</div></details>
+
+<details class="question"><summary>Q4. 사용자를 off로 바꾸면 침해된 연결도 즉시 종료되나요?</summary><div class="answer">
+
+<p>새 인증을 막는 것과 이미 인증된 연결을 끊는 것은 다르다. off는 새 로그인 차단으로 이해하고 기존 세션에 대한 대응을 별도로 계획해야 한다. 사고 대응 시에는 연결 식별과 종료, 비밀 교체, 접근 경로 차단을 함께 고려한다.</p>
+<p>단순히 사용자 상태를 보고 침해가 멈췄다고 판단하지 않는다. 애플리케이션의 자동 재연결이 폭주하지 않는지도 확인한다. 일반 교체와 침해 대응의 가용성 우선순위가 다르다는 점까지 설명하면 좋다.</p>
+</div></details>
+
+<details class="question"><summary>Q5. ACL SAVE가 성공하면 다음 배포에서도 유지되나요?</summary><div class="answer">
+
+<p>현재 구성의 ACL 파일에 저장되었다는 사실과 다음 배포의 입력이 갱신되었다는 사실은 다르다. 배포 도구가 오래된 파일을 다시 복사하면 저장한 정책이 사라질 수 있다. ACL 파일 경로와 소유권, 선언적 설정, 비밀 저장소를 함께 관리해야 한다.</p>
+<p>재시작뿐 아니라 재배포와 장애 조치 후보에서도 검증한다. 데이터 복제와 운영 계정 배포를 같은 것으로 취급하지 않는다. 권한 정책의 진실의 원천이 어디인지 명확해야 변경이 예측 가능해진다.</p>
+</div></details>
+
+<details class="question"><summary>Q6. ACL DRYRUN이 OK면 애플리케이션이 정상 동작하나요?</summary><div class="answer">
+
+<p>아니다. DRYRUN은 실제 실행 없이 해당 요청의 ACL 허용 여부를 검사한다. 네트워크, 인증 비밀, 데이터 타입, 슬롯 제약, 메모리 부족, 클라이언트 초기화까지 확인하지 않는다. 따라서 권한 단위 테스트로 사용하고 실제 클라이언트 통합 테스트를 별도로 수행한다.</p>
+<p>장점은 위험한 명령을 실행하지 않고 거부 여부를 확인할 수 있다는 것이다. 하지만 운영에서 파괴적 명령을 실제 실행해 보며 안전성을 증명하는 방식은 피해야 한다. 가능한 한 DRYRUN과 격리된 검증 환경으로 확인한다.</p>
+</div></details>
+
+<details class="question"><summary>Q7. 비밀번호 교체 시 연결을 모두 끊어야 하나요?</summary><div class="answer">
+
+<p>일반적인 정기 교체라면 새 비밀번호를 추가하고 클라이언트를 점진적으로 전환한 뒤 이전 값을 제거하는 방법으로 중단을 줄일 수 있다. 기존 연결은 새 인증을 거치지 않을 수 있으므로 새 연결 테스트가 중요하다. 모든 인스턴스가 새 값을 사용하는지 확인하지 않으면 나중의 재연결에서 실패한다.</p>
+<p>유출 사고는 다르다. 공격자가 이미 인증한 세션을 유지할 수 있으므로 기존 연결 종료가 필요할 수 있다. 이 경우 접근 차단과 재연결 부하를 함께 계획한다. “항상 끊는다” 또는 “항상 유지한다”보다 상황별 목표를 설명해야 한다.</p>
+</div></details>
+
+<details class="question"><summary>Q8. 애플리케이션에서 NOPERM이 발생하면 어떤 순서로 해결하나요?</summary><div class="answer">
+
+<p>우선 어떤 사용자로 연결했는지 확인하고, 거부된 명령·키·채널을 분리한다. ACL LOG 등 제한된 운영 도구로 근거를 얻고, 그 동작이 업무상 필요한지 검토한다. 필요하다면 가장 좁은 명령과 이름 범위를 추가하고 허용·거부 테스트를 다시 수행한다.</p>
+<p>라이브러리 초기화 명령 때문에 실패할 수도 있으므로 GET/SET만 보지 않는다. 그러나 이를 이유로 공용 관리자 계정을 사용하거나 모든 명령을 허용하는 것은 문제를 숨기는 해결책이다. 수정 후 정책 저장과 다른 노드 배포도 확인해야 완료다.</p>
+</div></details>
+
+<h3>공식 참고 자료</h3>
+<ul>
+<li><a href="https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl/">ACL 개념과 규칙</a></li>
+<li><a href="https://redis.io/docs/latest/commands/acl-setuser/">ACL SETUSER</a></li>
+<li><a href="https://redis.io/docs/latest/commands/acl-dryrun/">ACL DRYRUN — Redis 7.0 이후</a></li>
+<li><a href="https://redis.io/docs/latest/commands/acl-save/">ACL SAVE</a> / <a href="https://redis.io/docs/latest/commands/acl-load/">ACL LOAD</a></li>
+</ul>
+<p>이 장의 단순 실습은 Redis 7 이상을 가정한다. 실제 운영에서는 서버·클라이언트·관리형 서비스 버전별로 사용할 수 있는 명령과 권한을 확인한다. 다음 장은 인증 정보를 안전하게 전달하고 접속 대상의 신원까지 검증하는 TLS를 다룬다.</p>
+</article><nav aria-label="연재 이동"><a href="/posts/redis-study-24.html">← 보안 경계와 인증: 비밀번호 앞에 네트워크가 있다</a><a href="/posts/redis-study-26.html">TLS와 통신 구간 보호: 암호화보다 중요한 상대의 신원 →</a></nav><footer>Redis 학습 연재 · <a href="/learning/redis/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>
