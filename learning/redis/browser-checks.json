@@ -1,0 +1,484 @@
+{
+  "desktop": [
+    {
+      "n": 0,
+      "count": 10,
+      "opened": 10,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 1,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 2,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 3,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 4,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 5,
+      "count": 9,
+      "opened": 9,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 6,
+      "count": 9,
+      "opened": 9,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 7,
+      "count": 9,
+      "opened": 9,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 8,
+      "count": 9,
+      "opened": 9,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 9,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 10,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 11,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 12,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 13,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 14,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 15,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 16,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 17,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 18,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 19,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 20,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 21,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 22,
+      "count": 9,
+      "opened": 9,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 23,
+      "count": 10,
+      "opened": 10,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 24,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 25,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 26,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 27,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 28,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 29,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    },
+    {
+      "n": 30,
+      "count": 8,
+      "opened": 8,
+      "collapsed": true,
+      "scroll": 1165,
+      "width": 1165
+    }
+  ],
+  "narrow": [
+    {
+      "n": 0,
+      "count": 10,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 1,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 2,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 3,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 4,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 5,
+      "count": 9,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 6,
+      "count": 9,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 7,
+      "count": 9,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 8,
+      "count": 9,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 9,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 10,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 11,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 12,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 13,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 14,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 15,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 16,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 17,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 18,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 19,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 20,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 21,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 22,
+      "count": 9,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 23,
+      "count": 10,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 24,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 25,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 26,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 27,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 28,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 29,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    },
+    {
+      "n": 30,
+      "count": 8,
+      "expandCollapse": true,
+      "scroll": 388,
+      "width": 388
+    }
+  ],
+  "narrowMethod": "Native browser window resized and zoomed; 388 CSS pixel viewport, not mobile device emulation",
+  "keyboardSample": 30,
+  "archiveCount": 31,
+  "emptySearch": true,
+  "urlRestore": true,
+  "checkedAt": "2026-10-21T23:38:56.906Z",
+  "testedCommit": "e4c0ca538abd0a85db6283fafd55dc0aa73cb68c",
+  "status": "passed",
+  "scope": "Live published pages: 31 lessons at 1165 and 388 CSS pixel widths; all Q&A expand/collapse, no horizontal document overflow; archive/search/reload; keyboard sample on lesson 30. Browser extension diagnostics are outside site scope.",
+  "notTested": [
+    "Real iOS/Android touch device",
+    "Full external HTTP link inventory"
+  ]
+}

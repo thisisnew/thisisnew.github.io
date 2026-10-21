@@ -22,6 +22,7 @@ for(const l of lessons){
  audit.push({n:l.n,title:l.title,source:l.file,sourceSha256:crypto.createHash('sha256').update(l.raw).digest('hex'),characters:l.body.length,sections:k,questions:(html.match(/<details/g)||[]).length,officialLinks:[...new Set([...l.body.matchAll(/\]\((https:\/\/[^)]+)\)/g)].map(x=>x[1]))]});
 }
 let home=fs.readFileSync(path.join(root,'index.html'),'utf8');
+if(!home.includes('href="/assets/redis-study.css"'))home=home.replace('</head>','<link rel="stylesheet" href="/assets/redis-study.css"></head>');
 const cards=lessons.map(l=>`<a class="post" data-category="redis" data-order="${l.n}" href="posts/redis-study-${String(l.n).padStart(2,'0')}.html"><div class="number">${String(l.n).padStart(2,'0')}</div><div><div class="tags">REDIS QUEST · ${l.n===0?'LEARNING MAP':'DEEP STUDY'}</div><h3>${esc(l.title)}</h3><p>${esc(l.desc)}</p><div class="date">${l.n===0?'학습 안내':`연재 ${l.n}/30`} · 원리·예제·면접 문답</div></div><div class="arrow">↗</div></a>`).join('\n');
 const block=`<!-- REDIS-SERIES-START -->\n${cards}\n<!-- REDIS-SERIES-END -->`;
 if(home.includes('<!-- REDIS-SERIES-START -->'))home=home.replace(/<!-- REDIS-SERIES-START -->[\s\S]*?<!-- REDIS-SERIES-END -->/,block);else home=home.replace('<div id="articles">','<div id="articles">\n'+block);
