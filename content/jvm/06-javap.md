@@ -134,6 +134,59 @@ javap 출력 전체를 처음부터 암기하려 하지 마세요. 먼저 **메�
 
 <details class="question"><summary>확인 문제. LineNumberTable의 같은 줄에 명령이 여러 개면 어느 명령에서 실패했나요?</summary><div class="answer"><p><strong>판단:</strong> 소스 줄 번호만으로는 하나로 좁혀지지 않을 수 있습니다. 한 줄 안에 객체 생성, 메서드 호출, 배열 접근이 함께 있을 수 있기 때문입니다.</p><p><strong>조사:</strong> 예외 타입과 메시지, 해당 줄에 대응하는 명령 범위, 입력값을 함께 봅니다. 복잡한 한 줄을 여러 문장으로 나누어 재현하면 관찰 지점을 만들기 쉽습니다. 다만 재빌드본과 실제 장애 산출물의 차이도 기록해야 합니다.</p><p><strong>꼬리질문:</strong> 디버그 정보를 넣으면 변수 값을 알 수 있나요? LocalVariableTable은 이름과 범위 같은 정보를 제공할 수 있지만 당시 실행값을 저장한 기록은 아닙니다. 과거 값을 보려면 당시의 로그나 녹화·덤프 등 별도 증거가 필요합니다.</p></div></details>
 
+## 심화 실험실: 제네릭 코드를 javap로 읽으면 cast가 나타나는 이유
+
+### 소스에서 숨겨진 변환을 찾는 도구
+
+javap는 소스를 예쁘게 복원하는 도구가 아니라 배포된 class의 실제 구조를 조사하는 도구입니다. 소스에 없던 cast나 보조 메서드가 보일 수 있고, 반대로 소스의 문장이 컴파일 시 합쳐져 보이지 않을 수 있습니다. 제네릭은 이를 관찰하기 좋은 예입니다.
+
+```java
+// file: Deep06.java
+import java.util.List;
+public class Deep06 {
+    static String first(List<String> names) {
+        return names.get(0);
+    }
+    public static void main(String[] args) {
+        System.out.println(first(List.of("inbound")));
+    }
+}
+```
+
+```sh
+javac --release 21 -g Deep06.java
+java Deep06
+javap -c -v -p Deep06
+```
+
+출력은 `inbound`입니다. first 메서드에서 `List.get:(I)Ljava/lang/Object;`와 `checkcast java/lang/String`을 찾아보세요. Java 소스에서는 List가 String을 반환하는 것처럼 보이지만, 소거 후 호출 descriptor의 반환 타입은 Object입니다. 컴파일러가 String으로 사용하는 곳에 필요한 타입 검사 코드를 넣습니다.
+
+### 한 줄씩 읽는 표
+
+| 핵심 명령 | 입력 | 출력/효과 |
+|---|---|---|
+| aload_0 | 지역 슬롯 0의 names | List 참조를 스택에 올림 |
+| iconst_0 | 상수 0 | 인덱스를 추가 |
+| invokeinterface List.get | 수신 객체와 인덱스 | Object 타입의 반환 참조 |
+| checkcast String | 반환 참조 | String으로 사용 가능한지 검사 |
+| areturn | 검사한 참조 | 호출자에게 반환 |
+
+checkcast가 객체의 종류를 String으로 바꾸는 것은 아닙니다. 실제 객체가 String으로 사용 가능한지 검사합니다. null은 참조 cast를 통과할 수 있지만 뒤에서 메서드를 호출하면 NullPointerException이 발생할 수 있습니다. 캐스팅 성공과 null이 아님은 다른 조건입니다.
+
+### 장애 로그에서 지목한 줄을 해석하기
+
+raw type이나 검사되지 않은 변환으로 List에 Integer를 넣었다면 소스에 명시적인 `(String)`이 없어도 first의 get 호출 줄에서 ClassCastException이 날 수 있습니다. 컴파일러가 넣은 checkcast가 그 줄에 매핑되어 있기 때문입니다. 그래서 “내 코드에는 cast가 없는데 왜 캐스팅 에러인가?”라는 질문은 javap와 LineNumberTable로 풀 수 있습니다.
+
+실제 장애를 조사할 때는 로컬에서 다시 컴파일한 class가 아니라 문제가 난 JAR에서 추출한 class를 봅니다. 생성된 프록시나 에이전트가 런타임에 변환한 코드라면 디스크의 class와 실행 중 class가 다를 수도 있습니다. javap 결과는 **그 명령에 제공한 바이너리**에 대한 증거이지 모든 런타임 변환까지 자동 반영하는 것은 아닙니다.
+
+### 바이트코드로 성능을 단정하지 않기
+
+명령이 다섯 개라서 CPU 명령도 다섯 개이고 다른 메서드보다 다섯 배 느리다는 식으로 읽으면 안 됩니다. HotSpot JIT는 실제 타입 정보를 이용해 호출을 인라인하고 불필요한 검사를 제거할 수 있습니다. javap는 타입과 제어 흐름을 이해하는 첫 단계이고, 성능은 JIT 결과·프로파일·실제 부하 측정으로 확인합니다.
+
+<details class="question"><summary>심화 면접. List&lt;String&gt;에서 get하는 코드에도 런타임 타입 검사가 있나요?</summary><div class="answer"><p><strong>답변:</strong> 이 예제처럼 소거된 get의 반환 Object를 String으로 사용하는 곳에는 컴파일러가 checkcast를 넣을 수 있습니다. 제네릭의 컴파일 시 검사는 큰 도움이 되지만 raw type과 unchecked 변환으로 타입 안전성을 깨면 실행 중 실패할 수 있습니다.</p><p><strong>조사:</strong> 실제 class의 descriptor, checkcast 위치, LineNumberTable을 연결하고 타입 오염이 발생한 입력 경로를 찾겠습니다. 실패 줄에서 단순히 catch하는 것은 잘못 들어간 데이터의 원인을 제거하지 못합니다.</p><p><strong>한계:</strong> checkcast 존재만으로 실제 실행 비용을 단정하지 않습니다. JIT가 증명 가능한 조건에서 검사를 최적화할 수 있기 때문입니다.</p></div></details>
+
+추가 근거: [JLS 타입 소거](https://docs.oracle.com/javase/specs/jls/se21/html/jls-4.html#jls-4.6), [javap 도구](https://docs.oracle.com/en/java/javase/21/docs/specs/man/javap.html).
+
 ## 8. 상세 면접 Q&A
 
 <details class="question"><summary>Q1. -c와 -v의 차이는 무엇인가요?</summary><div class="answer"><p>-c는 메서드 바이트코드를 해석해 보여 줍니다. -v는 상수 풀, 클래스 버전, 속성 등 더 자세한 출력을 제공합니다. 먼저 -c로 흐름을 잡고 #번호나 descriptor의 의미가 필요할 때 -v로 넓히면 읽기 쉽습니다.</p><p><strong>구체적으로:</strong> -c는 실행 명령을 중심으로 보고, -v는 descriptor·상수 풀·속성 등 문맥을 더 제공합니다. 처음에는 관심 메서드 하나를 고른 뒤 필요할 때 주변 정보를 확장하는 편이 좋습니다.</p><p><strong>꼬리질문까지:</strong> 디버그 정보가 없으면 -v를 써도 원래 변수 이름이 마법처럼 복원되지는 않습니다.</p></div></details>
@@ -151,3 +204,4 @@ javap 출력 전체를 처음부터 암기하려 하지 마세요. 먼저 **메�
 - [JVMS §4.7.3 Code](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.3).
 
 `int[]`를 `String[]`으로 바꾸어 명령을 비교하고, box를 인터페이스 타입 변수로 받아 호출하면 어떤 명령을 사용하는지 실험하세요. 명령 전체를 암기하는 대신 입력·출력·예외 조건을 찾아 읽는 연습입니다.
+

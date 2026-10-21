@@ -165,6 +165,68 @@ javap -c -v -p Walkthrough04
 
 <details class="question"><summary>확인 문제. 재귀 메서드에 지역변수가 하나뿐이면 무한히 호출해도 괜찮나요?</summary><div class="answer"><p><strong>판단:</strong> 아닙니다. 각 호출은 인자 하나 이외에도 실행을 이어 가기 위한 호출 상태를 필요로 합니다. 종료되지 않은 호출이 계속 누적되면 스택 한도에 도달할 수 있습니다.</p><p><strong>해결 순서:</strong> 입력 크기와 정상 최대 깊이를 확인하고, 종료 조건이나 방문 처리가 빠졌는지 조사합니다. 깊이가 원래 큰 알고리즘이라면 반복문과 명시적 자료구조로 변환하는 방법을 검토합니다. Xss 확대는 정상적인 필요 공간을 확보하는 선택이지 무한 재귀의 해결책은 아닙니다.</p><p><strong>꼬리질문:</strong> 꼬리 재귀면 자동으로 괜찮나요? Java 프로그램에서 일반적인 꼬리 호출 제거를 JVM의 보장으로 기대하면 안 됩니다. 재귀 깊이에 의존하는 코드는 해당 실행 환경에서 검증하고 필요한 경우 알고리즘 구조를 바꿔야 합니다.</p></div></details>
 
+## 심화 실험실: finally가 있어도 반환값이 바뀌지 않는 이유
+
+### 반환값을 봉투에 담은 뒤 정리 작업을 한다
+
+메서드가 `return x`를 만나면 “x라는 변수를 호출자에게 영원히 연결한다”가 아니라 **그 순간 계산한 값을 반환 대상으로 정한다**고 생각하세요. finally는 그 뒤에도 실행될 수 있습니다. 이미 봉투에 넣은 숫자와 원래 책상 위 숫자는 다른 저장 위치이므로 책상 위 숫자를 바꿔도 봉투의 값은 저절로 바뀌지 않습니다.
+
+```java
+// file: Deep04.java
+public class Deep04 {
+    static int compute() {
+        int quantity = 10;
+        try {
+            return quantity;
+        } finally {
+            quantity = 20;
+            System.out.println("finally=" + quantity);
+        }
+    }
+    static int[] reference() {
+        int[] quantity = {10};
+        try {
+            return quantity;
+        } finally {
+            quantity[0] = 20;
+        }
+    }
+    public static void main(String[] args) {
+        System.out.println("result=" + compute());
+        System.out.println("element=" + reference()[0]);
+    }
+}
+```
+
+```sh
+javac --release 21 -g Deep04.java
+java Deep04
+javap -c -v -p Deep04
+```
+
+출력은 `finally=20`, `result=10`, `element=20`입니다. 두 번째 경우 반환 대상으로 정한 것은 배열 객체의 복사본이 아니라 **배열을 가리키는 참조 값**입니다. finally가 그 배열의 원소를 수정했으므로 호출자도 수정된 상태를 봅니다. “Java는 값으로 전달한다”와 “여러 참조가 같은 객체를 본다”는 동시에 성립합니다.
+
+### 프레임에서 어떤 일이 일어났는가
+
+| 사건 | compute | reference |
+|---|---|---|
+| return 표현식 평가 | 숫자 10 확보 | 배열 객체 참조 확보 |
+| finally 실행 | 지역 변수에 20 대입 | 같은 배열의 원소에 20 대입 |
+| 정상 반환 | 확보한 숫자 10 전달 | 확보한 배열 참조 전달 |
+| 호출자 관측 | 10 | 배열 내부 값 20 |
+
+javac는 반환할 값을 임시 지역 슬롯에 저장하고 finally 작업 후 다시 꺼내 반환하는 형태의 바이트코드를 만들 수 있습니다. 이 때문에 소스의 변수 수보다 max_locals가 클 수 있습니다. 임시 슬롯도 슬롯이며, 소스 이름이 없는 컴파일러 생성 값이 존재합니다. 바이트코드의 실제 인덱스는 사용한 컴파일러 출력으로 확인하고 고정 숫자로 외우지 마세요.
+
+### 예외가 있으면 봉투 자체가 전달되지 않을 수 있다
+
+finally에서 예외를 던지면 앞서 준비한 정상 반환은 완료되지 못합니다. finally에 또 return을 쓰면 앞서의 결과나 예외를 덮을 수 있습니다. 따라서 finally는 자원 정리에 쓰되 반환이나 새 실패를 무심코 발생시키지 않도록 주의합니다. try-with-resources는 본문 예외와 close 예외가 겹칠 때 suppressed exception 규칙을 제공하므로 “최초 원인이 무엇인지”를 보존하는 데 도움이 됩니다.
+
+프레임을 제거하는 것과 파일·DB 연결을 닫는 것도 다릅니다. 프레임의 지역 변수가 사라져도 외부 자원을 GC에 맡겨 즉시 닫힌다고 기대할 수 없습니다. 요청이 반환되었다는 사실이 연결이 풀에 정상 반환되었다는 증거는 아닙니다. 실행 상태의 수명과 외부 자원의 수명을 분리하는 습관이 연결 누수 진단으로 이어집니다.
+
+<details class="question"><summary>심화 면접. finally에서 지역 변수를 바꿨는데 return 값은 왜 그대로인가요?</summary><div class="answer"><p><strong>답변:</strong> return 표현식이 먼저 평가되어 반환 대상으로 정해진 값과, finally에서 이후 변경하는 지역 변수의 값이 다르기 때문입니다. finally가 정상 완료되면 앞서 평가한 값이 반환됩니다.</p><p><strong>꼬리질문:</strong> 객체를 반환하면? 참조 값이 먼저 정해지고 finally가 같은 객체의 내부를 변경하면 호출자는 변경된 객체를 봅니다. 지역 참조를 다른 객체로 재대입하는 것과 기존 객체를 수정하는 것은 다릅니다.</p><p><strong>예외 경계:</strong> finally 자체가 예외로 끝나거나 다른 return을 실행하면 기존 반환은 그대로 진행되지 않습니다. 코드를 설명할 때 정상 완료와 abrupt completion을 나누어야 합니다.</p></div></details>
+
+추가 근거: [JLS try-finally의 실행 순서](https://docs.oracle.com/javase/specs/jls/se21/html/jls-14.html#jls-14.20.2), [정상·비정상 메서드 완료](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.6.4).
+
 ## 8. 상세 면접 Q&A
 
 <details class="question"><summary>Q1. JVM Stack과 피연산자 스택은 같은 것인가요?</summary><div class="answer"><p>JVM Stack은 스레드의 메서드 프레임들을 보관합니다. 피연산자 스택은 각 프레임 안에서 계산과 호출 인자를 위한 값을 다룹니다. “프레임의 스택”과 “계산값의 스택”은 포함 관계가 있는 다른 층위입니다.</p><p><strong>구체적으로:</strong> main이 call을, call이 add를 부르면 프레임들이 누적됩니다. 그중 add 프레임 안에서 10과 32를 잠시 올리는 공간이 피연산자 스택입니다.</p><p><strong>꼬리질문까지:</strong> StackOverflowError를 피연산자 스택의 최대 깊이 하나만 보고 설명하지 말고 호출 깊이와 프레임 비용을 함께 봅니다.</p></div></details>
@@ -182,3 +244,4 @@ javap -c -v -p Walkthrough04
 - [java -Xss](https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html).
 
 add의 인자를 `long`으로 바꾸고 locals와 반환 명령이 어떻게 바뀌는지 보세요. 05편에서는 프레임 안의 피연산자 스택을 명령 단위로 움직여 봅니다.
+

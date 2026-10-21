@@ -1,0 +1,91 @@
+{
+  "scope": "17 JVM pages; local files plus pinned repository inventory for unchanged destinations",
+  "errors": [],
+  "lessons": [
+    {
+      "page": "posts/jvm-study-00.html",
+      "questions": 0,
+      "text_chars": 6170
+    },
+    {
+      "page": "posts/jvm-study-01.html",
+      "questions": 10,
+      "text_chars": 13622
+    },
+    {
+      "page": "posts/jvm-study-02.html",
+      "questions": 10,
+      "text_chars": 12974
+    },
+    {
+      "page": "posts/jvm-study-03.html",
+      "questions": 10,
+      "text_chars": 13648
+    },
+    {
+      "page": "posts/jvm-study-04.html",
+      "questions": 10,
+      "text_chars": 13278
+    },
+    {
+      "page": "posts/jvm-study-05.html",
+      "questions": 10,
+      "text_chars": 12647
+    },
+    {
+      "page": "posts/jvm-study-06.html",
+      "questions": 10,
+      "text_chars": 12697
+    },
+    {
+      "page": "posts/jvm-study-07.html",
+      "questions": 10,
+      "text_chars": 13105
+    },
+    {
+      "page": "posts/jvm-study-08.html",
+      "questions": 10,
+      "text_chars": 13296
+    },
+    {
+      "page": "posts/jvm-study-09.html",
+      "questions": 10,
+      "text_chars": 13277
+    },
+    {
+      "page": "posts/jvm-study-10.html",
+      "questions": 10,
+      "text_chars": 13278
+    },
+    {
+      "page": "posts/jvm-study-11.html",
+      "questions": 10,
+      "text_chars": 13123
+    },
+    {
+      "page": "posts/jvm-study-12.html",
+      "questions": 10,
+      "text_chars": 12727
+    },
+    {
+      "page": "posts/jvm-study-13.html",
+      "questions": 10,
+      "text_chars": 14258
+    },
+    {
+      "page": "posts/jvm-study-14.html",
+      "questions": 10,
+      "text_chars": 13512
+    },
+    {
+      "page": "posts/jvm-study-15.html",
+      "questions": 10,
+      "text_chars": 15181
+    },
+    {
+      "page": "posts/jvm-study-16.html",
+      "questions": 12,
+      "text_chars": 18039
+    }
+  ]
+}

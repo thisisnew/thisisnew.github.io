@@ -113,7 +113,7 @@ Spring도 별도 층입니다. Spring은 JVM 위에서 실행되는 라이브러
 
 ### 같은 덧셈이 여러 환경에서 실행되는 과정을 따라가자
 
-`20 + 22`를 계산하는 메서드를 만들었다고 합시다. javac는 그 계산을 JVM이 이해하는 명령으로 표현합니다. Linux x86용 HotSpot은 x86에서 실행될 수 있는 방식으로, Linux ARM용 HotSpot은 ARM에서 실행될 수 있는 방식으로 그 의미를 수행합니다. 프로그램은 42를 얻어야 하지만, 내부에서 사용하는 기계 명령이나 컴파일 시점, 실행 시간까지 같아야 하는 것은 아닙니다.
+`20 + 22`를 계산하는 메서드를 만들었다고 합시다. javac는 결과를 JVM이 이해하는 형식으로 표현합니다. 특히 20 + 22처럼 상수만의 식은 컴파일 시 42로 접힐 수 있어 실행 시 덧셈 명령이 남는다고 단정하지 않습니다. Linux x86용 HotSpot은 x86에서 실행될 수 있는 방식으로, Linux ARM용 HotSpot은 ARM에서 실행될 수 있는 방식으로 그 의미를 수행합니다. 프로그램은 42를 얻어야 하지만, 내부에서 사용하는 기계 명령이나 컴파일 시점, 실행 시간까지 같아야 하는 것은 아닙니다.
 
 이 점을 택배 배송에 비유하면 **배송 약속**과 **운송 수단**의 차이입니다. “주소 A로 상자 하나를 보낸다”는 약속은 같아도 지역에 따라 트럭이나 배를 쓸 수 있습니다. JVM 사양은 약속을 규정하고 HotSpot은 구체적인 운송 체계를 구현합니다. 따라서 성능을 설명할 때는 “JVM은 반드시 이렇게 한다”와 “이 버전의 HotSpot은 이렇게 구현한다”를 구분해야 합니다.
 
@@ -132,6 +132,52 @@ java -cp . Lesson01
 
 <details class="question"><summary>확인 문제. 개발 PC에서 실행된 class 파일이면 서버에서도 실행된다고 확정할 수 있나요?</summary><div class="answer"><p><strong>판단:</strong> 아직 확정할 수 없습니다. 서버 JVM이 클래스 파일 버전을 지원해야 하고, 필요한 표준 API와 외부 의존성, 네이티브 라이브러리 및 운영 환경도 맞아야 합니다.</p><p><strong>추적 예:</strong> 개발 PC에서는 JDK 21로 실행하고 서버에서는 JDK 17로 실행하면 Java 21 클래스 파일을 읽는 단계에서 실패할 수 있습니다. 양쪽 모두 21이어도 특정 OS용 네이티브 라이브러리만 포함했다면 다른 OS에서 실패할 수 있습니다.</p><p><strong>꼬리질문:</strong> Docker를 쓰면 전부 해결될까요? 이미지로 사용자 공간과 실행 환경을 고정하는 데 도움이 되지만 CPU 아키텍처, 호스트 자원 제한, 외부 설정과 서비스 의존성까지 사라지는 것은 아닙니다. 배포 산출물과 실제 실행 조건을 함께 검증해야 합니다.</p></div></details>
 
+## 심화 실험실: 빌드 성공과 배포 성공 사이의 세 가지 계약
+
+### 계약을 나누면 에러를 읽을 수 있다
+
+식당에 레시피를 전달한다고 생각해 보겠습니다. 레시피의 언어를 읽을 수 있어야 하고, 필요한 조리 도구가 있어야 하며, 실제 주방에서 재료를 구할 수 있어야 합니다. Java 배포에서도 **class 형식**, **API와 의존성**, **실행 환경**이라는 서로 다른 조건을 만족해야 합니다. 첫 조건만 맞았다고 나머지가 자동으로 맞지는 않습니다.
+
+`--release 17`은 “17에서도 읽을 class 파일을 만든다”보다 넓은 기능입니다. Java 17의 언어 규칙과 표준 API 범위를 대상으로 컴파일하도록 돕습니다. 반면 `-source 17 -target 17`만 설정하면 컴파일러가 현재 JDK의 더 새로운 표준 API를 보고 컴파일할 여지가 있습니다. 그러면 파일 버전은 오래되었는데 실행 중 필요한 메서드는 없는 모순이 생길 수 있습니다. 빌드 성공은 컴파일 당시 참조한 세계에서의 성공입니다.
+
+### 실제 API를 사용해 경계 확인하기
+
+```java
+// file: Deep01.java
+import java.util.List;
+public class Deep01 {
+    public static void main(String[] args) {
+        List<String> warehouses = List.of("GIMPO", "PYEONGTAEK");
+        System.out.println(warehouses.getFirst());
+    }
+}
+```
+
+JDK 21의 `List.getFirst()`를 사용하는 예제입니다. JDK 21로 다음 명령을 실행하면 첫 번째 컴파일과 실행은 성공하고 `GIMPO`가 출력됩니다. 마지막 컴파일은 의도적으로 실패해야 합니다.
+
+```sh
+javac --release 21 Deep01.java
+java Deep01
+javac --release 17 Deep01.java
+```
+
+마지막 실패는 JVM 실행 에러가 아닙니다. **컴파일 단계에서 Java 17 API에 없는 메서드를 걸러 낸 것**입니다. 이것이 실제 서버까지 가기 전에 잡고 싶은 실패입니다. 의존 JAR이 이미 Java 21로 빌드되어 있다면 내 코드의 release 설정만 내려도 그 JAR이 재컴파일되지는 않습니다. 직접 작성한 코드와 가져온 바이너리의 타깃을 함께 관리해야 합니다.
+
+| 상황 | 실패하는 경계 | 가장 먼저 볼 증거 |
+|---|---|---|
+| class 버전 65를 Java 17에서 실행 | 파일 형식 지원 | 실제 PID의 JVM 버전, class major version |
+| 호출자가 기대한 메서드가 배포 JAR에 없음 | 바이너리 연결 | 호출 descriptor, 실제 로드한 JAR |
+| ARM 서버가 x86 네이티브 라이브러리 로드 | 네이티브 실행 환경 | OS·아키텍처·라이브러리 파일 |
+| 서울 기준 날짜를 UTC 기본값으로 계산 | 애플리케이션 환경 가정 | 명시한 ZoneId와 컨테이너 설정 |
+
+### 운영에서 쓸 수 있는 배포 체크의 이유
+
+빌드 JDK, 실행 JDK, 의존성 잠금 정보, 이미지 식별자를 한 묶음으로 남깁니다. “둘 다 Java 21”이라는 기록만으로는 패치·배포판·옵션 차이를 재현하기 어렵습니다. 특히 Blue-green 배포에서 새 서버만 실패한다면 소스 차이뿐 아니라 실제 런타임과 JAR 구성 차이도 비교해야 합니다. 여기서 JVM 학습은 추상적인 용어 암기를 넘어 장애 조사 범위를 줄이는 도구가 됩니다.
+
+<details class="question"><summary>심화 면접. --release를 쓰면 하위 Java 버전 호환성이 완전히 보장되나요?</summary><div class="answer"><p><strong>답변:</strong> 자신의 소스를 대상 언어·class 형식·표준 API 범위에 맞춰 컴파일하는 데 도움이 되지만, 모든 외부 JAR과 네이티브 코드, 리플렉션으로 접근하는 API, 운영 환경까지 검증하지는 않습니다.</p><p><strong>이유:</strong> 컴파일러가 직접 타입 검사하는 참조와 실행 중 동적으로 찾아가는 참조의 범위가 다르기 때문입니다. 문자열로 적은 클래스 이름을 컴파일러가 실행 환경에서 실제로 찾아보는 것은 아닙니다.</p><p><strong>실무 답변:</strong> release 설정에 더해 실제 배포 런타임에서 기동과 핵심 요청 경로를 실행하고, 의존성 버전 및 이미지 식별자를 고정하겠습니다. 오류를 발견하면 class 버전·API 연결·환경 의존성 중 어디서 실패했는지 나누겠습니다.</p></div></details>
+
+추가 근거: [javac의 --release 및 교차 컴파일](https://docs.oracle.com/en/java/javase/21/docs/specs/man/javac.html), [List.getFirst API](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/List.html#getFirst()).
+
 ## 8. 상세 면접 Q&A
 
 <details class="question"><summary>Q1. JVM이 있는데 왜 운영체제별 JDK를 받아야 하나요?</summary><div class="answer"><p>공통인 것은 class 파일의 형식과 실행 의미입니다. 그 약속을 구현하는 JVM 자체는 네이티브 프로그램이므로 OS와 CPU에 맞게 만들어져야 합니다. Linux x86 JDK와 macOS ARM JDK는 같은 플랫폼 규칙을 다른 기계에서 구현합니다.</p><p>따라서 배포 대상을 확인할 때 Java 버전뿐 아니라 OS·아키텍처·네이티브 라이브러리 지원도 봅니다. class 파일의 이식성과 JVM 실행 파일의 이식성은 구분해서 답해야 합니다.</p><p><strong>구체적으로:</strong> class 파일은 공통 형식이지만 JVM 실행 파일은 OS의 실행 형식과 CPU 명령에 맞아야 합니다. 같은 악보를 읽더라도 악기는 각자 실제로 소리를 낼 수 있는 구조여야 하는 것과 같습니다.</p><p><strong>꼬리질문까지:</strong> 컨테이너 이미지의 CPU 아키텍처까지 확인해야 하는 이유도 같은 경계에서 설명할 수 있습니다.</p></div></details>
@@ -149,3 +195,4 @@ java -cp . Lesson01
 - [java 런처](https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html): 실행과 옵션.
 
 다음 실험에서는 숫자 덧셈을 별도 메서드로 옮깁니다. 소스·class·메서드 로딩·JIT·CPU를 한 흐름으로 연결하는 것이 02편의 목표입니다.
+

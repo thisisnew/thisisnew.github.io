@@ -171,6 +171,76 @@ Java 21에서는 synchronized 내부의 일부 블로킹처럼 carrier를 붙잡
 
 <details class="question"><summary>확인 문제. synchronized 블록이 있는데도 결과가 틀리면 JVM 버그일까요?</summary><div class="answer"><p><strong>판단:</strong> 먼저 모든 관련 경로가 같은 모니터와 같은 규칙을 사용하는지 확인해야 합니다. 읽는 경로가 락을 사용하지 않거나, 호출마다 다른 객체를 락으로 쓰거나, 보호 구간 밖에서 복합 갱신을 수행하면 문제가 남을 수 있습니다.</p><p><strong>예:</strong> 조회를 락 안에서 하고 계산 후 저장을 별도의 락 구간에서 하면 그 사이에 다른 갱신이 들어올 수 있습니다. 원자적으로 유지해야 할 전체 작업을 정의한 뒤 해당 경계를 보호해야 합니다.</p><p><strong>꼬리질문:</strong> 서버가 두 대라면요? 각 JVM의 모니터는 다른 프로세스의 작업을 함께 잠그지 않습니다. 공유 DB 데이터의 일관성은 DB 트랜잭션·제약과 분산 환경의 동시성 설계를 포함해 해결해야 합니다.</p></div></details>
 
+## 심화 실험실: AtomicInteger라도 재고 차감 전체가 원자적이지 않을 수 있다
+
+### 한 동작이 안전한 것과 두 동작의 묶음이 안전한 것은 다르다
+
+은행 창구가 잔액 조회와 인출을 각각 정확하게 처리해도, 두 직원이 모두 마지막 잔액을 본 뒤 각각 인출하면 문제가 됩니다. AtomicInteger의 get과 decrementAndGet이 각각 원자적이어도 그 둘을 연결한 조건부 차감이 하나의 원자적 연산이 되는 것은 아닙니다.
+
+```java
+// file: Deep15.java
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
+public class Deep15 {
+    public static void main(String[] args) throws Exception {
+        AtomicInteger stock = new AtomicInteger(1);
+        CountDownLatch checked = new CountDownLatch(2);
+        Runnable buy = () -> {
+            boolean available = stock.get() > 0;
+            checked.countDown();
+            try { checked.await(); }
+            catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            if (available) stock.decrementAndGet();
+        };
+        Thread a = new Thread(buy);
+        Thread b = new Thread(buy);
+        a.start(); b.start(); a.join(); b.join();
+        System.out.println("broken=" + stock.get());
+        stock.set(1);
+        System.out.println("first=" + takeOne(stock));
+        System.out.println("second=" + takeOne(stock));
+        System.out.println("fixed=" + stock.get());
+    }
+    static boolean takeOne(AtomicInteger stock) {
+        for (;;) {
+            int current = stock.get();
+            if (current <= 0) return false;
+            if (stock.compareAndSet(current, current - 1)) return true;
+        }
+    }
+}
+```
+
+```sh
+javac --release 21 Deep15.java
+java Deep15
+```
+
+출력은 `broken=-1`, `first=true`, `second=false`, `fixed=0`입니다. latch는 두 스레드가 모두 재고 1을 읽도록 순서를 만들어 오류를 재현합니다. 단순히 수천 번 실행해서 운 좋게 실패하기를 기다리지 않습니다. 수정된 takeOne은 읽은 값이 여전히 같을 때만 변경하고, 경쟁에서 졌다면 현재 값을 다시 읽습니다.
+
+### CAS가 보호하는 범위를 정확히 말하기
+
+CAS는 compare-and-set, 즉 기대한 값과 같을 때 바꾸는 원자적 조건부 연산입니다. 이 예제에서는 stock 한 값의 조건과 변경을 연결합니다. 하지만 DB에 주문을 저장하고 Kafka로 이벤트를 보내는 전체 과정이 원자적으로 되는 것은 아닙니다. JVM 안의 원자 변수, DB 트랜잭션, 분산 메시지 전달은 서로 다른 경계입니다.
+
+여러 필드를 함께 일관되게 바꾸려면 같은 락으로 묶거나 상태 전체를 불변 객체로 구성해 원자적으로 교체하는 등 별도 설계가 필요합니다. 여러 AtomicInteger를 하나씩 바꾸는 것만으로 여러 값의 불변식이 유지되지는 않습니다. 또한 CAS 루프는 경쟁이 심하면 재시도가 늘고 특정 스레드의 공정성을 자동 보장하지 않습니다.
+
+### happens-before는 “바로 보인다”보다 정확한 규칙이다
+
+`Thread.start()` 이전의 준비 작업과 시작한 스레드의 동작, 스레드 종료와 성공한 join 이후의 관측 사이에는 happens-before 관계가 있습니다. 이 예제에서 main이 join한 뒤 결과를 읽는 것과 두 작업 스레드가 동시에 조건을 검사하는 것은 다른 문제입니다. 결과 관측이 안전하다고 중간 업무 연산도 원자적인 것은 아닙니다.
+
+volatile도 마찬가지입니다. 가시성과 순서에 대한 보장이 있어도 `if (stock > 0) stock--`를 하나의 원자적 묶음으로 만들지 않습니다. 스레드 안전성을 설명할 때는 **어떤 값, 어떤 연산 묶음, 어떤 관측 관계**를 보장하는지 구체적으로 말해야 합니다.
+
+### Java 21 가상 스레드에도 같은 원칙이 적용된다
+
+가상 스레드를 사용해도 공유 재고 변수의 경쟁 조건은 사라지지 않습니다. 더 많은 대기를 저렴하게 표현할 수 있다는 것과 DB 연결·외부 API 처리 용량이 늘어난다는 것도 다릅니다. Java 21에서는 synchronized 안에서의 일부 블로킹이 carrier pinning 문제와 연결될 수 있으므로 관찰이 필요합니다. 이후 JDK의 변경을 Java 21 동작에 소급해서 설명하지 않습니다.
+
+<details class="question"><summary>심화 면접. AtomicInteger를 썼는데도 재고가 음수가 되었습니다. 어떻게 설명하겠습니까?</summary><div class="answer"><p><strong>답변:</strong> 원자적인 개별 메서드 호출 사이에 다른 스레드가 끼어들 수 있습니다. 조회와 조건 판단, 차감 전체를 하나의 원자적 규칙으로 만들지 않으면 두 요청이 같은 재고를 보고 모두 차감할 수 있습니다.</p><p><strong>해결:</strong> 단일 값이면 CAS 반복으로 조건부 변경을 구현할 수 있고, 여러 값이면 공통 락이나 상태 모델을 검토합니다. latch로 두 요청의 조회 시점을 맞추면 경쟁을 결정적으로 재현할 수 있습니다.</p><p><strong>경계:</strong> 서버가 여러 대라면 이 메모리 변수는 서버별로 따로 존재합니다. 전체 재고 정합성은 DB의 조건부 갱신 등 실제 공유 저장소의 동시성 정책까지 설계해야 합니다.</p></div></details>
+
+추가 근거: [AtomicInteger CAS](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/atomic/AtomicInteger.html#compareAndSet(int,int)), [JLS happens-before](https://docs.oracle.com/javase/specs/jls/se21/html/jls-17.html#jls-17.4.5), [Java 21 가상 스레드](https://docs.oracle.com/en/java/javase/21/core/virtual-threads.html).
+
 ## 9. 상세 면접 Q&A
 
 <details class="question"><summary>Q1. synchronized는 원자성만 제공하나요?</summary><div class="answer"><p>같은 모니터의 상호 배제와 unlock→이후 lock의 happens-before를 함께 봐야 합니다. 올바른 공유 규칙 없이 다른 락으로 읽으면 같은 보호를 얻지 못합니다. volatile과 복합 연산 원자성의 차이도 구분합니다.</p><p><strong>구체적으로:</strong> 같은 모니터의 unlock 이후 다른 스레드의 lock은 happens-before 관계를 형성합니다. 공유 상태의 관찰과 순서를 설명하는 언어 수준의 보장입니다.</p><p><strong>꼬리질문까지:</strong> 락을 사용하는 쓰기 경로만 있고 읽기 경로가 다른 규칙을 쓰면 전체 접근을 다시 검토해야 합니다.</p></div></details>
@@ -189,3 +259,4 @@ Java 21에서는 synchronized 내부의 일부 블로킹처럼 carrier를 붙잡
 - [JEP 491: JDK 24의 변경](https://openjdk.org/jeps/491).
 
 counter를 두 개 만들어 각 스레드가 다른 인스턴스를 증가시키게 바꿔 보세요. 그다음 static synchronized를 쓴 경우와 비교해 “어떤 객체가 락인가?”를 설명하세요.
+

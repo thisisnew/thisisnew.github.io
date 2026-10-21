@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="this·인자·지역변수·반환·예외를 프레임으로 이해하고 StackOverflowError와 Xss를 연결한다"><title>JVM 04 · 스택과 스택 프레임: 메서드 호출을 한 칸씩 추적하기 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/jvm-study-04.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><script src="/assets/series-category.js" defer></script><link rel="stylesheet" href="/assets/jvm-study.css"></head><body><main><a href="/">← 전체 글</a> · <a href="/posts/jvm-study-00.html">JVM 학습 지도</a><header><p class="meta">JVM QUEST · 04 / 16 · JAVA 21 · 2026-10-19</p><h1>스택과 스택 프레임: 메서드 호출을 한 칸씩 추적하기</h1><p class="subtitle">this·인자·지역변수·반환·예외를 프레임으로 이해하고 StackOverflowError와 Xss를 연결한다</p><p class="note">기준: Java SE 21 사양과 HotSpot JDK 21. 첨부 자료의 JVMS 23·JDK 17 발췌는 이 기준으로 대조했습니다. 설명 속 장애 상황은 학습용 가상 사례입니다. 예제는 외부 라이브러리 없이 실행할 수 있습니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이 글에서 배울 것</h2><ol><li><a href="#section-1">시작 전에: 이 편에서 쓰는 말</a></li><li><a href="#section-2">1. 메서드 호출은 잠깐 맡긴 작업이다</a></li><li><a href="#section-3">2. 프레임 안의 세 가지 핵심 요소</a></li><li><a href="#section-4">3. this와 인자를 직접 추적하는 코드</a></li><li><a href="#section-5">4. 반환값과 예외는 어떻게 이동하는가</a></li><li><a href="#section-6">5. max_stack·max_locals를 잘못 읽지 않기</a></li><li><a href="#section-7">6. 재귀 장애를 이해하는 실험</a></li><li><a href="#section-8">7. 실무 연결: 스택이 끝났는데 왜 객체는 남는가</a></li><li><a href="#section-9">더 깊이: 반환 후에도 남는 값과 사라지는 실행 상태</a></li><li><a href="#section-10">차근차근 이해하기: 호출자와 피호출자의 값은 어떻게 이어질까</a></li><li><a href="#section-11">8. 상세 면접 Q&amp;A</a></li><li><a href="#section-12">9. 공식 근거와 복습</a></li></ol></aside><article><h2 id="section-1">시작 전에: 이 편에서 쓰는 말</h2>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="this·인자·지역변수·반환·예외를 프레임으로 이해하고 StackOverflowError와 Xss를 연결한다"><title>JVM 04 · 스택과 스택 프레임: 메서드 호출을 한 칸씩 추적하기 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/jvm-study-04.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><script src="/assets/series-category.js" defer></script><link rel="stylesheet" href="/assets/jvm-study.css"></head><body><main><a href="/">← 전체 글</a> · <a href="/posts/jvm-study-00.html">JVM 학습 지도</a><header><p class="meta">JVM QUEST · 04 / 16 · JAVA 21 · 2026-10-21</p><h1>스택과 스택 프레임: 메서드 호출을 한 칸씩 추적하기</h1><p class="subtitle">this·인자·지역변수·반환·예외를 프레임으로 이해하고 StackOverflowError와 Xss를 연결한다</p><p class="note">기준: Java SE 21 사양과 HotSpot JDK 21. 첨부 자료의 JVMS 23·JDK 17 발췌는 이 기준으로 대조했습니다. 설명 속 장애 상황은 학습용 가상 사례입니다. 예제는 외부 라이브러리 없이 실행할 수 있습니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이 글에서 배울 것</h2><ol><li><a href="#section-1">시작 전에: 이 편에서 쓰는 말</a></li><li><a href="#section-2">1. 메서드 호출은 잠깐 맡긴 작업이다</a></li><li><a href="#section-3">2. 프레임 안의 세 가지 핵심 요소</a></li><li><a href="#section-4">3. this와 인자를 직접 추적하는 코드</a></li><li><a href="#section-5">4. 반환값과 예외는 어떻게 이동하는가</a></li><li><a href="#section-6">5. max_stack·max_locals를 잘못 읽지 않기</a></li><li><a href="#section-7">6. 재귀 장애를 이해하는 실험</a></li><li><a href="#section-8">7. 실무 연결: 스택이 끝났는데 왜 객체는 남는가</a></li><li><a href="#section-9">더 깊이: 반환 후에도 남는 값과 사라지는 실행 상태</a></li><li><a href="#section-10">차근차근 이해하기: 호출자와 피호출자의 값은 어떻게 이어질까</a></li><li><a href="#section-11">심화 실험실: finally가 있어도 반환값이 바뀌지 않는 이유</a></li><li><a href="#section-12">8. 상세 면접 Q&amp;A</a></li><li><a href="#section-13">9. 공식 근거와 복습</a></li></ol></aside><article><h2 id="section-1">시작 전에: 이 편에서 쓰는 말</h2>
 <p>처음 읽는다면 아래 용어의 뜻만 확인한 뒤 본문으로 넘어가세요. 먼저 예제의 결과를 예상하고, 실행 과정을 따라간 다음, 면접 답변을 펼쳐 자신의 설명과 비교하면 좋습니다.</p>
 <table>
 <thead>
@@ -173,7 +173,77 @@ javap -c -v -p Walkthrough04
 </code></pre>
 <details class="question"><summary>확인 문제. 재귀 메서드에 지역변수가 하나뿐이면 무한히 호출해도 괜찮나요?</summary><div class="answer"><p><strong>판단:</strong> 아닙니다. 각 호출은 인자 하나 이외에도 실행을 이어 가기 위한 호출 상태를 필요로 합니다. 종료되지 않은 호출이 계속 누적되면 스택 한도에 도달할 수 있습니다.</p><p><strong>해결 순서:</strong> 입력 크기와 정상 최대 깊이를 확인하고, 종료 조건이나 방문 처리가 빠졌는지 조사합니다. 깊이가 원래 큰 알고리즘이라면 반복문과 명시적 자료구조로 변환하는 방법을 검토합니다. Xss 확대는 정상적인 필요 공간을 확보하는 선택이지 무한 재귀의 해결책은 아닙니다.</p><p><strong>꼬리질문:</strong> 꼬리 재귀면 자동으로 괜찮나요? Java 프로그램에서 일반적인 꼬리 호출 제거를 JVM의 보장으로 기대하면 안 됩니다. 재귀 깊이에 의존하는 코드는 해당 실행 환경에서 검증하고 필요한 경우 알고리즘 구조를 바꿔야 합니다.</p></div></details>
 
-<h2 id="section-11">8. 상세 면접 Q&amp;A</h2>
+<h2 id="section-11">심화 실험실: finally가 있어도 반환값이 바뀌지 않는 이유</h2>
+<h3>반환값을 봉투에 담은 뒤 정리 작업을 한다</h3>
+<p>메서드가 <code>return x</code>를 만나면 “x라는 변수를 호출자에게 영원히 연결한다”가 아니라 <strong>그 순간 계산한 값을 반환 대상으로 정한다</strong>고 생각하세요. finally는 그 뒤에도 실행될 수 있습니다. 이미 봉투에 넣은 숫자와 원래 책상 위 숫자는 다른 저장 위치이므로 책상 위 숫자를 바꿔도 봉투의 값은 저절로 바뀌지 않습니다.</p>
+<pre><code class="language-java">// file: Deep04.java
+public class Deep04 {
+    static int compute() {
+        int quantity = 10;
+        try {
+            return quantity;
+        } finally {
+            quantity = 20;
+            System.out.println(&quot;finally=&quot; + quantity);
+        }
+    }
+    static int[] reference() {
+        int[] quantity = {10};
+        try {
+            return quantity;
+        } finally {
+            quantity[0] = 20;
+        }
+    }
+    public static void main(String[] args) {
+        System.out.println(&quot;result=&quot; + compute());
+        System.out.println(&quot;element=&quot; + reference()[0]);
+    }
+}
+</code></pre>
+<pre><code class="language-sh">javac --release 21 -g Deep04.java
+java Deep04
+javap -c -v -p Deep04
+</code></pre>
+<p>출력은 <code>finally=20</code>, <code>result=10</code>, <code>element=20</code>입니다. 두 번째 경우 반환 대상으로 정한 것은 배열 객체의 복사본이 아니라 <strong>배열을 가리키는 참조 값</strong>입니다. finally가 그 배열의 원소를 수정했으므로 호출자도 수정된 상태를 봅니다. “Java는 값으로 전달한다”와 “여러 참조가 같은 객체를 본다”는 동시에 성립합니다.</p>
+<h3>프레임에서 어떤 일이 일어났는가</h3>
+<table>
+<thead>
+<tr>
+<th>사건</th>
+<th>compute</th>
+<th>reference</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>return 표현식 평가</td>
+<td>숫자 10 확보</td>
+<td>배열 객체 참조 확보</td>
+</tr>
+<tr>
+<td>finally 실행</td>
+<td>지역 변수에 20 대입</td>
+<td>같은 배열의 원소에 20 대입</td>
+</tr>
+<tr>
+<td>정상 반환</td>
+<td>확보한 숫자 10 전달</td>
+<td>확보한 배열 참조 전달</td>
+</tr>
+<tr>
+<td>호출자 관측</td>
+<td>10</td>
+<td>배열 내부 값 20</td>
+</tr>
+</tbody></table>
+<p>javac는 반환할 값을 임시 지역 슬롯에 저장하고 finally 작업 후 다시 꺼내 반환하는 형태의 바이트코드를 만들 수 있습니다. 이 때문에 소스의 변수 수보다 max_locals가 클 수 있습니다. 임시 슬롯도 슬롯이며, 소스 이름이 없는 컴파일러 생성 값이 존재합니다. 바이트코드의 실제 인덱스는 사용한 컴파일러 출력으로 확인하고 고정 숫자로 외우지 마세요.</p>
+<h3>예외가 있으면 봉투 자체가 전달되지 않을 수 있다</h3>
+<p>finally에서 예외를 던지면 앞서 준비한 정상 반환은 완료되지 못합니다. finally에 또 return을 쓰면 앞서의 결과나 예외를 덮을 수 있습니다. 따라서 finally는 자원 정리에 쓰되 반환이나 새 실패를 무심코 발생시키지 않도록 주의합니다. try-with-resources는 본문 예외와 close 예외가 겹칠 때 suppressed exception 규칙을 제공하므로 “최초 원인이 무엇인지”를 보존하는 데 도움이 됩니다.</p>
+<p>프레임을 제거하는 것과 파일·DB 연결을 닫는 것도 다릅니다. 프레임의 지역 변수가 사라져도 외부 자원을 GC에 맡겨 즉시 닫힌다고 기대할 수 없습니다. 요청이 반환되었다는 사실이 연결이 풀에 정상 반환되었다는 증거는 아닙니다. 실행 상태의 수명과 외부 자원의 수명을 분리하는 습관이 연결 누수 진단으로 이어집니다.</p>
+<details class="question"><summary>심화 면접. finally에서 지역 변수를 바꿨는데 return 값은 왜 그대로인가요?</summary><div class="answer"><p><strong>답변:</strong> return 표현식이 먼저 평가되어 반환 대상으로 정해진 값과, finally에서 이후 변경하는 지역 변수의 값이 다르기 때문입니다. finally가 정상 완료되면 앞서 평가한 값이 반환됩니다.</p><p><strong>꼬리질문:</strong> 객체를 반환하면? 참조 값이 먼저 정해지고 finally가 같은 객체의 내부를 변경하면 호출자는 변경된 객체를 봅니다. 지역 참조를 다른 객체로 재대입하는 것과 기존 객체를 수정하는 것은 다릅니다.</p><p><strong>예외 경계:</strong> finally 자체가 예외로 끝나거나 다른 return을 실행하면 기존 반환은 그대로 진행되지 않습니다. 코드를 설명할 때 정상 완료와 abrupt completion을 나누어야 합니다.</p></div></details>
+
+<p>추가 근거: <a href="https://docs.oracle.com/javase/specs/jls/se21/html/jls-14.html#jls-14.20.2">JLS try-finally의 실행 순서</a>, <a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.6.4">정상·비정상 메서드 완료</a>.</p>
+<h2 id="section-12">8. 상세 면접 Q&amp;A</h2>
 <details class="question"><summary>Q1. JVM Stack과 피연산자 스택은 같은 것인가요?</summary><div class="answer"><p>JVM Stack은 스레드의 메서드 프레임들을 보관합니다. 피연산자 스택은 각 프레임 안에서 계산과 호출 인자를 위한 값을 다룹니다. “프레임의 스택”과 “계산값의 스택”은 포함 관계가 있는 다른 층위입니다.</p><p><strong>구체적으로:</strong> main이 call을, call이 add를 부르면 프레임들이 누적됩니다. 그중 add 프레임 안에서 10과 32를 잠시 올리는 공간이 피연산자 스택입니다.</p><p><strong>꼬리질문까지:</strong> StackOverflowError를 피연산자 스택의 최대 깊이 하나만 보고 설명하지 말고 호출 깊이와 프레임 비용을 함께 봅니다.</p></div></details>
 <details class="question"><summary>Q2. static 메서드의 0번 슬롯에도 this가 있나요?</summary><div class="answer"><p>없습니다. static 메서드는 특정 수신 객체를 요구하지 않으므로 첫 명시적 인자가 0번부터 들어갑니다. 인스턴스 메서드에서는 this가 0번을 차지합니다. 이 차이 때문에 같은 덧셈 메서드라도 iload 인덱스가 달라질 수 있습니다.</p><p><strong>구체적으로:</strong> static int f(int x)는 x가 0번부터지만 인스턴스 int f(int x)는 this가 0번, x가 1번입니다. javap의 iload 인덱스 차이를 이 규칙으로 읽을 수 있습니다.</p><p><strong>꼬리질문까지:</strong> long·double 인자가 들어오면 두 슬롯을 차지하므로 인자 개수와 슬롯 개수를 동일시하지 마세요.</p></div></details>
 <details class="question"><summary>Q3. Java는 객체를 참조로 전달하나요?</summary><div class="answer"><p>Java의 인자 전달은 값 전달입니다. 객체를 사용할 때 복사되는 값이 참조 값입니다. 메서드 안에서 box.quantity를 바꾸면 같은 객체의 상태가 바뀌지만, box 변수 자체에 new Box를 대입하면 호출자의 참조 변수는 바뀌지 않습니다.</p><p><strong>구체적으로:</strong> 메서드 안에서 참조 변수 box에 새 객체를 넣으면 그 메서드의 지역 슬롯만 바뀝니다. 호출자의 슬롯까지 연결된 별칭 변수가 생긴 것은 아닙니다.</p><p><strong>꼬리질문까지:</strong> 필드 변경과 변수 재대입을 각각 실행해 보는 두 사례를 제시하면 값 전달을 분명하게 설명할 수 있습니다.</p></div></details>
@@ -181,7 +251,7 @@ javap -c -v -p Walkthrough04
 <details class="question"><summary>Q5. 메서드 호출마다 실제 기계 스택에도 프레임 하나가 반드시 있나요?</summary><div class="answer"><p>JVM의 논리적 실행 모델에서는 프레임으로 설명합니다. 최적화된 기계 코드에서는 인라이닝 때문에 소스 메서드별 실제 호출 경계가 사라질 수 있습니다. JVM은 예외와 디버깅, 역최적화 등에 필요한 의미를 유지해야 하므로 논리 프레임과 물리 실행 배치를 구분합니다.</p><p><strong>구체적으로:</strong> 작은 add가 호출자 안에 인라인되면 실제 기계 코드에는 소스와 같은 호출 경계가 없을 수 있습니다. 그렇더라도 JVM은 예외와 관찰에 필요한 프로그램 의미를 유지해야 합니다.</p><p><strong>꼬리질문까지:</strong> javap의 호출 명령만으로 실제 호출 비용을 계산할 수 없는 이유가 여기에 있습니다.</p></div></details>
 <details class="question"><summary>Q6. Xss를 크게 하면 어떤 비용이 있나요?</summary><div class="answer"><p>플랫폼 스레드별 스택 예약 예산이 커집니다. 많은 스레드가 존재하는 서비스에서는 전체 주소 공간과 Native 메모리 여유에 영향을 줍니다. 재귀 문제를 덮기보다 호출 깊이의 정상 범위와 스레드 수, 컨테이너 예산을 함께 확인해야 합니다.</p><p><strong>구체적으로:</strong> 스레드 하나의 여유를 늘리는 결정은 많은 플랫폼 스레드가 있는 프로세스 전체의 주소 공간·메모리 예산과 연결됩니다. 스택 예약량을 그대로 RSS라고 계산하지 않는 것도 중요합니다.</p><p><strong>꼬리질문까지:</strong> 무한 재귀라면 Xss를 늘려도 실패 시점만 바뀝니다. 정상 깊이인지 먼저 확인한 뒤 예산을 조정합니다.</p></div></details>
 
-<h2 id="section-12">9. 공식 근거와 복습</h2>
+<h2 id="section-13">9. 공식 근거와 복습</h2>
 <ul>
 <li><a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.6">JVMS §2.6 프레임과 지역변수</a>.</li>
 <li><a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-3.html#jvms-3.6">JVMS §3.6 인자 전달</a>.</li>

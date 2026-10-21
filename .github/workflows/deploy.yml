@@ -32,7 +32,14 @@ jobs:
         run: |
           python scripts/check-jvm.py
           python scripts/check-jvm-java.py
+          python scripts/check-jvm-deep.py
           python scripts/check-jvm-diagnostics.py
+      - name: Upload JVM execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jvm-execution-verification
+          path: learning/jvm-*-checks.json
       - name: Compile Java and Spring examples and test topology and offset boundaries
         run: mvn -B -f examples/kafka-lab/pom.xml test
       - name: Start Kafka 4.3.1 single-broker lab
@@ -90,6 +97,7 @@ jobs:
           node tools/check_mysql_browser.cjs
           node tools/check_categories.cjs
           node scripts/check-aws-browser.cjs
+          node scripts/check-jvm-browser.cjs
       - name: Upload MySQL verification evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -99,6 +107,8 @@ jobs:
             learning/mysql-*-checks.json
             learning/aws/*checks.json
             mysql-screenshots/
+            learning/jvm-browser-checks.json
+            /tmp/jvm-*.png
       - name: MySQL logs on failure
         if: failure()
         run: docker logs mysql-school || true
@@ -127,3 +137,4 @@ jobs:
       - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@v4
+

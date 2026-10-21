@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Verification·Preparation·Resolution·Initialization, 상수 인라이닝과 초기화 실패를 실험한다"><title>JVM 09 · 링킹과 초기화: static이 실행되는 정확한 시점 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/jvm-study-09.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><script src="/assets/series-category.js" defer></script><link rel="stylesheet" href="/assets/jvm-study.css"></head><body><main><a href="/">← 전체 글</a> · <a href="/posts/jvm-study-00.html">JVM 학습 지도</a><header><p class="meta">JVM QUEST · 09 / 16 · JAVA 21 · 2026-10-19</p><h1>링킹과 초기화: static이 실행되는 정확한 시점</h1><p class="subtitle">Verification·Preparation·Resolution·Initialization, 상수 인라이닝과 초기화 실패를 실험한다</p><p class="note">기준: Java SE 21 사양과 HotSpot JDK 21. 첨부 자료의 JVMS 23·JDK 17 발췌는 이 기준으로 대조했습니다. 설명 속 장애 상황은 학습용 가상 사례입니다. 예제는 외부 라이브러리 없이 실행할 수 있습니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이 글에서 배울 것</h2><ol><li><a href="#section-1">시작 전에: 이 편에서 쓰는 말</a></li><li><a href="#section-2">1. 건물 검사와 실제 입주는 다르다</a></li><li><a href="#section-3">2. 네 단계의 역할을 비교하기</a></li><li><a href="#section-4">3. static의 순서를 보여 주는 예제</a></li><li><a href="#section-5">4. static final이면 모두 컴파일 상수인가</a></li><li><a href="#section-6">5. ConstantValue와 초기화의 세부 경계</a></li><li><a href="#section-7">6. 초기화는 동시 실행과 실패 상태가 있다</a></li><li><a href="#section-8">7. 장애 사례: 라이브러리 상수만 바꿨는데 값이 옛날 그대로</a></li><li><a href="#section-9">더 깊이: 상속·인터페이스·상수 배포의 경계</a></li><li><a href="#section-10">차근차근 이해하기: 초기값 0과 초기화 코드의 결과를 구분하자</a></li><li><a href="#section-11">8. 상세 면접 Q&amp;A</a></li><li><a href="#section-12">9. 공식 문서와 복습</a></li></ol></aside><article><h2 id="section-1">시작 전에: 이 편에서 쓰는 말</h2>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Verification·Preparation·Resolution·Initialization, 상수 인라이닝과 초기화 실패를 실험한다"><title>JVM 09 · 링킹과 초기화: static이 실행되는 정확한 시점 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/jvm-study-09.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><script src="/assets/series-category.js" defer></script><link rel="stylesheet" href="/assets/jvm-study.css"></head><body><main><a href="/">← 전체 글</a> · <a href="/posts/jvm-study-00.html">JVM 학습 지도</a><header><p class="meta">JVM QUEST · 09 / 16 · JAVA 21 · 2026-10-21</p><h1>링킹과 초기화: static이 실행되는 정확한 시점</h1><p class="subtitle">Verification·Preparation·Resolution·Initialization, 상수 인라이닝과 초기화 실패를 실험한다</p><p class="note">기준: Java SE 21 사양과 HotSpot JDK 21. 첨부 자료의 JVMS 23·JDK 17 발췌는 이 기준으로 대조했습니다. 설명 속 장애 상황은 학습용 가상 사례입니다. 예제는 외부 라이브러리 없이 실행할 수 있습니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이 글에서 배울 것</h2><ol><li><a href="#section-1">시작 전에: 이 편에서 쓰는 말</a></li><li><a href="#section-2">1. 건물 검사와 실제 입주는 다르다</a></li><li><a href="#section-3">2. 네 단계의 역할을 비교하기</a></li><li><a href="#section-4">3. static의 순서를 보여 주는 예제</a></li><li><a href="#section-5">4. static final이면 모두 컴파일 상수인가</a></li><li><a href="#section-6">5. ConstantValue와 초기화의 세부 경계</a></li><li><a href="#section-7">6. 초기화는 동시 실행과 실패 상태가 있다</a></li><li><a href="#section-8">7. 장애 사례: 라이브러리 상수만 바꿨는데 값이 옛날 그대로</a></li><li><a href="#section-9">더 깊이: 상속·인터페이스·상수 배포의 경계</a></li><li><a href="#section-10">차근차근 이해하기: 초기값 0과 초기화 코드의 결과를 구분하자</a></li><li><a href="#section-11">심화 실험실: static 초기화 실패는 다음 호출에서 재시도될까</a></li><li><a href="#section-12">8. 상세 면접 Q&amp;A</a></li><li><a href="#section-13">9. 공식 문서와 복습</a></li></ol></aside><article><h2 id="section-1">시작 전에: 이 편에서 쓰는 말</h2>
 <p>처음 읽는다면 아래 용어의 뜻만 확인한 뒤 본문으로 넘어가세요. 먼저 예제의 결과를 예상하고, 실행 과정을 따라간 다음, 면접 답변을 펼쳐 자신의 설명과 비교하면 좋습니다.</p>
 <table>
 <thead>
@@ -158,7 +158,68 @@ javap -c -p Lesson09
 <p>또한 초기화 코드 안에서 외부 자원을 기다리거나 서로 다른 클래스의 초기화를 순환적으로 요구하면 복잡한 대기 문제가 생길 수 있습니다. static 초기화에는 실패할 수 있는 외부 업무를 과도하게 넣지 않고, 실패를 제어하고 재시도할 필요가 있는 작업은 명시적인 생명주기로 설계하는 편이 이해와 진단에 유리합니다.</p>
 <details class="question"><summary>확인 문제. static 초기화가 한 번 실패하면 설정을 고친 다음 같은 클래스에 다시 접근하면 되나요?</summary><div class="answer"><p><strong>판단:</strong> 같은 클래스 정의의 초기화는 단순히 자동 재시도되지 않습니다. 초기화 실패로 잘못된 상태가 기록되면 이후 사용에서 NoClassDefFoundError가 발생할 수 있습니다.</p><p><strong>조사:</strong> 처음의 예외가 무엇이었는지 확인해야 합니다. 초기화 코드가 던진 예외가 Error인지 등에 따라 처음 드러나는 오류 형태도 달라질 수 있으므로, 항상 ExceptionInInitializerError 하나로만 단정하지 않습니다. 원래 원인과 이후 오류를 시간순으로 연결하세요.</p><p><strong>꼬리질문:</strong> 프로세스 재시작 없이 해결할 수 있나요? 별도 로더로 새로운 클래스 정의를 만드는 설계는 있을 수 있지만 단순한 필드 재접근과 다릅니다. 보통은 원인을 수정한 뒤 정상적인 재시작·재배포 절차로 검증합니다.</p></div></details>
 
-<h2 id="section-11">8. 상세 면접 Q&amp;A</h2>
+<h2 id="section-11">심화 실험실: static 초기화 실패는 다음 호출에서 재시도될까</h2>
+<h3>자동문이 한 번 고장 났다고 매번 설치부터 다시 하지는 않는다</h3>
+<p>클래스 초기화는 요청마다 호출하는 일반 메서드가 아닙니다. JVM은 클래스마다 초기화 상태를 관리합니다. 실패한 초기화는 해당 클래스 정의를 오류 상태로 남길 수 있으므로 외부 서비스가 잠시 복구되었다고 같은 정의의 static 초기화가 자동으로 다시 실행되는 것은 아닙니다.</p>
+<pre><code class="language-java">// file: Deep09.java
+public class Deep09 {
+    static class Config {
+        static int value = load();
+        static int load() {
+            System.out.println(&quot;loading config&quot;);
+            throw new IllegalStateException(&quot;configuration unavailable&quot;);
+        }
+    }
+    public static void main(String[] args) {
+        for (int i = 0; i &lt; 2; i++) {
+            try {
+                System.out.println(Config.value);
+            } catch (LinkageError e) {
+                System.out.println(e.getClass().getSimpleName());
+            }
+        }
+    }
+}
+</code></pre>
+<pre><code class="language-sh">javac --release 21 Deep09.java
+java Deep09
+</code></pre>
+<p>출력은 <code>loading config</code>, <code>ExceptionInInitializerError</code>, <code>NoClassDefFoundError</code>입니다. loading config가 한 번만 출력되는 점을 확인하세요. 이 코드는 차이를 관찰하려고 Error를 잡는 실습입니다. 운영 서비스에서 LinkageError를 잡고 정상 처리한 것처럼 요청을 계속 진행하라는 패턴이 아닙니다.</p>
+<h3>상태가 바뀌는 과정을 읽기</h3>
+<table>
+<thead>
+<tr>
+<th>시점</th>
+<th>Config의 상태</th>
+<th>요청에 보이는 결과</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>첫 필드 사용 전</td>
+<td>아직 초기화되지 않음</td>
+<td>초기화 절차 시작</td>
+</tr>
+<tr>
+<td>load가 RuntimeException 발생</td>
+<td>초기화 실패로 전환</td>
+<td>이 예제는 ExceptionInInitializerError</td>
+</tr>
+<tr>
+<td>두 번째 필드 사용</td>
+<td>이미 오류 상태</td>
+<td>NoClassDefFoundError</td>
+</tr>
+</tbody></table>
+<p>초기화에서 이미 Error 계열이 발생한 경우에는 모든 오류가 같은 방식으로 ExceptionInInitializerError에 포장된다고 일반화하면 안 됩니다. 여기서는 IllegalStateException이 발생하도록 고정했기 때문에 위 출력을 예상할 수 있습니다. 실제 운영에서는 마지막 에러 이름보다 <strong>처음 실패한 시점의 원인 체인</strong>을 보관해야 합니다.</p>
+<h3>초기화 락과 업무 락의 경계</h3>
+<p>여러 요청이 동시에 첫 접근을 하면 초기화 중인 스레드 외의 스레드가 완료를 기다릴 수 있습니다. static 초기화에서 네트워크 응답을 기다리면 요청 여러 개가 한 클래스의 준비에 묶입니다. 이 대기는 DB 락과 다른 종류이므로 DB 지표가 정상이어도 애플리케이션은 멈춘 것처럼 보일 수 있습니다.</p>
+<p>또한 초기화 완료 시 안전하게 보이는 상태와 이후 변경의 안전성은 다릅니다. <code>static final Map</code>에 최초 값을 담아 공개했다고 그 Map의 이후 put이 자동으로 스레드 안전해지지는 않습니다. final은 참조 재대입을 제한하며 Map 내부 변경 규칙까지 대신하지 않습니다. 초기화 규약은 출발점의 게시를 다루고, 서비스 실행 중 변경은 별도 동기화가 필요합니다.</p>
+<h3>복구 가능한 작업은 복구 가능한 생명주기로</h3>
+<p>영구 불변 설정의 오류라면 기동 실패로 명확히 드러내는 것이 타당할 수 있습니다. 반면 잠시 실패할 수 있는 외부 조회는 명시적인 준비 상태·타임아웃·재시도·실패 응답을 가진 컴포넌트로 다루는 편이 낫습니다. 재시작으로 일시 복구되었다고 설계가 해결된 것은 아닙니다. 외부 의존성의 순간 실패가 클래스 정의 전체의 장기 실패로 바뀌지 않도록 경계를 설계하세요.</p>
+<details class="question"><summary>심화 면접. NoClassDefFoundError인데 JAR 안에 class가 있습니다. 무엇을 보겠습니까?</summary><div class="answer"><p><strong>답변:</strong> 의존 클래스 누락뿐 아니라 해당 클래스의 이전 초기화 실패를 확인하겠습니다. Could not initialize class 문구와 프로세스 시작 이후 최초 ExceptionInInitializerError 및 원인 예외를 찾겠습니다.</p><p><strong>원리:</strong> JVM은 실패한 초기화를 매 요청마다 재시도하지 않습니다. 같은 이름의 파일이 존재하는 것과 런타임 클래스 정의가 사용 가능한 상태인 것은 다릅니다.</p><p><strong>조치:</strong> 최초 원인을 고친 뒤 올바른 실행 생명주기로 재시작 또는 재배포하고, 일시적 외부 장애를 static 초기화에 묶어 두었는지 검토하겠습니다.</p></div></details>
+
+<p>추가 근거: <a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.5">JVMS 초기화 절차와 오류 상태</a>, <a href="https://docs.oracle.com/javase/specs/jls/se21/html/jls-12.html#jls-12.4.2">JLS 상세 초기화 절차</a>.</p>
+<h2 id="section-12">8. 상세 면접 Q&amp;A</h2>
 <details class="question"><summary>Q1. 클래스 로딩과 초기화는 같은가요?</summary><div class="answer"><p>아닙니다. 로딩은 이진 표현으로 클래스를 만들고, 초기화는 규정된 static 초기화 동작을 수행합니다. 초기화하지 않는 Class.forName 호출로 차이를 관찰할 수 있습니다. 클래스가 존재하는 것과 초기화가 완료된 것은 다릅니다.</p><p><strong>구체적으로:</strong> 클래스 바이트를 읽어 정의하는 일과 static 초기화 코드를 실행하는 일은 별개입니다. Class.forName의 initialize=false 같은 사용에서 차이를 직접 관찰할 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 단, 로더 자체가 수행하는 코드는 별도이므로 초기화를 요청하지 않았다는 말이 아무 동작도 없다는 뜻은 아닙니다.</p></div></details>
 <details class="question"><summary>Q2. Resolution은 초기화 전에 모두 끝나나요?</summary><div class="answer"><p>그럴 필요는 없습니다. JVM은 해석을 지연할 수 있습니다. 검증·준비와 해석의 시점을 나누어 설명해야 합니다. 초기화 성공 후 드물게 사용한 경로에서 링크 오류가 드러나는 이유와도 연결됩니다.</p><p><strong>구체적으로:</strong> 참조를 실제 대상으로 연결하는 작업은 필요한 시점까지 미뤄질 수 있습니다. 클래스를 초기화했다는 사실만으로 그 클래스의 모든 잠재적 의존 경로를 실행 검증한 것은 아닙니다.</p><p><strong>꼬리질문까지:</strong> 처음 실행한 특정 메서드에서만 링크 오류가 나는 상황을 이 구분으로 설명할 수 있습니다.</p></div></details>
 <details class="question"><summary>Q3. static final Integer와 int의 차이는 무엇인가요?</summary><div class="answer"><p>final Integer는 참조를 바꿀 수 없다는 뜻이지 언어의 상수 변수가 된다는 뜻은 아닙니다. 상수 변수의 타입과 초기화식 조건을 만족해야 컴파일 타임 상수 규칙을 적용할 수 있습니다. 그 차이가 초기화 트리거와 호출자 바이트코드에 영향을 줍니다.</p><p><strong>구체적으로:</strong> Integer는 참조 타입이고 int 상수 변수와 같은 컴파일 상수 취급을 받지 않습니다. final은 참조의 재대입을 제한하는 뜻이지 모든 값을 컴파일 시 호출자에 박아 넣는다는 뜻은 아닙니다.</p><p><strong>꼬리질문까지:</strong> String이라도 초기화식이 상수식인지 확인해야 하므로 타입 이름과 final만으로 판단하지 않습니다.</p></div></details>
@@ -166,7 +227,7 @@ javap -c -p Lesson09
 <details class="question"><summary>Q5. 초기화 실패 뒤 재호출하면 자동 재시도하나요?</summary><div class="answer"><p>일반적으로 해당 클래스는 오류 상태로 남아 후속 사용도 실패합니다. 첫 원인 예외를 조사해야 하며 후속 NoClassDefFoundError만 보고 JAR 누락으로 단정하지 않습니다. 재시도 가능한 외부 연결은 static 초기화에 묶는 것이 적절한지 검토합니다.</p><p><strong>구체적으로:</strong> 실패한 정의에 대한 다음 접근은 초기화 코드를 새로 처음부터 실행하는 요청이 아닙니다. 처음의 원인 예외와 나중의 NoClassDefFoundError를 구분해야 합니다.</p><p><strong>꼬리질문까지:</strong> 설정 수정 후에는 어떤 프로세스·로더의 새 정의로 검증하는지까지 명시하세요.</p></div></details>
 <details class="question"><summary>Q6. JVM의 클래스 초기화 동기화가 Bean의 스레드 안전성을 보장하나요?</summary><div class="answer"><p>클래스 초기화 완료와 관련된 보장은 이후 임의의 가변 상태 갱신을 모두 안전하게 만들지 않습니다. 요청마다 바꾸는 필드는 별도의 동시성 설계가 필요합니다. static 초기화의 안전성과 프로그램 전체의 thread safety는 다릅니다.</p><p><strong>구체적으로:</strong> 초기 구성 상태를 안전하게 관찰하는 것과 이후 가변 필드를 여러 요청이 수정하는 것은 다릅니다. static Map에 넣고 빼는 작업은 별도 동시성 규칙이 필요합니다.</p><p><strong>꼬리질문까지:</strong> Spring Bean의 수명 범위와 JVM 초기화 규칙도 동일 개념이 아니므로 공유 상태의 변경 경로를 직접 조사해야 합니다.</p></div></details>
 
-<h2 id="section-12">9. 공식 문서와 복습</h2>
+<h2 id="section-13">9. 공식 문서와 복습</h2>
 <ul>
 <li><a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.4">JVMS §5.4 링킹</a>.</li>
 <li><a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.5">JVMS §5.5 초기화 절차</a>.</li>

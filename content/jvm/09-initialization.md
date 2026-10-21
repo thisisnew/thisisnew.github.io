@@ -131,6 +131,65 @@ first는 second와 실시간으로 연결된 수식 셀이 아닙니다. 초기�
 
 <details class="question"><summary>확인 문제. static 초기화가 한 번 실패하면 설정을 고친 다음 같은 클래스에 다시 접근하면 되나요?</summary><div class="answer"><p><strong>판단:</strong> 같은 클래스 정의의 초기화는 단순히 자동 재시도되지 않습니다. 초기화 실패로 잘못된 상태가 기록되면 이후 사용에서 NoClassDefFoundError가 발생할 수 있습니다.</p><p><strong>조사:</strong> 처음의 예외가 무엇이었는지 확인해야 합니다. 초기화 코드가 던진 예외가 Error인지 등에 따라 처음 드러나는 오류 형태도 달라질 수 있으므로, 항상 ExceptionInInitializerError 하나로만 단정하지 않습니다. 원래 원인과 이후 오류를 시간순으로 연결하세요.</p><p><strong>꼬리질문:</strong> 프로세스 재시작 없이 해결할 수 있나요? 별도 로더로 새로운 클래스 정의를 만드는 설계는 있을 수 있지만 단순한 필드 재접근과 다릅니다. 보통은 원인을 수정한 뒤 정상적인 재시작·재배포 절차로 검증합니다.</p></div></details>
 
+## 심화 실험실: static 초기화 실패는 다음 호출에서 재시도될까
+
+### 자동문이 한 번 고장 났다고 매번 설치부터 다시 하지는 않는다
+
+클래스 초기화는 요청마다 호출하는 일반 메서드가 아닙니다. JVM은 클래스마다 초기화 상태를 관리합니다. 실패한 초기화는 해당 클래스 정의를 오류 상태로 남길 수 있으므로 외부 서비스가 잠시 복구되었다고 같은 정의의 static 초기화가 자동으로 다시 실행되는 것은 아닙니다.
+
+```java
+// file: Deep09.java
+public class Deep09 {
+    static class Config {
+        static int value = load();
+        static int load() {
+            System.out.println("loading config");
+            throw new IllegalStateException("configuration unavailable");
+        }
+    }
+    public static void main(String[] args) {
+        for (int i = 0; i < 2; i++) {
+            try {
+                System.out.println(Config.value);
+            } catch (LinkageError e) {
+                System.out.println(e.getClass().getSimpleName());
+            }
+        }
+    }
+}
+```
+
+```sh
+javac --release 21 Deep09.java
+java Deep09
+```
+
+출력은 `loading config`, `ExceptionInInitializerError`, `NoClassDefFoundError`입니다. loading config가 한 번만 출력되는 점을 확인하세요. 이 코드는 차이를 관찰하려고 Error를 잡는 실습입니다. 운영 서비스에서 LinkageError를 잡고 정상 처리한 것처럼 요청을 계속 진행하라는 패턴이 아닙니다.
+
+### 상태가 바뀌는 과정을 읽기
+
+| 시점 | Config의 상태 | 요청에 보이는 결과 |
+|---|---|---|
+| 첫 필드 사용 전 | 아직 초기화되지 않음 | 초기화 절차 시작 |
+| load가 RuntimeException 발생 | 초기화 실패로 전환 | 이 예제는 ExceptionInInitializerError |
+| 두 번째 필드 사용 | 이미 오류 상태 | NoClassDefFoundError |
+
+초기화에서 이미 Error 계열이 발생한 경우에는 모든 오류가 같은 방식으로 ExceptionInInitializerError에 포장된다고 일반화하면 안 됩니다. 여기서는 IllegalStateException이 발생하도록 고정했기 때문에 위 출력을 예상할 수 있습니다. 실제 운영에서는 마지막 에러 이름보다 **처음 실패한 시점의 원인 체인**을 보관해야 합니다.
+
+### 초기화 락과 업무 락의 경계
+
+여러 요청이 동시에 첫 접근을 하면 초기화 중인 스레드 외의 스레드가 완료를 기다릴 수 있습니다. static 초기화에서 네트워크 응답을 기다리면 요청 여러 개가 한 클래스의 준비에 묶입니다. 이 대기는 DB 락과 다른 종류이므로 DB 지표가 정상이어도 애플리케이션은 멈춘 것처럼 보일 수 있습니다.
+
+또한 초기화 완료 시 안전하게 보이는 상태와 이후 변경의 안전성은 다릅니다. `static final Map`에 최초 값을 담아 공개했다고 그 Map의 이후 put이 자동으로 스레드 안전해지지는 않습니다. final은 참조 재대입을 제한하며 Map 내부 변경 규칙까지 대신하지 않습니다. 초기화 규약은 출발점의 게시를 다루고, 서비스 실행 중 변경은 별도 동기화가 필요합니다.
+
+### 복구 가능한 작업은 복구 가능한 생명주기로
+
+영구 불변 설정의 오류라면 기동 실패로 명확히 드러내는 것이 타당할 수 있습니다. 반면 잠시 실패할 수 있는 외부 조회는 명시적인 준비 상태·타임아웃·재시도·실패 응답을 가진 컴포넌트로 다루는 편이 낫습니다. 재시작으로 일시 복구되었다고 설계가 해결된 것은 아닙니다. 외부 의존성의 순간 실패가 클래스 정의 전체의 장기 실패로 바뀌지 않도록 경계를 설계하세요.
+
+<details class="question"><summary>심화 면접. NoClassDefFoundError인데 JAR 안에 class가 있습니다. 무엇을 보겠습니까?</summary><div class="answer"><p><strong>답변:</strong> 의존 클래스 누락뿐 아니라 해당 클래스의 이전 초기화 실패를 확인하겠습니다. Could not initialize class 문구와 프로세스 시작 이후 최초 ExceptionInInitializerError 및 원인 예외를 찾겠습니다.</p><p><strong>원리:</strong> JVM은 실패한 초기화를 매 요청마다 재시도하지 않습니다. 같은 이름의 파일이 존재하는 것과 런타임 클래스 정의가 사용 가능한 상태인 것은 다릅니다.</p><p><strong>조치:</strong> 최초 원인을 고친 뒤 올바른 실행 생명주기로 재시작 또는 재배포하고, 일시적 외부 장애를 static 초기화에 묶어 두었는지 검토하겠습니다.</p></div></details>
+
+추가 근거: [JVMS 초기화 절차와 오류 상태](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.5), [JLS 상세 초기화 절차](https://docs.oracle.com/javase/specs/jls/se21/html/jls-12.html#jls-12.4.2).
+
 ## 8. 상세 면접 Q&A
 
 <details class="question"><summary>Q1. 클래스 로딩과 초기화는 같은가요?</summary><div class="answer"><p>아닙니다. 로딩은 이진 표현으로 클래스를 만들고, 초기화는 규정된 static 초기화 동작을 수행합니다. 초기화하지 않는 Class.forName 호출로 차이를 관찰할 수 있습니다. 클래스가 존재하는 것과 초기화가 완료된 것은 다릅니다.</p><p><strong>구체적으로:</strong> 클래스 바이트를 읽어 정의하는 일과 static 초기화 코드를 실행하는 일은 별개입니다. Class.forName의 initialize=false 같은 사용에서 차이를 직접 관찰할 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 단, 로더 자체가 수행하는 코드는 별도이므로 초기화를 요청하지 않았다는 말이 아무 동작도 없다는 뜻은 아닙니다.</p></div></details>
@@ -148,3 +207,4 @@ first는 second와 실시간으로 연결된 수식 셀이 아닙니다. 초기�
 - [JVMS §4.7.2 ConstantValue](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.2).
 
 CONSTANT를 `Integer.parseInt("7")`의 결과로 바꾸고 출력 순서를 예상한 뒤 실행하세요. final 여부만으로 상수를 판정할 수 없는 이유를 확인할 수 있습니다.
+

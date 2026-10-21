@@ -138,6 +138,58 @@ java -XX:+PrintCompilation Lesson02
 
 <details class="question"><summary>확인 문제. 첫 요청만 2초이고 이후에는 20ms라면 JIT 때문이라고 답해도 될까요?</summary><div class="answer"><p><strong>판단:</strong> 가능한 가설 중 하나입니다. 첫 요청에만 실행되는 클래스 초기화, DNS 조회, DB 연결 생성, 파일 읽기도 같은 모양의 지연을 만들 수 있습니다.</p><p><strong>확인 방법:</strong> 프로세스 시작부터 첫 요청까지의 시간축에 클래스 로딩·컴파일 기록과 요청별 외부 호출 시간을 함께 놓습니다. 늦은 구간이 어디에 있는지 확인하고 같은 조건에서 여러 번 비교합니다. 단순히 프로세스를 오래 켜 두는 것과 실제 요청 경로를 반복 실행하는 것은 서로 다릅니다.</p><p><strong>꼬리질문:</strong> 워밍업 요청을 보내면 되나요? 도움이 될 수 있지만 대표적인 코드 경로가 실행되어야 합니다. 가벼운 상태 확인 URL만 호출했다면 실제 업무 메서드는 여전히 처음 실행될 수 있습니다.</p></div></details>
 
+## 심화 실험실: main이 시작됐는데 아직 실행 준비가 끝나지 않은 이유
+
+### 문을 열었다고 모든 창고 구역을 사용한 것은 아니다
+
+서버 기동은 건물의 정문을 연 것에 비유할 수 있습니다. 첫 요청이 냉동 구역에 들어가면 그때 필요한 설비가 처음 가동될 수 있습니다. 마찬가지로 Java 실행은 모든 클래스와 모든 메서드를 완전히 준비한 다음 main에 진입하는 단일 작업이 아닙니다. 어떤 클래스는 특정 분기에서 처음 사용되며, 특정 심벌의 연결이나 JIT 컴파일도 이후에 일어날 수 있습니다.
+
+```java
+// file: Deep02.java
+public class Deep02 {
+    static class LabelPrinter {
+        static { System.out.println("printer initialized"); }
+        static String print(int id) { return "label=" + id; }
+    }
+    public static void main(String[] args) throws Exception {
+        System.out.println("main entered");
+        Class.forName("Deep02$LabelPrinter", false, Deep02.class.getClassLoader());
+        System.out.println("type found");
+        System.out.println(LabelPrinter.print(42));
+        System.out.println(LabelPrinter.print(43));
+    }
+}
+```
+
+```sh
+javac --release 21 -g Deep02.java
+java Deep02
+java -Xlog:class+load=info,class+init=info Deep02
+```
+
+일반 실행의 출력 순서는 `main entered`, `type found`, `printer initialized`, `label=42`, `label=43`입니다. 첫 번째 로딩 요청은 초기화를 요청하지 않습니다. static 메서드를 처음 사용하는 시점에 초기화가 필요하며, 같은 클래스의 두 번째 호출에서는 완료된 초기화를 다시 수행하지 않습니다. 로그를 켠 실행에서는 JDK 내부 클래스의 기록도 섞이므로 자기 클래스 이름을 찾아 구분합니다.
+
+### 하나의 호출을 네 질문으로 분해하기
+
+| 질문 | 예제에서 확인하는 것 | 아직 단정할 수 없는 것 |
+|---|---|---|
+| 클래스가 발견되었나? | Class.forName이 정상 반환 | static 블록 실행 완료 |
+| 초기화가 완료되었나? | printer initialized 이후 정상 호출 | 모든 다른 클래스 초기화 완료 |
+| 메서드가 실행되었나? | label=42 반환 | JIT 컴파일 완료 |
+| 반복 호출이 빨라졌나? | 동일 조건의 측정 필요 | 개선 원인이 반드시 JIT라는 주장 |
+
+첫 호출은 클래스 초기화, 데이터 캐시 준비, DB 연결 생성, DNS 조회가 겹칠 수 있습니다. 두 번째 호출이 빨라졌다는 사실은 이들 중 하나 이상이 달라졌다는 뜻이지, 자동으로 JIT 효과라는 뜻은 아닙니다. JIT는 컴파일 로그나 JFR 등의 추가 관측으로 분리하고, 외부 시스템은 클라이언트 지표와 추적 시간으로 분리합니다.
+
+### readiness와 warm-up을 연결하는 방법
+
+실제 HTTP 포트가 열렸다는 확인은 “요청을 받을 수 있다”는 제한된 증거입니다. 중요한 입고 등록 경로의 첫 호출에서만 특정 라이브러리가 로드된다면 기동 검사로 그 결함을 잡지 못할 수 있습니다. 부작용 없는 준비 작업으로 필수 설정·연결·직렬화 경로를 확인하되, 모든 업무 요청을 실제로 실행하는 무차별 워밍업은 피해야 합니다. 재고를 바꾸는 요청을 준비 확인용으로 호출하면 검증 자체가 데이터 변경이 됩니다.
+
+서버가 준비되는 시간과 트래픽을 받기 시작한 이후의 지연 시간을 별도 기록하세요. 새 인스턴스만 p99가 높다면 초기화 로그와 연결 풀 생성, JIT 활동, CPU 제한을 같은 시간축에서 비교합니다. 전체 기동 시간이 늘었지만 첫 요청 지연이 줄었다면 비용이 사라진 것이 아니라 **사용자 요청 전으로 이동했을 수 있습니다**.
+
+<details class="question"><summary>심화 면접. 모든 클래스를 미리 로딩하면 첫 요청 지연이 없어지나요?</summary><div class="answer"><p><strong>답변:</strong> 없어지지 않습니다. 로딩과 초기화, JIT 컴파일, 외부 연결 준비는 다른 작업이고 실제 요청 데이터에 따라 필요한 경로도 달라집니다.</p><p><strong>설계:</strong> 사용자 지연에 민감한 핵심 경로를 선정하고 필요한 준비를 측정 가능한 단계로 나누겠습니다. 불필요한 초기화는 기동 시간과 메모리를 늘릴 수 있으므로 무조건 모든 클래스를 건드리는 접근은 피하겠습니다.</p><p><strong>꼬리질문:</strong> 워밍업 후에도 느리면? 같은 입력·부하로 외부 호출 시간, CPU 프로파일, 락 대기를 비교해 초기화 외의 원인을 확인하겠습니다. 준비 완료와 처리 용량 확보는 서로 다른 검증입니다.</p></div></details>
+
+추가 근거: [JVMS 실행 시작과 초기화](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.2), [Class.forName의 initialize 인자](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Class.html#forName(java.lang.String,boolean,java.lang.ClassLoader)).
+
 ## 8. 상세 면접 Q&A
 
 <details class="question"><summary>Q1. javac와 JIT 컴파일러는 무엇이 다른가요?</summary><div class="answer"><p>javac는 Java 소스를 class 파일로 만듭니다. JIT는 실행 중 JVM 코드와 프로파일을 활용해 CPU별 기계 코드를 생성합니다. javac는 실행 전 타입과 문법을 확인하고, JIT는 실제 실행 정보를 활용할 수 있다는 차이가 있습니다.</p><p>둘 다 컴파일러이지만 목적과 시점이 다릅니다. 바이트코드는 기계 코드와 같지 않으며 javac 성공이 모든 런타임 의존성의 성공을 보장하지 않습니다.</p><p><strong>구체적으로:</strong> 소스를 수정하면 javac로 산출물을 다시 만들어야 하지만, JIT는 실행 중 프로파일을 이용해 해당 프로세스의 코드를 최적화합니다. 서버에 소스 파일이 없어도 JIT는 동작할 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 컴파일 성공은 실행 의존성과 입력까지 검증했다는 뜻이 아니므로 실제 배포 조합의 실행 시험이 필요합니다.</p></div></details>
@@ -155,3 +207,4 @@ java -XX:+PrintCompilation Lesson02
 - [javap 명세](https://docs.oracle.com/en/java/javase/21/docs/specs/man/javap.html).
 
 `add`를 인스턴스 메서드로 바꾼 뒤 생성자와 호출 명령이 어떻게 바뀌는지 관찰하세요. `this`가 인자로 전달되는 방식은 04편, 호출 명령의 차이는 06편으로 연결됩니다.
+

@@ -136,6 +136,65 @@ Retained size는 이런 유지 관계를 분석할 때 사용하는 개념입니
 
 <details class="question"><summary>확인 문제. GC 직후 사용량이 늘어나는 추세라면 누수가 확정되나요?</summary><div class="answer"><p><strong>판단:</strong> 누수 가설을 조사할 이유는 있지만 바로 확정할 수는 없습니다. 정상적인 캐시 예열, 처리 중 요청 증가, 수집 범위 차이도 영향을 줄 수 있습니다.</p><p><strong>확인 방법:</strong> 일정한 부하에서 안정화 이후에도 유지량이 계속 늘어나는지, 업무상 끝난 객체가 어떤 경로로 남는지 확인합니다. 캐시의 최대 크기·만료·제거 정책과 실제 동작도 비교합니다. 핵심은 증가한 객체를 업무 수명과 연결하는 것입니다.</p><p><strong>꼬리질문:</strong> System.gc를 주기적으로 호출하면 해결되나요? 도달 가능한 객체를 업무상 불필요하다는 이유로 대신 지워 주지는 않습니다. 참조 유지 원인을 제거해야 하며, 강제 수집 요청이 오히려 지연 비용을 만들 수도 있습니다.</p></div></details>
 
+## 심화 실험실: 요청이 끝났는데 ThreadLocal 값이 살아 있는 이유
+
+### 퇴근한 손님의 짐을 직원 사물함에 두고 온 상황
+
+요청은 끝났어도 요청을 처리한 풀 스레드는 다음 요청을 위해 살아 있을 수 있습니다. ThreadLocal은 스레드에 연결된 저장 공간이므로 값을 넣은 뒤 지우지 않으면 업무 수명보다 긴 스레드 수명에 데이터가 묶일 수 있습니다. 메서드 반환이 모든 참조를 없애 주지 않는 대표 사례입니다.
+
+```java
+// file: Deep11.java
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+public class Deep11 {
+    static final ThreadLocal<String> REQUEST = new ThreadLocal<>();
+    public static void main(String[] args) throws Exception {
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            pool.submit(() -> REQUEST.set("request-A")).get();
+            System.out.println(pool.submit(() -> REQUEST.get()).get());
+            pool.submit(() -> {
+                try {
+                    REQUEST.set("request-B");
+                } finally {
+                    REQUEST.remove();
+                }
+            }).get();
+            System.out.println(pool.submit(() -> REQUEST.get()).get());
+        } finally {
+            pool.shutdown();
+        }
+    }
+}
+```
+
+```sh
+javac --release 21 Deep11.java
+java Deep11
+```
+
+출력은 `request-A`, `null`입니다. 단일 작업 스레드를 사용했으므로 다음 작업이 같은 스레드에서 실행됩니다. 첫 요청의 값을 지우지 않았기 때문에 다른 작업이 이전 값을 읽습니다. 이 실습은 GC 발생 여부를 기다리지 않고 **참조와 문맥이 남는 문제 자체**를 확인합니다.
+
+### 메모리 누수와 정보 혼입은 같은 생명주기 실수에서 출발한다
+
+값이 큰 byte 배열이면 메모리 유지 문제가 되고, 사용자·요청 식별자이면 문맥 혼입 문제가 됩니다. GC는 “이 값은 이전 요청에 속하니 지워야 한다”는 업무 규칙을 모릅니다. 살아 있는 스레드와 연결된 경로로 도달 가능하면 단순히 요청이 끝났다고 수집할 수 없습니다.
+
+ThreadLocalMap의 키가 약한 참조라는 설명만 보고 값도 자동으로 즉시 사라진다고 생각하면 안 됩니다. 키와 값의 참조 방식은 다릅니다. 키가 사라져도 정리 전까지 값이 유지되는 경우가 있으며, 이 예제처럼 ThreadLocal 자체를 static으로 계속 보유하면 키도 계속 살아 있습니다. 따라서 현재 요청의 정리는 업무 경계에서 remove로 명시합니다.
+
+### heap dump에서 물어볼 질문
+
+첫째, 큰 객체가 무엇인지 봅니다. 둘째, 그 객체를 붙잡는 경로가 풀 스레드의 ThreadLocal 저장 공간인지 확인합니다. 셋째, 작업 종료 이후에도 같은 경로가 남는지 봅니다. 얕은 크기가 작은 문맥 객체라도 여러 큰 버퍼를 붙잡고 있으면 retained size는 클 수 있습니다. 단순 객체 개수 순위만으로는 왜 남았는지 설명할 수 없습니다.
+
+다만 스레드 하나에 하나의 값을 덮어쓰는 코드라면 요청 수만큼 무한히 쌓이는 형태와는 다를 수 있습니다. 누수의 증가 형태는 저장 구조에 달려 있습니다. 원인을 설명할 때 “ThreadLocal이므로 무조건 무한 증가”라고 단정하지 말고 스레드 수, 키 수, 값의 크기와 정리 시점을 함께 보세요.
+
+### 비동기 작업에서는 전달과 정리가 모두 필요하다
+
+다른 Executor로 작업을 넘기면 기본 ThreadLocal 값이 자동으로 업무 문맥처럼 이동하지 않습니다. 명시적으로 전달하는 방법과 완료 시 정리하는 방법을 함께 설계해야 합니다. 전달만 구현하고 정리를 빠뜨리면 다음 요청에 이전 문맥이 남습니다. remove를 호출하는 위치도 값을 실제로 설정한 작업 스레드여야 합니다. 호출자 스레드에서 지워도 작업 스레드의 값이 지워지는 것은 아닙니다.
+
+<details class="question"><summary>심화 면접. GC가 있는데 ThreadLocal.remove가 왜 필요한가요?</summary><div class="answer"><p><strong>답변:</strong> GC는 도달 가능성을 판단하지 요청의 종료를 판단하지 않기 때문입니다. 풀 스레드가 살아 있는 동안 저장된 값이 계속 참조될 수 있어 요청 생명주기에 맞춘 정리가 필요합니다.</p><p><strong>재현:</strong> 단일 스레드 풀에서 A 작업이 값을 넣고 B 작업이 읽게 하면 이전 값이 보일 수 있습니다. finally에서 remove한 뒤 후속 작업이 null을 보는지 확인할 수 있습니다.</p><p><strong>진단:</strong> heap dump에서 스레드와 ThreadLocal을 통한 유지 경로를 찾고, 요청 식별자 혼입 여부도 확인하겠습니다. 키가 약한 참조라는 사실만으로 즉시 정리를 보장하지 않겠습니다.</p></div></details>
+
+추가 근거: [ThreadLocal의 스레드별 값과 remove](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/ThreadLocal.html).
+
 ## 8. 상세 면접 Q&A
 
 <details class="question"><summary>Q1. 순환 참조가 있으면 Java GC가 회수하지 못하나요?</summary><div class="answer"><p>추적 기반 GC는 루트에서의 도달 가능성을 봅니다. 서로만 참조하고 외부에서 도달할 수 없다면 순환 구조도 회수 후보가 될 수 있습니다. 단순 참조 카운팅의 한계를 모든 Java GC에 대입하면 안 됩니다.</p><p><strong>구체적으로:</strong> A와 B가 서로만 참조하고 Root에서 들어오는 경로가 없다면 고립된 그래프입니다. 참조 횟수만 세는 설명으로 Java GC의 생존 판단을 대신하면 안 됩니다.</p><p><strong>꼬리질문까지:</strong> static 컬렉션이 A를 추가로 참조하면 A를 통해 B도 연결될 수 있으므로 전체 경로를 봐야 합니다.</p></div></details>
@@ -153,3 +212,4 @@ Retained size는 이런 유지 관계를 분석할 때 사용하는 개념입니
 - [System.gc 계약](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/System.html#gc()).
 
 첨부 11편은 GC의 상세 알고리즘을 제공하지 않아 공식 GC 가이드로 보충했습니다. 다음 편에서는 모든 객체를 매번 검사하지 않도록 수명을 활용하는 세대별 수집을 배웁니다.
+

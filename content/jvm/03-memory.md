@@ -135,6 +135,63 @@ javap -c -v Lesson03
 
 <details class="question"><summary>확인 문제. 지역변수 두 개가 같은 객체를 가리키면 객체 메모리도 두 배인가요?</summary><div class="answer"><p><strong>판단:</strong> 객체가 두 개로 복제되는 것은 아닙니다. 참조 값을 담는 위치가 두 개이고 가리키는 객체는 하나일 수 있습니다. 두 사람이 같은 사물함의 번호를 적어 두었다고 사물함이 두 개 생기지 않는 것과 같습니다.</p><p><strong>추적 예:</strong> a와 b가 같은 Box를 가리킬 때 a.quantity를 바꾸면 b를 통해서도 같은 필드를 읽습니다. 이후 a에 null을 넣어도 b의 참조는 그대로 남습니다. 모든 유효한 강한 경로가 끊어졌는지를 확인해야 수명을 판단할 수 있습니다.</p><p><strong>꼬리질문:</strong> Heap 사용량이 줄었는데 RSS가 그대로라면 누수인가요? 그 사실 하나로는 아닙니다. JVM이 확보한 공간을 다음 할당에 재사용할 수 있으므로 시간에 따른 Heap·Native·RSS 변화를 함께 비교해야 합니다.</p></div></details>
 
+## 심화 실험실: Heap 사용량과 프로세스 메모리가 다른 이유를 직접 보기
+
+### 돈을 세는 기준부터 맞추자
+
+메모리를 예산에 비유하면 reserved는 사용할 주소 공간을 예약한 것, committed는 JVM 관점에서 사용 가능하도록 확보한 범위, used는 그 영역에서 사용 중이라고 집계하는 양에 가깝습니다. RSS는 운영체제가 프로세스에 대해 관측하는 실제 상주 페이지의 크기입니다. 서로 다른 장부이므로 숫자를 그대로 더하거나 빼면 오해가 생깁니다. committed 전체가 항상 RSS로 상주하는 것도 아닙니다.
+
+특히 컨테이너의 메모리 집계는 Java Heap 그래프와 다릅니다. Heap이 한도 아래여도 네이티브 메모리, 스레드 스택, 매핑된 파일 등으로 압박이 생길 수 있습니다. `-Xmx`를 컨테이너 한도와 같게 잡으면 다른 영역의 공간이 남지 않는 상황이 가능합니다. 다만 “언제나 70%”처럼 고정 비율만 외우기보다는 최대 부하에서 실제 영역별 사용과 여유를 관측해야 합니다.
+
+### Heap 객체와 그 객체가 관리하는 바깥 공간
+
+```java
+// file: Deep03.java
+import java.lang.management.ManagementFactory;
+import java.lang.management.BufferPoolMXBean;
+import java.nio.ByteBuffer;
+public class Deep03 {
+    public static void main(String[] args) {
+        ByteBuffer buffer = ByteBuffer.allocateDirect(4 * 1024 * 1024);
+        buffer.putInt(0, 42);
+        for (BufferPoolMXBean pool : ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)) {
+            if (pool.getName().equals("direct")) {
+                System.out.println("capacity=" + pool.getTotalCapacity());
+                System.out.println("used=" + pool.getMemoryUsed());
+            }
+        }
+        System.out.println("value=" + buffer.getInt(0));
+    }
+}
+```
+
+```sh
+javac --release 21 Deep03.java
+java -Xmx32m -XX:MaxDirectMemorySize=16m Deep03
+```
+
+`value=42`는 고정 결과입니다. capacity와 used는 런타임 전체 direct buffer 집계이므로 환경 의존 값입니다. 여기서 ByteBuffer를 가리키는 Java 객체는 Heap 객체지만 그 내용 저장소는 direct 메모리입니다. **객체가 Heap에 있다는 사실과 그 객체가 사용하는 자원이 전부 Heap에 있다는 주장은 다릅니다.** 포인터 크기의 작은 관리 객체가 큰 외부 공간을 붙잡을 수 있습니다.
+
+### 2 GiB 컨테이너의 가상 예산표
+
+| 항목 | 예시 관측/설정 | 읽는 법 |
+|---|---|---|
+| 컨테이너 한도 | 2,048 MiB | 프로세스 밖의 집계도 포함되는지 지표 정의 확인 |
+| Heap 최대 설정 | 1,024 MiB | 현재 사용량 또는 RSS가 아님 |
+| Direct buffer 용량 합 | 256 MiB | 네이티브 전체 사용량이 아님 |
+| Metaspace committed | 100 MiB | Heap 밖 클래스 메타데이터 관련 영역 |
+| 스레드 200개, Xss 1 MiB | 최대 규모를 가늠하는 단서 | 200 MiB RSS를 정확히 의미하지 않음 |
+
+이 표에서 남은 메모리를 단순 뺄셈으로 정확히 구할 수는 없습니다. 설정 상한·용량·committed가 섞였고 코드 캐시·GC 내부 구조·기타 네이티브 할당도 빠졌기 때문입니다. 표의 목적은 빠진 영역을 찾는 것입니다. 실제 판단은 같은 시점의 컨테이너 지표, RSS, Heap, NMT, buffer pool 통계를 서로 대조해서 합니다.
+
+### 잘못된 처방을 피하는 순서
+
+Heap이 안정적이면 먼저 “관측한 Heap 그래프가 무엇인가?”를 확인합니다. GC 직후 used인지, committed인지부터 구분하세요. 다음으로 direct buffer 용량, 플랫폼 스레드 수, 로드된 클래스 수의 증가 추세를 봅니다. JVM에 NMT를 켜 두었다면 baseline과 diff를 비교하지만, NMT가 모든 외부 네이티브 라이브러리 할당을 완전히 추적하는 것은 아닙니다. Heap dump에 큰 배열이 없다는 사실만으로 프로세스 전체 누수를 배제하지 않습니다.
+
+<details class="question"><summary>심화 면접. Heap이 500 MiB인데 RSS가 1.5 GiB라면 1 GiB가 누수인가요?</summary><div class="answer"><p><strong>답변:</strong> 그 차이만으로 누수라고 판단하지 않습니다. 두 지표의 정의가 다르고, JVM에는 Heap 밖의 정상적인 메모리 사용도 존재합니다.</p><p><strong>조사:</strong> 동일한 부하를 반복하면서 Heap의 수집 후 생존량, native memory 범주, direct buffer, 스레드 및 클래스 수를 비교하겠습니다. 증가가 작업 종료 후에도 계속되는지, 그 영역이 정상적인 캐시 또는 예약 공간인지 확인해야 합니다.</p><p><strong>한계:</strong> Xss 곱셈이나 NMT total을 RSS와 정확히 일치시키려 하지 않겠습니다. 가상 주소 공간, committed와 상주 페이지의 차이를 먼저 설명하겠습니다.</p></div></details>
+
+추가 근거: [BufferPoolMXBean 통계의 의미](https://docs.oracle.com/en/java/javase/21/docs/api/java.management/java/lang/management/BufferPoolMXBean.html), [Native Memory Tracking](https://docs.oracle.com/en/java/javase/21/vm/native-memory-tracking.html).
+
 ## 8. 상세 면접 Q&A
 
 <details class="question"><summary>Q1. 지역변수는 스택, 객체는 Heap이라고 말하면 항상 정확한가요?</summary><div class="answer"><p>학습용 논리 모델로는 유용합니다. 다만 참조 변수와 객체를 구분해야 하며, HotSpot 최적화로 지역값이 레지스터에 놓이거나 객체 할당이 제거될 수 있습니다. JVMS의 실행 의미와 실제 최적화된 메모리 배치를 나누어 설명합니다.</p><p><strong>구체적으로:</strong> 객체의 int 필드는 기본형이지만 Heap 객체의 상태에 속합니다. 지역변수인 참조 값과 그 값이 가리키는 객체도 서로 다른 대상입니다.</p><p><strong>꼬리질문까지:</strong> JIT가 값을 레지스터에 두거나 객체 할당을 없애는 경우를 설명하려면 논리 모델과 실제 배치를 나누어 답하세요.</p></div></details>
@@ -152,3 +209,4 @@ javap -c -v Lesson03
 - [java의 메모리 옵션](https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html).
 
 예제에서 `localRef = new Box()`로 바꿔 두 출력이 왜 달라지는지 설명하세요. 참조의 위치와 객체의 정체성을 구분하는 연습입니다.
+

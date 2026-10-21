@@ -175,6 +175,65 @@ false
 
 <details class="question"><summary>확인 문제. 객체를 한 번 만들어 계속 재사용하면 항상 더 빠른가요?</summary><div class="answer"><p><strong>판단:</strong> 아닙니다. 재사용하려면 상태를 초기화해야 하고 여러 스레드가 공유하면 동기화가 필요할 수 있습니다. 풀에 넣어 둔 객체가 계속 살아남으면 유지 메모리도 늘어납니다.</p><p><strong>비교 방법:</strong> 같은 입력과 동시성 조건에서 새로 생성하는 버전과 재사용 버전의 할당률, 지연, 처리량을 측정합니다. 객체의 생성 비용이 큰지, 짧게 살다 사라지는지, 공유가 필요한지를 함께 봅니다. 소스의 new 개수 감소가 성능 향상을 보장하지는 않습니다.</p><p><strong>꼬리질문:</strong> 스레드별 풀이라면요? 경쟁을 줄일 수 있지만 스레드 수만큼 유지량이 늘거나 큰 객체를 오래 붙잡을 수 있습니다. ThreadLocal을 쓴다면 제거 시점과 스레드 풀의 수명까지 포함해야 합니다.</p></div></details>
 
+## 심화 실험실: 불변 참조·불변 객체·복사는 서로 다른 약속이다
+
+### 상자 손잡이를 고정해도 상자 안 물건은 바꿀 수 있다
+
+final 참조는 변수가 다른 객체를 가리키도록 재대입하는 것을 막습니다. 객체 내부 상태를 모두 얼리는 기능은 아닙니다. 이 구분을 놓치면 DTO를 복사했다고 생각했는데 원본 주문의 상품 목록까지 변하는 문제가 생깁니다. 객체와 참조를 번호표로 설명했던 내용을 실제 컬렉션으로 확장해 봅시다.
+
+```java
+// file: Deep10.java
+import java.util.ArrayList;
+import java.util.List;
+public class Deep10 {
+    static class Item {
+        int quantity;
+        Item(int quantity) { this.quantity = quantity; }
+    }
+    public static void main(String[] args) {
+        final List<Item> original = new ArrayList<>();
+        original.add(new Item(10));
+        List<Item> copy = new ArrayList<>(original);
+        copy.get(0).quantity = 20;
+        copy.clear();
+        System.out.println("original size=" + original.size());
+        System.out.println("quantity=" + original.get(0).quantity);
+        List<Item> fixed = List.copyOf(original);
+        fixed.get(0).quantity = 30;
+        System.out.println("fixed quantity=" + original.get(0).quantity);
+    }
+}
+```
+
+```sh
+javac --release 21 Deep10.java
+java Deep10
+```
+
+출력은 `original size=1`, `quantity=20`, `fixed quantity=30`입니다. original과 copy는 서로 다른 List 객체지만 원소 참조는 같은 Item을 가리킵니다. copy.clear는 copy의 원소 연결을 끊지만 original의 연결을 끊지 않습니다. List.copyOf의 결과는 리스트 구조의 변경을 허용하지 않지만, 원소 Item을 깊은 불변 객체로 바꾸지는 않습니다.
+
+### 어떤 객체가 새로 만들어졌는지 따로 세기
+
+| 작업 | 바뀐 대상 | 공유가 유지되는 부분 |
+|---|---|---|
+| new Item(10) | Item 하나 생성 | 아직 공유되지 않음 |
+| new ArrayList<>(original) | 별도 리스트 구조 생성 | 기존 Item 참조 |
+| copy.get(0).quantity = 20 | 공유 Item 내부 필드 | 양쪽이 같은 값 관측 |
+| copy.clear() | copy의 원소 구조 | original은 Item을 계속 보유 |
+| List.copyOf(original) | 변경 불가 리스트 결과 | 원소 객체의 가변성은 유지 |
+
+객체 복사는 요구하는 변경 격리 수준부터 결정해야 합니다. 원소가 불변 값 객체라면 참조를 공유해도 안전할 수 있습니다. 가변 객체라면 원소까지 새로 복사해야 하지만, 그래프에 순환이나 공유 관계가 있으면 무조건 재귀 복사하는 것 역시 간단하지 않습니다. 어떤 상태를 누구에게 노출할지 정한 뒤 복사 전략을 선택해야 합니다.
+
+### 이 내용이 할당·GC와 연결되는 지점
+
+매 요청마다 깊은 복사를 하면 할당량이 늘 수 있습니다. 그렇다고 복사를 제거해 요청 간 가변 상태를 공유하면 동시성 오류를 만들 수 있습니다. “new가 적다”라는 하나의 지표로 좋은 코드를 판단하지 마세요. 불변 데이터 공유, 필요한 부분만 복사, 수명 제한 같은 설계를 비교해야 합니다.
+
+탈출 분석도 개발자가 관측할 수 있는 공유 의미를 무시하지 못합니다. 이 예제의 Item이 여러 경로에서 관측된다면 최적화는 그 관측을 보존해야 합니다. JVM이 물리적 할당을 없앨 수 있는지와 Java 소스에서 값의 정체성과 공유가 무엇인지는 별개 층입니다. JIT 최적화를 가정하고 잘못된 공유를 정당화해서는 안 됩니다.
+
+<details class="question"><summary>심화 면접. final List와 List.copyOf를 쓰면 DTO가 불변인가요?</summary><div class="answer"><p><strong>답변:</strong> 그 사실만으로 깊은 불변성은 성립하지 않습니다. final은 참조의 재대입을 막고 List.copyOf는 리스트 구조 변경을 막지만 원소 객체의 필드는 여전히 바뀔 수 있습니다.</p><p><strong>설계:</strong> 원소까지 불변 값으로 구성하거나 외부 변경 경로를 차단해야 합니다. 생성자 입력과 getter가 내부 가변 객체를 그대로 노출하는지도 확인합니다.</p><p><strong>비용:</strong> 방어적 복사는 안전성을 얻는 대신 할당과 복사 비용을 만들 수 있습니다. 데이터 규모와 수명, 변경 빈도를 측정하고 필요한 경계에서 적용하겠습니다.</p></div></details>
+
+추가 근거: [List.copyOf의 계약](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/List.html#copyOf(java.util.Collection)), [JLS final 변수](https://docs.oracle.com/javase/specs/jls/se21/html/jls-4.html#jls-4.12.4).
+
 ## 8. 상세 면접 Q&A
 
 <details class="question"><summary>Q1. 참조를 복사하면 객체도 복사되나요?</summary><div class="answer"><p>일반 대입은 참조 값만 복사합니다. 두 참조가 같은 객체를 가리키므로 필드 변경이 공유됩니다. 별도 객체를 만들려면 복사 생성·팩터리 등 명시적 작업이 필요하며 내부 참조까지 복사할지는 얕은 복사와 깊은 복사의 별도 문제입니다.</p><p><strong>구체적으로:</strong> a와 b가 같은 Box를 가리키면 b.quantity 변경은 a로 읽는 값에도 영향을 줍니다. b에 새 Box를 대입하면 b만 새 객체를 가리킵니다.</p><p><strong>꼬리질문까지:</strong> 얕은 복사도 내부 참조를 공유할 수 있으므로 객체 그래프 전체가 복제되었다고 가정하지 마세요.</p></div></details>
@@ -192,3 +251,4 @@ false
 - [OpenJDK JMH](https://github.com/openjdk/jmh): 최적화에 속지 않는 측정 실습으로 연결.
 
 temporary가 만든 Box를 static 컬렉션에 저장하도록 바꾸면 왜 할당 제거 조건이 달라지는지 설명하세요. 다음 편은 남은 객체 중 무엇을 회수할지 판단하는 GC 이야기입니다.
+

@@ -176,6 +176,62 @@ javap -c -v -p Walkthrough05
 
 <details class="question"><summary>확인 문제. int 덧셈이 범위를 넘으면 반드시 예외가 발생하나요?</summary><div class="answer"><p><strong>판단:</strong> 일반적인 int 덧셈은 오버플로를 이유로 자동 예외를 던지지 않습니다. 32비트 정수 연산 결과에 맞게 값이 돌아갑니다. 따라서 재고 합계나 금액 계산에서 범위 검사를 의도했다면 그 의도를 코드로 표현해야 합니다.</p><p><strong>비교:</strong> 정수 나눗셈의 0 나누기는 ArithmeticException을 발생시킵니다. “정수 연산이 잘못되면 전부 같은 방식으로 실패한다”는 규칙은 없습니다. 명령과 Java API의 계약을 구분해야 합니다.</p><p><strong>꼬리질문:</strong> long으로 바꾸면 영원히 안전한가요? 표현 범위가 넓어질 뿐 유한하다는 점은 같습니다. 입력 범위와 최대 누적량을 먼저 계산하고 필요한 자료형 및 검증 방법을 선택해야 합니다.</p></div></details>
 
+## 심화 실험실: 계산 순서와 오버플로를 명령 단위로 추적하기
+
+### 같은 곱셈인데 왜 long 결과가 다를까
+
+입고 박스 수에 박스당 수량을 곱해 전체 수량을 구한다고 합시다. 최종 변수를 long으로 선언했으니 중간 계산도 long일 것이라고 생각하기 쉽습니다. 그러나 **대입받는 타입이 아니라 연산에 참여하는 피연산자의 타입**이 중간 계산을 결정합니다. 작은 계산기에 먼저 숫자를 넣어 넘쳐 버린 다음 큰 종이에 결과를 적어도 원래 값은 복구되지 않습니다.
+
+```java
+// file: Deep05.java
+public class Deep05 {
+    static long tooLate(int boxes, int perBox) {
+        return (long) (boxes * perBox);
+    }
+    static long early(int boxes, int perBox) {
+        return (long) boxes * perBox;
+    }
+    public static void main(String[] args) {
+        System.out.println(tooLate(50_000, 50_000));
+        System.out.println(early(50_000, 50_000));
+        try {
+            System.out.println(Math.multiplyExact(50_000, 50_000));
+        } catch (ArithmeticException e) {
+            System.out.println("overflow detected");
+        }
+    }
+}
+```
+
+```sh
+javac --release 21 -g Deep05.java
+java Deep05
+javap -c -p Deep05
+```
+
+출력은 `-1794967296`, `2500000000`, `overflow detected`입니다. int 곱셈은 결과가 범위를 넘었다고 자동 예외를 던지지 않습니다. 32비트 결과가 만들어지고 그 음수를 long으로 넓히면 음수 그대로 넓어집니다. multiplyExact는 범위를 넘은 계산을 명시적으로 감지할 때 사용합니다.
+
+| tooLate의 핵심 명령 | 스택의 의미 | early의 핵심 명령 | 스택의 의미 |
+|---|---|---|---|
+| iload_0, iload_1 | int 두 값 준비 | iload_0, i2l | 첫 값을 먼저 long으로 변환 |
+| imul | 이미 int 범위에서 곱함 | iload_1, i2l | 두 번째 값도 long 연산에 맞춤 |
+| i2l | 잘린 결과를 long으로 넓힘 | lmul | long 곱셈 |
+| lreturn | 음수 결과 전달 | lreturn | 의도한 양수 결과 전달 |
+
+### 스택 깊이와 값 개수를 구분하자
+
+long과 double은 피연산자 스택 깊이를 계산할 때 두 단위를 차지합니다. 따라서 long 두 개를 곱하기 전에는 값은 두 개지만 깊이 계산에는 네 단위가 필요합니다. 이것이 “64비트 JVM에서는 모든 값이 슬롯 하나”라는 설명이 틀린 이유입니다. JVMS의 추상적인 슬롯 규칙과 CPU 레지스터 크기는 별개입니다.
+
+### 예외도 계산 순서를 따른다
+
+`a() + b()`는 Java 언어가 정한 평가 순서를 따릅니다. a가 먼저 평가되며 a에서 예외가 발생하면 b를 평가하지 않습니다. JIT가 코드를 재배치하더라도 허용된 관측 결과를 보존해야 합니다. 바이트코드를 공부하는 목적은 모든 기계 명령의 실행 순서를 고정해서 상상하는 것이 아니라 **어떤 결과와 부수 효과가 언어적으로 보장되는지**를 읽는 데 있습니다.
+
+재고 계산에서는 타입을 넓히는 위치를 검토하고, 범위 초과가 업무 오류라면 exact 계열이나 별도 범위 검증으로 드러내세요. 예외가 발생하면 요청 전체를 어떻게 처리할지는 트랜잭션과 API 정책 문제이며 JVM이 업무적으로 올바른 수량을 추측해 주지는 않습니다.
+
+<details class="question"><summary>심화 면접. long total = intValue * intValue가 안전하지 않을 수 있는 이유는?</summary><div class="answer"><p><strong>답변:</strong> 두 피연산자가 int면 int 곱셈을 먼저 하고 그 결과를 long에 대입하기 때문입니다. 중간 오버플로가 발생한 뒤 타입을 넓혀도 손실된 값을 복구하지 못합니다.</p><p><strong>검증:</strong> javap에서 imul 뒤 i2l인지, 먼저 i2l을 실행하고 lmul을 수행하는지 확인할 수 있습니다. long 자체도 유한한 범위를 가지므로 무조건 안전한 수 체계는 아닙니다.</p><p><strong>실무:</strong> 정상 업무 범위를 타입과 검증으로 표현하고 경계값을 확인합니다. 오버플로를 실패로 다룰 경우 Math.multiplyExact를 사용하고 실패를 무시한 채 음수 수량을 저장하지 않도록 합니다.</p></div></details>
+
+추가 근거: [JVMS imul](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.imul), [Math.multiplyExact](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Math.html#multiplyExact(int,int)).
+
 ## 8. 상세 면접 Q&A
 
 <details class="question"><summary>Q1. load는 지역변수의 값을 스택으로 옮기나요?</summary><div class="answer"><p>값을 복사해 올립니다. load 뒤에도 지역변수의 원래 값은 남습니다. store는 스택에서 값을 꺼내 슬롯에 저장합니다. 이 차이를 놓치면 같은 인자를 여러 번 사용하는 메서드를 추적할 수 없습니다.</p><p><strong>구체적으로:</strong> iload_0 뒤에도 지역 0의 값은 남습니다. 스택에 적재된 값을 iadd가 소비해도 원래 지역변수를 다시 읽을 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 반대로 istore는 스택 값을 꺼내 지역 슬롯을 갱신합니다. 각 명령 전후에 지역변수와 스택을 따로 그려 보세요.</p></div></details>
@@ -193,3 +249,4 @@ javap -c -v -p Walkthrough05
 - [JVMS §3.3 산술 예제](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-3.html#jvms-3.3).
 
 add를 곱셈과 뺄셈으로 바꾸고 명령 이름만 달라지는지 확인하세요. 뺄셈에서는 위에서 꺼낸 두 값의 순서가 결과에 영향을 주므로 스택 표를 다시 작성해 보세요.
+

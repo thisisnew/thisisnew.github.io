@@ -153,6 +153,55 @@ javap -c -v -p Walkthrough07
 
 <details class="question"><summary>확인 문제. 라이브러리 메서드 반환 타입을 int에서 long으로 바꾸면 기존 호출자는 그대로 쓸 수 있나요?</summary><div class="answer"><p><strong>판단:</strong> 기존 바이너리 호출자가 기대하는 descriptor와 새 메서드의 descriptor가 달라집니다. Java 소스에서 반환 타입만 다른 오버로딩을 선언할 수 있는지와 별개로, JVM의 메서드 참조에는 반환 타입도 포함됩니다.</p><p><strong>예:</strong> 기존 호출자가 ()I를 참조하고 새 라이브러리에 ()J만 있다면 기대한 메서드를 찾지 못하는 링크 오류로 이어질 수 있습니다. 소스를 다시 컴파일해 보는 것과 기존 class를 새 라이브러리에 연결하는 것은 다른 시험입니다.</p><p><strong>꼬리질문:</strong> 소스 호환이면 바이너리 호환도 자동인가요? 아닙니다. 라이브러리 변경에서는 기존 산출물을 그대로 실행하는 시험과 새로 컴파일하는 시험을 구분해야 합니다. javap의 descriptor 비교가 이 차이를 눈으로 확인하는 출발점입니다.</p></div></details>
 
+## 심화 실험실: 제네릭 오버라이딩 뒤에 숨은 bridge 메서드
+
+### JVM이 찾는 이름표는 소스와 다르다
+
+배송 창구에서 “처리 담당자”라는 이름만으로는 부족합니다. 어떤 종류의 요청을 받고 무엇을 돌려주는지도 맞아야 합니다. class 파일의 메서드는 이름과 descriptor로 연결됩니다. 제네릭 소스의 타입 정보를 소거하면 부모 인터페이스와 구현 메서드의 descriptor가 달라질 수 있는데, javac는 이 간격을 메우는 bridge 메서드를 만들 수 있습니다.
+
+```java
+// file: Deep07.java
+public class Deep07 {
+    interface Mapper<T> { T map(T value); }
+    static class Labels implements Mapper<String> {
+        public String map(String value) { return "label:" + value; }
+    }
+    public static void main(String[] args) {
+        Mapper<String> mapper = new Labels();
+        System.out.println(mapper.map("42"));
+    }
+}
+```
+
+```sh
+javac --release 21 -g Deep07.java
+java Deep07
+javap -c -v -p 'Deep07$Labels'
+```
+
+출력은 `label:42`입니다. Labels의 출력에는 직접 작성한 `map(String):String` 외에 `map(Object):Object` 형태의 메서드가 보입니다. 후자에는 `ACC_BRIDGE`, `ACC_SYNTHETIC` 플래그가 표시됩니다. 생성자는 별도 메서드이므로 메서드 개수를 셀 때 함께 고려합니다.
+
+| 정보 | 직접 작성한 구현 | 생성된 연결 메서드 |
+|---|---|---|
+| descriptor | (Ljava/lang/String;)Ljava/lang/String; | (Ljava/lang/Object;)Ljava/lang/Object; |
+| 하는 일 | 문자열 접두어를 붙임 | Object를 String으로 검사 후 실제 구현 호출 |
+| 역할 | 업무 동작 | 소거된 인터페이스 호출과 구현을 연결 |
+| 소스에 명시됨 | 예 | 아니요 |
+
+### 상수 풀까지 역으로 따라가기
+
+bridge 내부의 invokevirtual 옆 `#번호`를 찾고 상수 풀의 Methodref를 확인하세요. 거기서 클래스 정보와 NameAndType을 따라가면 실제 호출하는 String 버전의 이름과 descriptor를 만납니다. 이 과정은 “명령 → 심벌 참조 → 이름과 타입 → 대상”이라는 읽기 방법입니다. #번호는 파일마다 바뀌므로 번호 자체가 API 식별자는 아닙니다.
+
+Signature 속성은 제네릭 선언 정보를 보존하는 데 쓰이지만 JVM 호출 descriptor를 대체하지 않습니다. 따라서 리플렉션에서 메서드 목록을 보면 소스에 하나만 적은 것처럼 보이는 메서드가 두 개 나타날 수 있습니다. 프레임워크가 메서드 스캔을 수행할 때 bridge·synthetic 여부를 고려하는 이유입니다. 다만 synthetic이라고 언제나 bridge인 것은 아닙니다.
+
+### NoSuchMethodError를 연결해 보기
+
+라이브러리에서 메서드의 매개변수 또는 반환 타입을 바꾸면 기존 호출자가 기대한 descriptor와 새 바이너리의 descriptor가 달라질 수 있습니다. 소스 수준에서 “이름은 그대로인데?”라고 보더라도 런타임 연결은 실패할 수 있습니다. 이때 호출자 class의 Methodref와 실제 배포된 라이브러리 메서드를 비교해야 합니다. 소스 코드를 최신 버전끼리 비교하는 것만으로는 오래된 호출자 바이너리가 가진 기대를 알 수 없습니다.
+
+<details class="question"><summary>심화 면접. 소스에 없는 public 메서드가 javap에서 보이면 조작된 class인가요?</summary><div class="answer"><p><strong>답변:</strong> 반드시 그렇지는 않습니다. 컴파일러가 제네릭 소거와 다형성을 연결하기 위해 bridge 메서드를 생성한 정상 결과일 수 있습니다.</p><p><strong>확인:</strong> ACC_BRIDGE와 ACC_SYNTHETIC 플래그, descriptor, 내부에서 호출하는 대상 메서드를 확인합니다. 이 예제에서는 Object 버전이 String 버전으로 위임합니다.</p><p><strong>꼬리질문:</strong> 리플렉션 스캐너에서는 소스 메서드와 bridge를 중복 업무 메서드로 처리하지 않도록 해야 합니다. 다만 생성 메서드를 무조건 전부 버리는 정책보다 스캐너가 찾는 의미와 프레임워크의 처리 규칙을 먼저 확인해야 합니다.</p></div></details>
+
+추가 근거: [JVMS method_info와 플래그](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.6), [Signature 속성](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.9).
+
 ## 8. 상세 면접 Q&A
 
 <details class="question"><summary>Q1. 상수 풀의 상수는 수정 불가능한 값만 뜻하나요?</summary><div class="answer"><p>일반적인 상수 변수의 의미보다 넓습니다. class 형식의 constant_pool에는 런타임에 해석할 클래스·필드·메서드의 심벌 참조도 들어갑니다. static final 필드만 보관하는 장소가 아닙니다.</p><p><strong>구체적으로:</strong> Methodref는 숫자 상수라기보다 실행 시 연결할 메서드에 관한 심벌 정보입니다. Class나 NameAndType처럼 서로 다른 태그의 항목이 연결됩니다.</p><p><strong>꼬리질문까지:</strong> 상수 풀이라는 이름만 보고 static final 필드 값만 모여 있다고 답하지 않습니다.</p></div></details>
@@ -170,3 +219,4 @@ javap -c -v -p Walkthrough07
 - [JVMS §5.1 런타임 상수 풀](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.1).
 
 LABEL을 일반 static 필드로 바꾸고 ConstantValue와 필드 접근 명령이 어떻게 변하는지 보세요. 이 차이는 09편의 초기화 트리거로 이어집니다.
+

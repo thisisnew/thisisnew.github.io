@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="load·store·add·return의 의미, 슬롯과 스택 변화, 분기·타입·예외를 직접 추적한다"><title>JVM 05 · 피연산자 스택과 바이트코드: 덧셈 한 줄을 해부하기 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/jvm-study-05.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><script src="/assets/series-category.js" defer></script><link rel="stylesheet" href="/assets/jvm-study.css"></head><body><main><a href="/">← 전체 글</a> · <a href="/posts/jvm-study-00.html">JVM 학습 지도</a><header><p class="meta">JVM QUEST · 05 / 16 · JAVA 21 · 2026-10-19</p><h1>피연산자 스택과 바이트코드: 덧셈 한 줄을 해부하기</h1><p class="subtitle">load·store·add·return의 의미, 슬롯과 스택 변화, 분기·타입·예외를 직접 추적한다</p><p class="note">기준: Java SE 21 사양과 HotSpot JDK 21. 첨부 자료의 JVMS 23·JDK 17 발췌는 이 기준으로 대조했습니다. 설명 속 장애 상황은 학습용 가상 사례입니다. 예제는 외부 라이브러리 없이 실행할 수 있습니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이 글에서 배울 것</h2><ol><li><a href="#section-1">시작 전에: 이 편에서 쓰는 말</a></li><li><a href="#section-2">1. 저장 서랍과 계산 쟁반</a></li><li><a href="#section-3">2. 실행할 코드와 예상 결과</a></li><li><a href="#section-4">3. 한 명령씩 상태를 바꾸기</a></li><li><a href="#section-5">4. 타입을 명령에 담는 이유</a></li><li><a href="#section-6">5. 분기는 스택 상태도 맞아야 한다</a></li><li><a href="#section-7">6. 정수 연산에서 자주 놓치는 의미</a></li><li><a href="#section-8">7. 실무 연결: 바이트코드 네 줄도 원자적이지 않다</a></li><li><a href="#section-9">더 깊이: 상수·형변환·증가 명령의 예외적인 모습</a></li><li><a href="#section-10">차근차근 이해하기: 스택은 계산 결과를 전달하는 규칙이다</a></li><li><a href="#section-11">8. 상세 면접 Q&amp;A</a></li><li><a href="#section-12">9. 공식 근거와 다음 실습</a></li></ol></aside><article><h2 id="section-1">시작 전에: 이 편에서 쓰는 말</h2>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="load·store·add·return의 의미, 슬롯과 스택 변화, 분기·타입·예외를 직접 추적한다"><title>JVM 05 · 피연산자 스택과 바이트코드: 덧셈 한 줄을 해부하기 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/jvm-study-05.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><script src="/assets/series-category.js" defer></script><link rel="stylesheet" href="/assets/jvm-study.css"></head><body><main><a href="/">← 전체 글</a> · <a href="/posts/jvm-study-00.html">JVM 학습 지도</a><header><p class="meta">JVM QUEST · 05 / 16 · JAVA 21 · 2026-10-21</p><h1>피연산자 스택과 바이트코드: 덧셈 한 줄을 해부하기</h1><p class="subtitle">load·store·add·return의 의미, 슬롯과 스택 변화, 분기·타입·예외를 직접 추적한다</p><p class="note">기준: Java SE 21 사양과 HotSpot JDK 21. 첨부 자료의 JVMS 23·JDK 17 발췌는 이 기준으로 대조했습니다. 설명 속 장애 상황은 학습용 가상 사례입니다. 예제는 외부 라이브러리 없이 실행할 수 있습니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이 글에서 배울 것</h2><ol><li><a href="#section-1">시작 전에: 이 편에서 쓰는 말</a></li><li><a href="#section-2">1. 저장 서랍과 계산 쟁반</a></li><li><a href="#section-3">2. 실행할 코드와 예상 결과</a></li><li><a href="#section-4">3. 한 명령씩 상태를 바꾸기</a></li><li><a href="#section-5">4. 타입을 명령에 담는 이유</a></li><li><a href="#section-6">5. 분기는 스택 상태도 맞아야 한다</a></li><li><a href="#section-7">6. 정수 연산에서 자주 놓치는 의미</a></li><li><a href="#section-8">7. 실무 연결: 바이트코드 네 줄도 원자적이지 않다</a></li><li><a href="#section-9">더 깊이: 상수·형변환·증가 명령의 예외적인 모습</a></li><li><a href="#section-10">차근차근 이해하기: 스택은 계산 결과를 전달하는 규칙이다</a></li><li><a href="#section-11">심화 실험실: 계산 순서와 오버플로를 명령 단위로 추적하기</a></li><li><a href="#section-12">8. 상세 면접 Q&amp;A</a></li><li><a href="#section-13">9. 공식 근거와 다음 실습</a></li></ol></aside><article><h2 id="section-1">시작 전에: 이 편에서 쓰는 말</h2>
 <p>처음 읽는다면 아래 용어의 뜻만 확인한 뒤 본문으로 넘어가세요. 먼저 예제의 결과를 예상하고, 실행 과정을 따라간 다음, 면접 답변을 펼쳐 자신의 설명과 비교하면 좋습니다.</p>
 <table>
 <thead>
@@ -205,7 +205,76 @@ javap -c -v -p Walkthrough05
 </code></pre>
 <details class="question"><summary>확인 문제. int 덧셈이 범위를 넘으면 반드시 예외가 발생하나요?</summary><div class="answer"><p><strong>판단:</strong> 일반적인 int 덧셈은 오버플로를 이유로 자동 예외를 던지지 않습니다. 32비트 정수 연산 결과에 맞게 값이 돌아갑니다. 따라서 재고 합계나 금액 계산에서 범위 검사를 의도했다면 그 의도를 코드로 표현해야 합니다.</p><p><strong>비교:</strong> 정수 나눗셈의 0 나누기는 ArithmeticException을 발생시킵니다. “정수 연산이 잘못되면 전부 같은 방식으로 실패한다”는 규칙은 없습니다. 명령과 Java API의 계약을 구분해야 합니다.</p><p><strong>꼬리질문:</strong> long으로 바꾸면 영원히 안전한가요? 표현 범위가 넓어질 뿐 유한하다는 점은 같습니다. 입력 범위와 최대 누적량을 먼저 계산하고 필요한 자료형 및 검증 방법을 선택해야 합니다.</p></div></details>
 
-<h2 id="section-11">8. 상세 면접 Q&amp;A</h2>
+<h2 id="section-11">심화 실험실: 계산 순서와 오버플로를 명령 단위로 추적하기</h2>
+<h3>같은 곱셈인데 왜 long 결과가 다를까</h3>
+<p>입고 박스 수에 박스당 수량을 곱해 전체 수량을 구한다고 합시다. 최종 변수를 long으로 선언했으니 중간 계산도 long일 것이라고 생각하기 쉽습니다. 그러나 <strong>대입받는 타입이 아니라 연산에 참여하는 피연산자의 타입</strong>이 중간 계산을 결정합니다. 작은 계산기에 먼저 숫자를 넣어 넘쳐 버린 다음 큰 종이에 결과를 적어도 원래 값은 복구되지 않습니다.</p>
+<pre><code class="language-java">// file: Deep05.java
+public class Deep05 {
+    static long tooLate(int boxes, int perBox) {
+        return (long) (boxes * perBox);
+    }
+    static long early(int boxes, int perBox) {
+        return (long) boxes * perBox;
+    }
+    public static void main(String[] args) {
+        System.out.println(tooLate(50_000, 50_000));
+        System.out.println(early(50_000, 50_000));
+        try {
+            System.out.println(Math.multiplyExact(50_000, 50_000));
+        } catch (ArithmeticException e) {
+            System.out.println(&quot;overflow detected&quot;);
+        }
+    }
+}
+</code></pre>
+<pre><code class="language-sh">javac --release 21 -g Deep05.java
+java Deep05
+javap -c -p Deep05
+</code></pre>
+<p>출력은 <code>-1794967296</code>, <code>2500000000</code>, <code>overflow detected</code>입니다. int 곱셈은 결과가 범위를 넘었다고 자동 예외를 던지지 않습니다. 32비트 결과가 만들어지고 그 음수를 long으로 넓히면 음수 그대로 넓어집니다. multiplyExact는 범위를 넘은 계산을 명시적으로 감지할 때 사용합니다.</p>
+<table>
+<thead>
+<tr>
+<th>tooLate의 핵심 명령</th>
+<th>스택의 의미</th>
+<th>early의 핵심 명령</th>
+<th>스택의 의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>iload_0, iload_1</td>
+<td>int 두 값 준비</td>
+<td>iload_0, i2l</td>
+<td>첫 값을 먼저 long으로 변환</td>
+</tr>
+<tr>
+<td>imul</td>
+<td>이미 int 범위에서 곱함</td>
+<td>iload_1, i2l</td>
+<td>두 번째 값도 long 연산에 맞춤</td>
+</tr>
+<tr>
+<td>i2l</td>
+<td>잘린 결과를 long으로 넓힘</td>
+<td>lmul</td>
+<td>long 곱셈</td>
+</tr>
+<tr>
+<td>lreturn</td>
+<td>음수 결과 전달</td>
+<td>lreturn</td>
+<td>의도한 양수 결과 전달</td>
+</tr>
+</tbody></table>
+<h3>스택 깊이와 값 개수를 구분하자</h3>
+<p>long과 double은 피연산자 스택 깊이를 계산할 때 두 단위를 차지합니다. 따라서 long 두 개를 곱하기 전에는 값은 두 개지만 깊이 계산에는 네 단위가 필요합니다. 이것이 “64비트 JVM에서는 모든 값이 슬롯 하나”라는 설명이 틀린 이유입니다. JVMS의 추상적인 슬롯 규칙과 CPU 레지스터 크기는 별개입니다.</p>
+<h3>예외도 계산 순서를 따른다</h3>
+<p><code>a() + b()</code>는 Java 언어가 정한 평가 순서를 따릅니다. a가 먼저 평가되며 a에서 예외가 발생하면 b를 평가하지 않습니다. JIT가 코드를 재배치하더라도 허용된 관측 결과를 보존해야 합니다. 바이트코드를 공부하는 목적은 모든 기계 명령의 실행 순서를 고정해서 상상하는 것이 아니라 <strong>어떤 결과와 부수 효과가 언어적으로 보장되는지</strong>를 읽는 데 있습니다.</p>
+<p>재고 계산에서는 타입을 넓히는 위치를 검토하고, 범위 초과가 업무 오류라면 exact 계열이나 별도 범위 검증으로 드러내세요. 예외가 발생하면 요청 전체를 어떻게 처리할지는 트랜잭션과 API 정책 문제이며 JVM이 업무적으로 올바른 수량을 추측해 주지는 않습니다.</p>
+<details class="question"><summary>심화 면접. long total = intValue * intValue가 안전하지 않을 수 있는 이유는?</summary><div class="answer"><p><strong>답변:</strong> 두 피연산자가 int면 int 곱셈을 먼저 하고 그 결과를 long에 대입하기 때문입니다. 중간 오버플로가 발생한 뒤 타입을 넓혀도 손실된 값을 복구하지 못합니다.</p><p><strong>검증:</strong> javap에서 imul 뒤 i2l인지, 먼저 i2l을 실행하고 lmul을 수행하는지 확인할 수 있습니다. long 자체도 유한한 범위를 가지므로 무조건 안전한 수 체계는 아닙니다.</p><p><strong>실무:</strong> 정상 업무 범위를 타입과 검증으로 표현하고 경계값을 확인합니다. 오버플로를 실패로 다룰 경우 Math.multiplyExact를 사용하고 실패를 무시한 채 음수 수량을 저장하지 않도록 합니다.</p></div></details>
+
+<p>추가 근거: <a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.imul">JVMS imul</a>, <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Math.html#multiplyExact(int,int)">Math.multiplyExact</a>.</p>
+<h2 id="section-12">8. 상세 면접 Q&amp;A</h2>
 <details class="question"><summary>Q1. load는 지역변수의 값을 스택으로 옮기나요?</summary><div class="answer"><p>값을 복사해 올립니다. load 뒤에도 지역변수의 원래 값은 남습니다. store는 스택에서 값을 꺼내 슬롯에 저장합니다. 이 차이를 놓치면 같은 인자를 여러 번 사용하는 메서드를 추적할 수 없습니다.</p><p><strong>구체적으로:</strong> iload_0 뒤에도 지역 0의 값은 남습니다. 스택에 적재된 값을 iadd가 소비해도 원래 지역변수를 다시 읽을 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 반대로 istore는 스택 값을 꺼내 지역 슬롯을 갱신합니다. 각 명령 전후에 지역변수와 스택을 따로 그려 보세요.</p></div></details>
 <details class="question"><summary>Q2. 피연산자 스택이 CPU 스택과 같은가요?</summary><div class="answer"><p>사양의 논리적인 계산 구조입니다. HotSpot이 JIT로 최적화한 결과에서는 값이 레지스터에 놓이고 중간 계산이 제거될 수 있습니다. 바이트코드의 push/pop이 실제 CPU 메모리 명령에 항상 하나씩 대응한다고 말하지 않습니다.</p><p><strong>구체적으로:</strong> 피연산자 스택은 JVM 명령의 입력과 출력을 규정하는 모델입니다. JIT는 같은 의미를 레지스터 연산으로 구현할 수 있어 실제 기계 코드에 동일한 push·pop이 남을 필요는 없습니다.</p><p><strong>꼬리질문까지:</strong> 바이트코드가 스택 기반이라는 말과 CPU가 모든 계산을 메모리 스택으로 한다는 말을 구분해야 합니다.</p></div></details>
 <details class="question"><summary>Q3. ireturn과 return은 무엇이 다른가요?</summary><div class="answer"><p>ireturn은 int 계열의 결과를 호출자에게 반환하고, return은 void 메서드의 정상 완료에 쓰입니다. 참조 반환은 areturn, long은 lreturn 등 타입별 명령이 있습니다. 반환은 현재 호출을 끝내는 동작도 포함합니다.</p><p><strong>구체적으로:</strong> int 결과를 돌려주는 메서드는 계산 결과를 호출자에게 전달해야 하고, void 메서드는 정상 완료만 알립니다. 객체 참조 반환에는 areturn 등 다른 타입의 명령이 사용됩니다.</p><p><strong>꼬리질문까지:</strong> 반환 명령이 메서드 descriptor의 반환 타입과 맞아야 한다는 점까지 연결해 설명하세요.</p></div></details>
@@ -213,7 +282,7 @@ javap -c -v -p Walkthrough05
 <details class="question"><summary>Q5. 지역변수 result를 없애면 반드시 빨라지나요?</summary><div class="answer"><p>javac 결과의 store/load가 줄 수 있지만 JIT가 두 코드를 같은 기계 코드로 최적화할 수 있습니다. 바이트코드 길이만으로 성능을 판단하지 말고 대표 부하에서 측정해야 합니다. 가독성을 희생할 이유로 단순 명령 개수를 사용하지 않습니다.</p><p><strong>구체적으로:</strong> 명시적 지역변수를 지워 바이트코드가 짧아져도 JIT가 원래의 불필요한 저장과 읽기를 제거했을 수 있습니다. 반대로 디버깅하기 좋은 이름이 유지보수에는 도움이 됩니다.</p><p><strong>꼬리질문까지:</strong> 가독성 개선과 성능 개선은 별도 목표로 두고, 성능 주장은 실제 측정으로 확인합니다.</p></div></details>
 <details class="question"><summary>Q6. count++가 한 문장인데 왜 동시성 문제가 있나요?</summary><div class="answer"><p>공유 필드의 증가에는 기존 값 읽기와 새 값 쓰기의 복합 동작이 있습니다. 서로 다른 스레드가 같은 기존 값을 읽으면 갱신이 유실될 수 있습니다. 원자성 보장은 언어 문장 길이·바이트코드 개수가 아니라 동기화 규칙과 사용하는 연산의 계약으로 판단합니다.</p><p><strong>구체적으로:</strong> 필드의 값을 읽고 1을 더해 저장하는 사이에 다른 스레드가 같은 값을 읽을 수 있습니다. 두 갱신이 같은 새 값을 저장하면 증가 하나가 사라집니다.</p><p><strong>꼬리질문까지:</strong> volatile도 이 복합 동작 전체를 원자적으로 묶지 않습니다. 보호할 연산의 경계를 정해야 합니다.</p></div></details>
 
-<h2 id="section-12">9. 공식 근거와 다음 실습</h2>
+<h2 id="section-13">9. 공식 근거와 다음 실습</h2>
 <ul>
 <li><a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.11">JVMS §2.11 명령 집합</a>.</li>
 <li><a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.iadd">JVMS iadd</a>.</li>

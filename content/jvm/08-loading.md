@@ -137,6 +137,59 @@ java -Xlog:class+load=info Lesson08
 
 <details class="question"><summary>확인 문제. 클래스 로더 누수라면 Heap dump는 볼 필요가 없나요?</summary><div class="answer"><p><strong>판단:</strong> 볼 가치가 있습니다. 클래스 메타데이터가 Native 쪽 Metaspace를 사용하더라도, 그 수명을 붙잡는 원인은 Heap 객체의 참조 경로일 수 있기 때문입니다.</p><p><strong>조사 예:</strong> 재배포 전후의 로더 수와 클래스 수를 비교하고, 이전 로더 또는 이전 배포의 객체를 붙잡는 장수명 스레드·컬렉션·콜백을 찾습니다. 사용하지 않는 로더라는 판단은 이름이 아니라 현재 배포와의 관계 및 참조 경로로 확인합니다.</p><p><strong>꼬리질문:</strong> Metaspace 한도를 늘리면 해결되나요? 임시 여유는 생길 수 있지만 재배포마다 유지 경로가 추가된다면 같은 문제가 늦게 반복될 뿐입니다. 등록 해제와 종료 처리 등 수명을 끊는 수정이 필요합니다.</p></div></details>
 
+## 심화 실험실: 로더 두 개를 만들었는데 같은 클래스가 나오는 경우
+
+### 문의한 창구와 발급한 기관은 다르다
+
+이전 예제는 두 로더가 같은 바이트를 직접 정의했습니다. 이번에는 같은 부모를 둔 두 로더가 기본 위임 절차로 클래스를 요청합니다. 창구가 둘이어도 같은 본사에서 발급한 문서를 받으면 문서의 발급 주체는 같습니다. 이를 비교해야 defining loader의 의미가 분명해집니다.
+
+```java
+// file: Deep08.java
+public class Deep08 {
+    public static class Item { }
+    public static void main(String[] args) throws Exception {
+        ClassLoader parent = Deep08.class.getClassLoader();
+        ClassLoader a = new ClassLoader(parent) { };
+        ClassLoader b = new ClassLoader(parent) { };
+        Class<?> x = a.loadClass("Deep08$Item");
+        Class<?> y = b.loadClass("Deep08$Item");
+        System.out.println("same=" + (x == y));
+        System.out.println("definedByParent=" + (x.getClassLoader() == parent));
+        System.out.println("requesterIsDefiner=" + (x.getClassLoader() == a));
+    }
+}
+```
+
+```sh
+javac --release 21 Deep08.java
+java Deep08
+```
+
+결과는 `same=true`, `definedByParent=true`, `requesterIsDefiner=false`입니다. a와 b를 만들었다는 사실은 두 클래스가 정의되었다는 뜻이 아닙니다. 이 예제에서 기본 loadClass는 부모에게 위임하고 부모가 찾은 클래스를 반환합니다. 반환된 Class 객체의 getClassLoader는 요청자 a가 아니라 실제 정의 로더를 나타냅니다.
+
+### 두 실험을 함께 정리하기
+
+| 로딩 방식 | 최종 정의 | 타입 비교 | 활용/위험 |
+|---|---|---|---|
+| 기존 Lesson08의 직접 defineClass | a와 b 각각 | 서로 다름 | 격리는 가능하지만 경계 객체 캐스팅 주의 |
+| Deep08의 부모 위임 | 공통 부모 | 동일 | 공통 API 타입을 공유 가능 |
+
+플러그인 시스템에서 `Plugin` 인터페이스까지 각 로더가 따로 정의하면 호스트가 알고 있는 Plugin과 플러그인이 구현한 Plugin이 달라질 수 있습니다. 이름이 같아도 호스트의 캐스팅은 실패합니다. 공통 API를 부모에서 공유하고 플러그인 내부 구현을 격리하는 설계는 이름 충돌만이 아니라 객체가 경계를 넘을 때의 타입 일관성을 위한 것입니다.
+
+### TCCL이 등장하는 이유
+
+공통 라이브러리는 상위 로더에서 정의되었지만 실제 구현체는 애플리케이션 로더 아래에 있을 수 있습니다. 부모는 일반적으로 자식의 클래스 경로를 자동 탐색하지 않습니다. Thread Context ClassLoader는 일부 라이브러리나 서비스 탐색 API가 현재 실행 문맥의 로더를 사용하도록 전달하는 수단입니다. 모든 클래스 로딩이 자동으로 TCCL을 쓰는 것은 아니므로 호출하는 API의 규약을 확인해야 합니다.
+
+장수명 스레드에 이전 배포의 TCCL을 남기면 이전 로더를 붙잡는 경로가 될 수 있습니다. 임시로 바꾼 컨텍스트 로더는 작업 후 복원하고, 플러그인 해제 시 스레드·콜백·레지스트리 등록도 정리해야 합니다. URLClassLoader.close는 파일 자원을 닫는 동작이지 이미 살아 있는 타입과 객체를 강제로 언로드하는 명령이 아닙니다.
+
+### 장애 조사에서 남길 정보
+
+“com.example.Item을 com.example.Item으로 바꿀 수 없다”는 메시지를 만나면 양쪽 Class 객체의 이름만 비교하지 말고 로더 정보와 코드 출처를 함께 기록합니다. 모듈 정보도 접근 문제에 도움이 됩니다. 정상적인 경우에도 부트스트랩 로더는 null로 표현될 수 있으므로 로그 출력 코드는 null을 처리해야 합니다. JAR 중복 제거는 원인이 중복 정의라는 증거를 확보한 뒤 수행합니다.
+
+<details class="question"><summary>심화 면접. 부모 우선 위임을 쓰면 모든 의존성 충돌이 해결되나요?</summary><div class="answer"><p><strong>답변:</strong> 아닙니다. 공유되는 타입의 일관성에는 도움이 되지만 부모에 있는 다른 버전이 선택되어 필요한 메서드가 없을 수도 있습니다. 같은 타입을 공유하는 문제와 요구하는 API 버전이 맞는 문제는 다릅니다.</p><p><strong>설계:</strong> 경계를 넘는 API는 공유하고 내부 구현 의존성은 필요한 범위에서 격리합니다. 어떤 클래스가 어떤 로더에서 정의되는지 명시적으로 확인하겠습니다.</p><p><strong>검증:</strong> 두 로더의 존재만으로 격리를 판단하지 않고 실제 Class 동일성, 정의 로더, 메서드 호환성과 플러그인 해제 후 참조 정리까지 보겠습니다.</p></div></details>
+
+추가 근거: [ClassLoader.loadClass 기본 위임](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/ClassLoader.html#loadClass(java.lang.String,boolean)), [ServiceLoader](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ServiceLoader.html).
+
 ## 8. 상세 면접 Q&A
 
 <details class="question"><summary>Q1. 같은 이름의 클래스끼리 왜 캐스팅이 실패하나요?</summary><div class="answer"><p>정체성에 defining loader가 포함되기 때문입니다. 이름과 바이트가 같아도 서로 다른 로더가 정의하면 다른 타입일 수 있습니다. getClass().getClassLoader()와 클래스 출처를 함께 확인하면 중복 로딩을 조사할 수 있습니다.</p><p><strong>구체적으로:</strong> 플러그인 A와 B가 같은 패키지의 DTO를 각각 정의하면 클래스 이름 출력은 같아도 JVM 타입은 다릅니다. 객체를 전달하는 경계에서 ClassCastException 등이 드러날 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 공통 API를 어떤 로더가 정의하도록 할지 설계해야 하며 이름 문자열만 비교해서 호환성을 판단하지 않습니다.</p></div></details>
@@ -154,3 +207,4 @@ java -Xlog:class+load=info Lesson08
 - [JLS §12.2 로딩](https://docs.oracle.com/javase/specs/jls/se21/html/jls-12.html#jls-12.2).
 
 두 IsolatedLoader가 직접 define하지 않고 부모에 Token 로딩을 위임하도록 바꾸면 같은 타입을 얻는지 비교하세요. 직접 정의와 위임의 차이를 말로 설명하는 것이 핵심입니다.
+

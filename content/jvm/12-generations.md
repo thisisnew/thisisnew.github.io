@@ -128,6 +128,61 @@ Young 수집 전후의 Eden·Survivor·Old Region 변화, age 분포와 threshol
 
 <details class="question"><summary>확인 문제. Young 영역을 크게 하면 GC가 줄어서 반드시 좋아지나요?</summary><div class="answer"><p><strong>판단:</strong> 횟수는 줄어들 수 있어도 한 번에 처리할 생존 객체와 정지 비용, Old에 남는 여유가 달라질 수 있습니다. 수집기가 크기를 적응적으로 조절하는 경우 수동 고정이 그 정책에 영향을 주기도 합니다.</p><p><strong>비교:</strong> 처리량이 목표인지 짧은 지연이 목표인지 먼저 정합니다. 동일한 요청량에서 정지 시간 분포, 승격량, 유지량을 비교하고 전체 Heap 내 공간 배분을 봅니다. GC 횟수 하나만 개선 지표로 쓰지 않습니다.</p><p><strong>꼬리질문:</strong> DB 지연 때만 Old가 늘면 메모리 누수인가요? 대기 중인 정상 요청이 데이터를 붙잡는 것일 수 있습니다. 지연 해소 후 유지량이 회복되는지와 요청 수명 이후에도 남는 참조가 있는지를 구분합니다.</p></div></details>
 
+## 심화 실험실: 같은 할당량인데 대기열이 생기면 왜 Old가 늘어날까
+
+### 빨리 지나가는 상자와 대기 중인 상자는 다르다
+
+초당 1,000개의 요청이 들어오고 요청 하나가 50 KiB의 상태를 유지한다고 가정합시다. 평균 체류 시간이 0.1초면 평균 동시 체류 수는 약 100개이며, 관련 상태는 약 5,000 KiB입니다. 외부 지연으로 체류 시간이 2초가 되면 약 2,000개, 약 100,000 KiB가 됩니다. 유입이 같아도 **살아 있어야 하는 기간이 길어져 생존량이 커지는 것**입니다.
+
+이는 안정 상태에서 평균 동시 체류 수 ≈ 처리율 × 평균 체류 시간이라는 관계를 활용한 가상 계산입니다. 실제로 과부하가 계속되어 큐가 무한히 증가하면 안정 상태 가정이 성립하지 않습니다. 또 요청당 50 KiB가 모두 독립적이라는 가정이며 공유 객체와 일시 할당은 별도로 계산해야 합니다.
+
+### 같은 배열을 만들되 보관 기간만 바꾸기
+
+```java
+// file: Deep12.java
+public class Deep12 {
+    static volatile int checksum;
+    public static void main(String[] args) {
+        int slots = args.length == 0 ? 8 : Integer.parseInt(args[0]);
+        if (slots < 1 || slots > 1024) throw new IllegalArgumentException("1..1024");
+        byte[][] pending = new byte[slots][];
+        for (int i = 0; i < 20_000; i++) {
+            byte[] state = new byte[16 * 1024];
+            state[0] = (byte) i;
+            pending[i % slots] = state;
+            checksum += pending[i % slots][0];
+        }
+        System.out.println("retained slots=" + pending.length);
+        System.out.println("last=" + pending[19_999 % slots][0]);
+    }
+}
+```
+
+```sh
+javac --release 21 Deep12.java
+java -Xms64m -Xmx64m -XX:+UseG1GC -Xlog:gc* Deep12 8
+java -Xms64m -Xmx64m -XX:+UseG1GC -Xlog:gc* Deep12 1024
+```
+
+두 실행의 배열 생성 횟수와 배열 길이는 같습니다. 하지만 8개를 보관할 때보다 1,024개를 보관할 때 각 배열이 덮어써져 끊기기까지 더 오래 남습니다. 참조가 있는 배열 payload의 최대 합은 각각 약 128 KiB와 16 MiB이며, 객체 헤더·참조 배열 등은 별도입니다. `last=31`은 동일합니다. 정확한 GC 횟수나 승격량은 JVM과 실행 조건에 따라 달라지므로 고정 예상값으로 제시하지 않습니다.
+
+### 로그를 비교하는 질문의 순서
+
+1. 같은 수의 객체를 만들었는가? 코드의 반복 수와 배열 크기를 확인합니다.
+2. 동시에 유지되는 참조가 얼마나 다른가? pending의 슬롯 수를 비교합니다.
+3. Young 수집 후 생존량이 다른가? 수집 전후 Heap와 survivor·old 관련 로그를 봅니다.
+4. Old 증가가 나타났다면 계속 증가하는가, 제한된 수준에 도달하는가? 고정 크기 보관 구조와 무제한 누적을 구분합니다.
+
+이 실습에서 “Old가 정확히 몇 MiB 증가한다”는 결론을 미리 정하면 안 됩니다. 어떤 배열이 어떤 수집 시점에 살아 있는지와 수집기의 정책이 영향을 줍니다. 실습은 생존 기간이라는 변수를 통제하는 방법을 가르칩니다. 실제 운영에서는 요청의 체류 시간이 늘어나는 원인을 외부 지연, 큐 대기, 제한 없는 동시성으로 연결합니다.
+
+### 큐 제한은 메모리 정책이기도 하다
+
+입고 이벤트를 빨리 받는다고 무제한 Executor 큐에 적재하면 처리하지 못한 작업과 payload가 Heap에 남습니다. 큐의 최대 길이, 거절 또는 대기 정책, 재시도 저장 위치를 함께 설계해야 합니다. 단순히 Young을 크게 늘리면 수집 시점이 달라질 뿐 끝없이 증가하는 대기열을 해결하지 못합니다. 반대로 제한된 큐가 일시적으로 차고 비워지는 현상은 반드시 누수라는 뜻도 아닙니다.
+
+<details class="question"><summary>심화 면접. DB가 느려졌는데 왜 GC 시간이 증가했을까요?</summary><div class="answer"><p><strong>답변:</strong> DB 응답을 기다리는 요청이 객체를 더 오래 유지하면서 동시 생존량과 수집 시 복사량, 승격량이 증가했을 가능성이 있습니다. 같은 할당률이라도 수명이 길어지면 GC 특성이 달라집니다.</p><p><strong>검증:</strong> DB 지연, 풀 대기, 요청·작업 큐 길이, GC 후 생존량과 승격 지표를 같은 시간축으로 비교하겠습니다. GC가 원인인지 외부 지연의 결과인지 구분해야 합니다.</p><p><strong>조치:</strong> 타임아웃과 동시성·큐 상한을 검토하고 DB 지연을 해결합니다. Heap 증설만으로 무제한 적재 구조를 해결했다고 보지 않겠습니다.</p></div></details>
+
+추가 근거: [세대별 수집의 배경](https://docs.oracle.com/en/java/javase/21/gctuning/garbage-first-g1-garbage-collector1.html).
+
 ## 8. 상세 면접 Q&A
 
 <details class="question"><summary>Q1. 객체는 일정 시간이 지나면 Old로 가나요?</summary><div class="answer"><p>벽시계 시간만으로 판단하지 않습니다. Young 수집 생존과 age, 생존 공간, 수집기 정책 등의 조건이 관련됩니다. 오래 머물렀어도 수집을 거의 경험하지 않은 경우와 수집을 여러 번 통과한 경우를 구분해야 합니다.</p><p><strong>구체적으로:</strong> age는 벽시계로 몇 초 지났는지와 동일하지 않습니다. 수집 과정의 생존 이력과 적응 정책, 공간 압박 등이 승격에 영향을 줍니다.</p><p><strong>꼬리질문까지:</strong> 일정 횟수만 외우기보다 해당 수집기의 로그와 정책을 확인해야 합니다.</p></div></details>
@@ -145,3 +200,4 @@ Young 수집 전후의 Eden·Survivor·Old Region 변화, age 분포와 threshol
 - [JEP 439: Generational ZGC](https://openjdk.org/jeps/439): JDK 21의 수집기별 차이.
 
 첨부 12편에는 세대별 GC 본문이 없어 공식 GC 가이드로 보충했습니다. retained의 크기와 보관 빈도를 각각 바꾸고 “할당량은 같은데 생존량만 달라지는 실험”을 해 보세요.
+

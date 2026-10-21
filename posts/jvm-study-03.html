@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Heap·JVM Stack·Method Area·PC·Native Stack과 HotSpot의 실제 메모리 예산을 구분한다"><title>JVM 03 · JVM 메모리 영역: 공유 창고와 스레드별 작업대 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/jvm-study-03.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><script src="/assets/series-category.js" defer></script><link rel="stylesheet" href="/assets/jvm-study.css"></head><body><main><a href="/">← 전체 글</a> · <a href="/posts/jvm-study-00.html">JVM 학습 지도</a><header><p class="meta">JVM QUEST · 03 / 16 · JAVA 21 · 2026-10-19</p><h1>JVM 메모리 영역: 공유 창고와 스레드별 작업대</h1><p class="subtitle">Heap·JVM Stack·Method Area·PC·Native Stack과 HotSpot의 실제 메모리 예산을 구분한다</p><p class="note">기준: Java SE 21 사양과 HotSpot JDK 21. 첨부 자료의 JVMS 23·JDK 17 발췌는 이 기준으로 대조했습니다. 설명 속 장애 상황은 학습용 가상 사례입니다. 예제는 외부 라이브러리 없이 실행할 수 있습니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이 글에서 배울 것</h2><ol><li><a href="#section-1">시작 전에: 이 편에서 쓰는 말</a></li><li><a href="#section-2">1. 메모리를 왜 여러 이름으로 나누는가</a></li><li><a href="#section-3">2. 다섯 영역을 역할과 수명으로 읽기</a></li><li><a href="#section-4">3. 코드 한 조각을 영역에 배치하기</a></li><li><a href="#section-5">4. Method Area와 Metaspace를 구분하기</a></li><li><a href="#section-6">5. Xmx는 전체 프로세스 한도가 아니다</a></li><li><a href="#section-7">6. 실습: 메모리 관측값의 의미</a></li><li><a href="#section-8">7. 장애 사례: Heap 그래프는 안정적인데 프로세스가 종료됨</a></li><li><a href="#section-9">더 깊이: 기본형·참조형과 저장 위치는 다른 축이다</a></li><li><a href="#section-10">차근차근 이해하기: 값의 종류와 값이 놓인 장소를 분리하자</a></li><li><a href="#section-11">8. 상세 면접 Q&amp;A</a></li><li><a href="#section-12">9. 공식 근거와 복습</a></li></ol></aside><article><h2 id="section-1">시작 전에: 이 편에서 쓰는 말</h2>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Heap·JVM Stack·Method Area·PC·Native Stack과 HotSpot의 실제 메모리 예산을 구분한다"><title>JVM 03 · JVM 메모리 영역: 공유 창고와 스레드별 작업대 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/jvm-study-03.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><script src="/assets/series-category.js" defer></script><link rel="stylesheet" href="/assets/jvm-study.css"></head><body><main><a href="/">← 전체 글</a> · <a href="/posts/jvm-study-00.html">JVM 학습 지도</a><header><p class="meta">JVM QUEST · 03 / 16 · JAVA 21 · 2026-10-21</p><h1>JVM 메모리 영역: 공유 창고와 스레드별 작업대</h1><p class="subtitle">Heap·JVM Stack·Method Area·PC·Native Stack과 HotSpot의 실제 메모리 예산을 구분한다</p><p class="note">기준: Java SE 21 사양과 HotSpot JDK 21. 첨부 자료의 JVMS 23·JDK 17 발췌는 이 기준으로 대조했습니다. 설명 속 장애 상황은 학습용 가상 사례입니다. 예제는 외부 라이브러리 없이 실행할 수 있습니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이 글에서 배울 것</h2><ol><li><a href="#section-1">시작 전에: 이 편에서 쓰는 말</a></li><li><a href="#section-2">1. 메모리를 왜 여러 이름으로 나누는가</a></li><li><a href="#section-3">2. 다섯 영역을 역할과 수명으로 읽기</a></li><li><a href="#section-4">3. 코드 한 조각을 영역에 배치하기</a></li><li><a href="#section-5">4. Method Area와 Metaspace를 구분하기</a></li><li><a href="#section-6">5. Xmx는 전체 프로세스 한도가 아니다</a></li><li><a href="#section-7">6. 실습: 메모리 관측값의 의미</a></li><li><a href="#section-8">7. 장애 사례: Heap 그래프는 안정적인데 프로세스가 종료됨</a></li><li><a href="#section-9">더 깊이: 기본형·참조형과 저장 위치는 다른 축이다</a></li><li><a href="#section-10">차근차근 이해하기: 값의 종류와 값이 놓인 장소를 분리하자</a></li><li><a href="#section-11">심화 실험실: Heap 사용량과 프로세스 메모리가 다른 이유를 직접 보기</a></li><li><a href="#section-12">8. 상세 면접 Q&amp;A</a></li><li><a href="#section-13">9. 공식 근거와 복습</a></li></ol></aside><article><h2 id="section-1">시작 전에: 이 편에서 쓰는 말</h2>
 <p>처음 읽는다면 아래 용어의 뜻만 확인한 뒤 본문으로 넘어가세요. 먼저 예제의 결과를 예상하고, 실행 과정을 따라간 다음, 면접 답변을 펼쳐 자신의 설명과 비교하면 좋습니다.</p>
 <table>
 <thead>
@@ -167,7 +167,75 @@ javap -c -v Lesson03
 <p>이 순서에서 “메서드가 끝나면 메모리가 해제된다”는 설명은 3번과 4번을 생략합니다. 또 “GC가 돌면 OS 메모리가 즉시 줄어든다”는 설명은 JVM 내부 공간 재사용과 OS 반환을 섞습니다. 객체 수명, Heap 점유, 프로세스 메모리를 각각 관찰해야 합니다.</p>
 <details class="question"><summary>확인 문제. 지역변수 두 개가 같은 객체를 가리키면 객체 메모리도 두 배인가요?</summary><div class="answer"><p><strong>판단:</strong> 객체가 두 개로 복제되는 것은 아닙니다. 참조 값을 담는 위치가 두 개이고 가리키는 객체는 하나일 수 있습니다. 두 사람이 같은 사물함의 번호를 적어 두었다고 사물함이 두 개 생기지 않는 것과 같습니다.</p><p><strong>추적 예:</strong> a와 b가 같은 Box를 가리킬 때 a.quantity를 바꾸면 b를 통해서도 같은 필드를 읽습니다. 이후 a에 null을 넣어도 b의 참조는 그대로 남습니다. 모든 유효한 강한 경로가 끊어졌는지를 확인해야 수명을 판단할 수 있습니다.</p><p><strong>꼬리질문:</strong> Heap 사용량이 줄었는데 RSS가 그대로라면 누수인가요? 그 사실 하나로는 아닙니다. JVM이 확보한 공간을 다음 할당에 재사용할 수 있으므로 시간에 따른 Heap·Native·RSS 변화를 함께 비교해야 합니다.</p></div></details>
 
-<h2 id="section-11">8. 상세 면접 Q&amp;A</h2>
+<h2 id="section-11">심화 실험실: Heap 사용량과 프로세스 메모리가 다른 이유를 직접 보기</h2>
+<h3>돈을 세는 기준부터 맞추자</h3>
+<p>메모리를 예산에 비유하면 reserved는 사용할 주소 공간을 예약한 것, committed는 JVM 관점에서 사용 가능하도록 확보한 범위, used는 그 영역에서 사용 중이라고 집계하는 양에 가깝습니다. RSS는 운영체제가 프로세스에 대해 관측하는 실제 상주 페이지의 크기입니다. 서로 다른 장부이므로 숫자를 그대로 더하거나 빼면 오해가 생깁니다. committed 전체가 항상 RSS로 상주하는 것도 아닙니다.</p>
+<p>특히 컨테이너의 메모리 집계는 Java Heap 그래프와 다릅니다. Heap이 한도 아래여도 네이티브 메모리, 스레드 스택, 매핑된 파일 등으로 압박이 생길 수 있습니다. <code>-Xmx</code>를 컨테이너 한도와 같게 잡으면 다른 영역의 공간이 남지 않는 상황이 가능합니다. 다만 “언제나 70%”처럼 고정 비율만 외우기보다는 최대 부하에서 실제 영역별 사용과 여유를 관측해야 합니다.</p>
+<h3>Heap 객체와 그 객체가 관리하는 바깥 공간</h3>
+<pre><code class="language-java">// file: Deep03.java
+import java.lang.management.ManagementFactory;
+import java.lang.management.BufferPoolMXBean;
+import java.nio.ByteBuffer;
+public class Deep03 {
+    public static void main(String[] args) {
+        ByteBuffer buffer = ByteBuffer.allocateDirect(4 * 1024 * 1024);
+        buffer.putInt(0, 42);
+        for (BufferPoolMXBean pool : ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)) {
+            if (pool.getName().equals(&quot;direct&quot;)) {
+                System.out.println(&quot;capacity=&quot; + pool.getTotalCapacity());
+                System.out.println(&quot;used=&quot; + pool.getMemoryUsed());
+            }
+        }
+        System.out.println(&quot;value=&quot; + buffer.getInt(0));
+    }
+}
+</code></pre>
+<pre><code class="language-sh">javac --release 21 Deep03.java
+java -Xmx32m -XX:MaxDirectMemorySize=16m Deep03
+</code></pre>
+<p><code>value=42</code>는 고정 결과입니다. capacity와 used는 런타임 전체 direct buffer 집계이므로 환경 의존 값입니다. 여기서 ByteBuffer를 가리키는 Java 객체는 Heap 객체지만 그 내용 저장소는 direct 메모리입니다. <strong>객체가 Heap에 있다는 사실과 그 객체가 사용하는 자원이 전부 Heap에 있다는 주장은 다릅니다.</strong> 포인터 크기의 작은 관리 객체가 큰 외부 공간을 붙잡을 수 있습니다.</p>
+<h3>2 GiB 컨테이너의 가상 예산표</h3>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>예시 관측/설정</th>
+<th>읽는 법</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>컨테이너 한도</td>
+<td>2,048 MiB</td>
+<td>프로세스 밖의 집계도 포함되는지 지표 정의 확인</td>
+</tr>
+<tr>
+<td>Heap 최대 설정</td>
+<td>1,024 MiB</td>
+<td>현재 사용량 또는 RSS가 아님</td>
+</tr>
+<tr>
+<td>Direct buffer 용량 합</td>
+<td>256 MiB</td>
+<td>네이티브 전체 사용량이 아님</td>
+</tr>
+<tr>
+<td>Metaspace committed</td>
+<td>100 MiB</td>
+<td>Heap 밖 클래스 메타데이터 관련 영역</td>
+</tr>
+<tr>
+<td>스레드 200개, Xss 1 MiB</td>
+<td>최대 규모를 가늠하는 단서</td>
+<td>200 MiB RSS를 정확히 의미하지 않음</td>
+</tr>
+</tbody></table>
+<p>이 표에서 남은 메모리를 단순 뺄셈으로 정확히 구할 수는 없습니다. 설정 상한·용량·committed가 섞였고 코드 캐시·GC 내부 구조·기타 네이티브 할당도 빠졌기 때문입니다. 표의 목적은 빠진 영역을 찾는 것입니다. 실제 판단은 같은 시점의 컨테이너 지표, RSS, Heap, NMT, buffer pool 통계를 서로 대조해서 합니다.</p>
+<h3>잘못된 처방을 피하는 순서</h3>
+<p>Heap이 안정적이면 먼저 “관측한 Heap 그래프가 무엇인가?”를 확인합니다. GC 직후 used인지, committed인지부터 구분하세요. 다음으로 direct buffer 용량, 플랫폼 스레드 수, 로드된 클래스 수의 증가 추세를 봅니다. JVM에 NMT를 켜 두었다면 baseline과 diff를 비교하지만, NMT가 모든 외부 네이티브 라이브러리 할당을 완전히 추적하는 것은 아닙니다. Heap dump에 큰 배열이 없다는 사실만으로 프로세스 전체 누수를 배제하지 않습니다.</p>
+<details class="question"><summary>심화 면접. Heap이 500 MiB인데 RSS가 1.5 GiB라면 1 GiB가 누수인가요?</summary><div class="answer"><p><strong>답변:</strong> 그 차이만으로 누수라고 판단하지 않습니다. 두 지표의 정의가 다르고, JVM에는 Heap 밖의 정상적인 메모리 사용도 존재합니다.</p><p><strong>조사:</strong> 동일한 부하를 반복하면서 Heap의 수집 후 생존량, native memory 범주, direct buffer, 스레드 및 클래스 수를 비교하겠습니다. 증가가 작업 종료 후에도 계속되는지, 그 영역이 정상적인 캐시 또는 예약 공간인지 확인해야 합니다.</p><p><strong>한계:</strong> Xss 곱셈이나 NMT total을 RSS와 정확히 일치시키려 하지 않겠습니다. 가상 주소 공간, committed와 상주 페이지의 차이를 먼저 설명하겠습니다.</p></div></details>
+
+<p>추가 근거: <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.management/java/lang/management/BufferPoolMXBean.html">BufferPoolMXBean 통계의 의미</a>, <a href="https://docs.oracle.com/en/java/javase/21/vm/native-memory-tracking.html">Native Memory Tracking</a>.</p>
+<h2 id="section-12">8. 상세 면접 Q&amp;A</h2>
 <details class="question"><summary>Q1. 지역변수는 스택, 객체는 Heap이라고 말하면 항상 정확한가요?</summary><div class="answer"><p>학습용 논리 모델로는 유용합니다. 다만 참조 변수와 객체를 구분해야 하며, HotSpot 최적화로 지역값이 레지스터에 놓이거나 객체 할당이 제거될 수 있습니다. JVMS의 실행 의미와 실제 최적화된 메모리 배치를 나누어 설명합니다.</p><p><strong>구체적으로:</strong> 객체의 int 필드는 기본형이지만 Heap 객체의 상태에 속합니다. 지역변수인 참조 값과 그 값이 가리키는 객체도 서로 다른 대상입니다.</p><p><strong>꼬리질문까지:</strong> JIT가 값을 레지스터에 두거나 객체 할당을 없애는 경우를 설명하려면 논리 모델과 실제 배치를 나누어 답하세요.</p></div></details>
 <details class="question"><summary>Q2. Method Area는 곧 Metaspace인가요?</summary><div class="answer"><p>같은 수준의 개념이 아닙니다. Method Area는 사양의 책임 구분이고 Metaspace는 HotSpot의 클래스 메타데이터 관리 영역입니다. Class 객체·static 필드·문자열·JIT 코드를 모두 Metaspace에 넣는 그림은 피해야 합니다.</p><p><strong>구체적으로:</strong> 메서드 정보와 클래스 메타데이터를 설명하는 사양의 영역이 있고, HotSpot이 이를 구현하는 여러 메모리 구조가 있습니다. static 참조가 가리키는 객체나 JIT 코드까지 모두 Metaspace라고 부르면 틀립니다.</p><p><strong>꼬리질문까지:</strong> 메모리 장애에서 영역 이름을 정할 때는 사양 용어인지 해당 구현의 측정 범주인지 먼저 확인하세요.</p></div></details>
 <details class="question"><summary>Q3. Xmx를 늘리면 모든 OutOfMemoryError가 해결되나요?</summary><div class="answer"><p>아닙니다. Heap 부족에는 도움이 될 수 있어도 Metaspace 부족, 스레드 생성 실패, Native 자원 부족은 원인이 다릅니다. 전체 메모리 한도 안에서 Heap을 늘리면 다른 영역의 여유가 줄어 오히려 프로세스 종료가 쉬워질 수도 있습니다.</p><p><strong>구체적으로:</strong> 스레드를 만들 Native 여유가 부족하거나 메타데이터가 계속 늘어나는 문제라면 Heap 한도 확대가 원인을 해결하지 못할 수 있습니다. 컨테이너 한도 안에서는 다른 영역의 여유가 더 줄 수도 있습니다.</p><p><strong>꼬리질문까지:</strong> 오류 메시지·Heap 추세·스레드 수·Native 지표를 확인한 뒤 어떤 예산을 바꿀지 결정합니다.</p></div></details>
@@ -175,7 +243,7 @@ javap -c -v Lesson03
 <details class="question"><summary>Q5. reserved와 committed는 무엇이 다른가요?</summary><div class="answer"><p>예약은 주소 공간을 확보하는 범위이고 committed는 JVM이 사용할 수 있도록 확보한 메모리의 범위입니다. OS가 실제로 상주시킨 물리 페이지를 나타내는 RSS와도 같지 않습니다. 도구 간 숫자를 비교할 때 먼저 측정 범위를 맞춥니다.</p><p><strong>구체적으로:</strong> 큰 주소 구간을 미리 예약해 두어도 실제로 사용하는 페이지는 일부일 수 있습니다. committed도 OS에서 관찰하는 현재 RSS와 언제나 같은 값은 아닙니다.</p><p><strong>꼬리질문까지:</strong> NMT 숫자와 OS 숫자가 다르면 먼저 지표 정의와 집계 범위를 비교하고, 차이 자체를 누수라고 결론 내리지 않습니다.</p></div></details>
 <details class="question"><summary>Q6. 스레드 수가 급증하면 어떤 메모리를 봐야 하나요?</summary><div class="answer"><p>플랫폼 스레드라면 네이티브 스택과 OS 스레드 자원, 각 스레드가 보관하는 객체와 ThreadLocal 등을 봅니다. 대기 요청 증가가 Heap 객체 유지도 늘릴 수 있습니다. 스택만의 문제로 단정하지 말고 스레드 수·대기 원인·전체 메모리를 연결합니다.</p><p><strong>구체적으로:</strong> 플랫폼 스레드별 스택과 VM 관리 구조, 각 스레드가 붙잡는 요청 데이터도 함께 늘 수 있습니다. 스레드 수 증가는 Native와 Heap 양쪽에 영향을 줄 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 스레드 수를 줄였을 때 큐가 다른 곳으로 이동하는지도 확인해야 합니다. 작업량과 대기 데이터를 함께 통제해야 합니다.</p></div></details>
 
-<h2 id="section-12">9. 공식 근거와 복습</h2>
+<h2 id="section-13">9. 공식 근거와 복습</h2>
 <ul>
 <li><a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.5">JVMS §2.5 런타임 데이터 영역</a>.</li>
 <li><a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.6">JVMS §2.6 프레임</a>.</li>

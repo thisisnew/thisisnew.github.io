@@ -202,6 +202,96 @@ baseline을 잡은 뒤 diff를 보면 “현재 총량이 큰가”보다 “문
 
 <details class="question"><summary>확인 문제. 재시작 후 문제가 사라졌다면 원인을 찾은 것인가요?</summary><div class="answer"><p><strong>판단:</strong> 복구 효과를 관찰한 것이며 원인을 확정한 것은 아닙니다. 재시작은 캐시, 큐, 연결, 클래스 상태 등 여러 조건을 동시에 바꿉니다.</p><p><strong>후속 조사:</strong> 재시작 전 자료와 정상 상태 자료를 비교하고, 언제 다시 증가하는지 확인합니다. 정해진 업무나 배포 횟수에 따라 재현된다면 해당 수명과 참조 경로를 추적합니다. 재시작 주기를 짧게 하는 것만으로는 반복 원인을 없앴다고 보기 어렵습니다.</p><p><strong>꼬리질문:</strong> 급한 장애에서는 분석부터 해야 하나요? 서비스 복구와 증거 확보를 상황에 맞게 병행합니다. 복구 후에는 남은 로그·지표·덤프를 이용해 가설을 좁히고 재현 시험으로 확인합니다. 원인을 모르는 상태와 확인한 상태를 기록에서 명확히 구분하는 것이 중요합니다.</p></div></details>
 
+## 종합 실험실: CPU·락·메모리를 다른 증거로 구분하기
+
+### 증상을 일부러 하나씩 만든다
+
+운영 장애에서는 여러 원인이 겹칩니다. 학습할 때는 먼저 CPU 계산, 락 대기, 객체 유지라는 서로 다른 상황을 분리해 관찰하는 것이 좋습니다. 아래 프로그램은 실행 모드 하나를 선택해 약 15초 동안 유지합니다. 운영 서버에 부하를 주는 코드가 아니라 **개인 실습 환경용**입니다.
+
+```java
+// file: Deep16.java
+import java.util.ArrayList;
+import java.util.List;
+public class Deep16 {
+    static final Object lock = new Object();
+    static final List<byte[]> retained = new ArrayList<>();
+    static volatile long sink;
+    public static void main(String[] args) throws Exception {
+        String mode = args.length == 0 ? "memory" : args[0];
+        System.out.println("pid=" + ProcessHandle.current().pid());
+        System.out.println("mode=" + mode);
+        switch (mode) {
+            case "cpu" -> {
+                long until = System.nanoTime() + 15_000_000_000L;
+                long value = 1;
+                while (System.nanoTime() < until) value = value * 1664525 + 1013904223;
+                sink = value;
+            }
+            case "lock" -> {
+                Thread waiter;
+                synchronized (lock) {
+                    waiter = new Thread(() -> {
+                        synchronized (lock) { System.out.println("acquired"); }
+                    }, "lock-waiter");
+                    waiter.start();
+                    Thread.sleep(15_000);
+                }
+                waiter.join();
+            }
+            case "memory" -> {
+                for (int i = 0; i < 16; i++) retained.add(new byte[1024 * 1024]);
+                Thread.sleep(15_000);
+                System.out.println("retained=" + retained.size());
+            }
+            default -> throw new IllegalArgumentException("cpu | lock | memory");
+        }
+        System.out.println("done");
+    }
+}
+```
+
+```sh
+javac --release 21 -g Deep16.java
+java -Xms64m -Xmx64m -XX:NativeMemoryTracking=summary Deep16 lock
+```
+
+실행 직후 출력된 PID를 다른 터미널에서 사용합니다. 아래 12345는 예시이므로 반드시 실제 PID로 바꿉니다.
+
+```sh
+jcmd 12345 VM.version
+jcmd 12345 Thread.print -l
+jcmd 12345 GC.heap_info
+jcmd 12345 VM.native_memory summary
+```
+
+### 같은 도구도 질문이 달라지면 읽는 부분이 다르다
+
+| 모드 | 기대하는 관측 | 이 관측만으로 주장할 수 없는 것 |
+|---|---|---|
+| cpu | main의 계산 루프, CPU 사용 증가 | RUNNABLE이라는 상태만으로 CPU 원인 확정 |
+| lock | lock-waiter가 BLOCKED, main이 sleep 중 락 소유 | DB 락 또는 교착이라고 단정 |
+| memory | 배열 16개가 retained에서 계속 참조됨 | 고정 보관량만으로 무한 누수라고 단정 |
+
+lock 모드에서 main은 sleep하지만 모니터를 놓지 않습니다. waiter가 기다리는 동안 프로세스 CPU는 낮을 수 있습니다. 시간이 지나 main이 synchronized 블록을 빠져나오면 waiter가 진행하므로 교착은 아닙니다. “스레드가 기다린다”와 “서로 영원히 기다린다”를 구분하는 실험입니다.
+
+memory 모드의 16 MiB는 배열 payload의 합이며 전체 Heap 사용량과 같지 않습니다. 이 코드는 고정량을 의도적으로 보유합니다. 누수를 주장하려면 반복 작업에서 업무상 종료되어야 할 객체가 계속 남고 증가하는지 추가 증거가 필요합니다. 객체가 크다는 사실만으로 결함이라고 부르면 정상 캐시와 작업 상태도 모두 누수가 됩니다.
+
+### 증거를 모으는 동안 시스템이 바뀐다는 점까지 고려하기
+
+thread dump는 특정 순간의 스냅샷입니다. 두 장의 스택이 같다고 그 사이에 아무 일도 없었다고 확정할 수 없습니다. CPU 프로파일은 시간에 걸친 표본이며 샘플링 설정과 관측 구간에 영향을 받습니다. heap dump는 원인 추적에 강력하지만 수집 자체의 정지·디스크 비용을 고려해야 합니다. 그래서 상태 확인과 낮은 비용의 관측으로 가설을 좁힌 뒤 필요한 깊이로 들어갑니다.
+
+`jcmd PID help COMMAND`로 대상 JVM에서 지원하는 명령과 영향도를 확인하세요. 다른 컨테이너나 다른 권한으로 붙을 때는 attach가 실패할 수 있습니다. 도구가 연결되지 않았다는 사실은 애플리케이션이 정상이라는 뜻도, 바로 고장 났다는 뜻도 아닙니다. PID namespace·사용자·JDK 도구와 대상 프로세스의 관계를 확인해야 합니다.
+
+### 실제 입고 API 장애를 설명하는 완성된 형태
+
+가상 상황: 14:00부터 DB 응답이 길어졌고, 14:01에 연결 풀 대기와 작업 큐가 늘었으며, 14:02부터 GC의 생존량과 정지 시간이 증가했습니다. 이 순서가 관측되었다면 “GC 때문에 전부 느려졌다”보다 “외부 지연이 요청 보유 시간을 늘려 GC 비용까지 증가시켰다”는 가설이 더 잘 맞을 수 있습니다. 그러나 인과관계는 추가 검증이 필요합니다.
+
+수정 후에는 같은 요청률에서 DB 지연, 큐 길이, 생존량, GC 총 정지 시간, API p99를 비교합니다. 단순 재시작 직후 메모리가 줄어든 결과는 원인 제거 증거로 약합니다. 충분히 같은 업무를 반복한 뒤 증가 추세가 사라지는지 확인해야 합니다. 장애 보고서는 도구 이름을 나열하는 대신 관찰→가설→반증 시도→변경→비교 결과 순으로 작성하면 설득력이 높아집니다.
+
+<details class="question"><summary>종합 면접. CPU는 낮고 응답은 느립니다. Heap을 늘리겠습니까?</summary><div class="answer"><p><strong>답변:</strong> 먼저 대기 원인을 구분하겠습니다. thread dump와 연결 풀·큐·외부 호출 지표로 애플리케이션 락, DB 대기, 외부 API 지연을 확인하고 GC 로그와 시간상 겹치는지도 보겠습니다.</p><p><strong>판단:</strong> Heap 부족과 수집 압박의 증거가 있으면 증설을 검토할 수 있지만, 락이나 연결 풀 대기라면 메모리 변경은 원인에 직접 대응하지 않습니다. 동시에 대기 중인 요청이 메모리를 더 오래 붙잡는 2차 효과도 살피겠습니다.</p><p><strong>검증:</strong> 수정 전후 동일 부하에서 큐와 지연, 생존량의 추세를 비교하고 단순 재시작 효과를 해결로 혼동하지 않겠습니다.</p></div></details>
+
+추가 근거: [jcmd 지원 명령과 영향도](https://docs.oracle.com/en/java/javase/21/docs/specs/man/jcmd.html), [JFR 진단 명령](https://docs.oracle.com/en/java/javase/21/docs/specs/man/jfr.html).
+
 ## 10. 상세 면접 Q&A
 
 <details class="question"><summary>Q1. CPU 100%면 바로 Heap dump를 뜨나요?</summary><div class="answer"><p>먼저 CPU를 쓰는 스레드와 실행 경로를 확인합니다. JFR 실행 표본과 OS CPU, GC 시간을 비교합니다. Heap dump는 참조 유지 분석에 유용하지만 CPU 계산 루프의 첫 관측 자료로 항상 적절한 것은 아닙니다.</p><p><strong>구체적으로:</strong> Heap dump는 객체 유지 관계를 보는 자료이며 CPU 시간의 주된 사용처를 곧바로 알려 주지는 않습니다. CPU 표본·스레드별 시간·GC와 컴파일 활동을 먼저 연결합니다.</p><p><strong>꼬리질문까지:</strong> 관찰하려는 현상에 맞는 도구를 선택해야 불필요한 수집 비용과 분석 시간을 줄일 수 있습니다.</p></div></details>
@@ -223,3 +313,4 @@ baseline을 잡은 뒤 diff를 보면 “현재 총량이 큰가”보다 “문
 - [JDK 21 Troubleshooting Guide](https://docs.oracle.com/en/java/javase/21/troubleshoot/index.html).
 
 최종 과제는 “입고 API가 느리고 메모리가 증가한다”는 보고를 받았다고 가정하는 것입니다. 어떤 자료부터 수집할지, 각 가설을 어떤 관측으로 반박할지 적어 보세요. JVM 구조를 배운 목적은 하나의 유행 옵션을 외우는 것이 아니라 실행과 증거를 연결해 문제를 좁히는 데 있습니다.
+

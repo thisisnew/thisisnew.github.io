@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="synchronized·monitorenter/exit·happens-before·락 경합·안전 지점과 Java 21 가상 스레드를 연결한다"><title>JVM 15 · 스레드·모니터·Safepoint: 대기와 정지를 구분하기 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/jvm-study-15.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><script src="/assets/series-category.js" defer></script><link rel="stylesheet" href="/assets/jvm-study.css"></head><body><main><a href="/">← 전체 글</a> · <a href="/posts/jvm-study-00.html">JVM 학습 지도</a><header><p class="meta">JVM QUEST · 15 / 16 · JAVA 21 · 2026-10-19</p><h1>스레드·모니터·Safepoint: 대기와 정지를 구분하기</h1><p class="subtitle">synchronized·monitorenter/exit·happens-before·락 경합·안전 지점과 Java 21 가상 스레드를 연결한다</p><p class="note">기준: Java SE 21 사양과 HotSpot JDK 21. 첨부 자료의 JVMS 23·JDK 17 발췌는 이 기준으로 대조했습니다. 설명 속 장애 상황은 학습용 가상 사례입니다. 예제는 외부 라이브러리 없이 실행할 수 있습니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이 글에서 배울 것</h2><ol><li><a href="#section-1">시작 전에: 이 편에서 쓰는 말</a></li><li><a href="#section-2">1. 한 대의 창고 단말기를 여러 직원이 쓴다면</a></li><li><a href="#section-3">2. 원자성과 가시성을 함께 보기</a></li><li><a href="#section-4">3. 정확히 2만 번 증가하는 코드</a></li><li><a href="#section-5">4. synchronized 메서드와 블록의 바이트코드</a></li><li><a href="#section-6">5. BLOCKED·WAITING·RUNNABLE과 wait/sleep</a></li><li><a href="#section-7">6. Safepoint는 무엇을 안전하게 만드는가</a></li><li><a href="#section-8">7. Java 21 가상 스레드는 무엇이 다른가</a></li><li><a href="#section-9">8. 장애 사례: CPU는 낮은데 요청이 밀림</a></li><li><a href="#section-10">더 깊이: 락 경합·교착·Safepoint 지연의 차이</a></li><li><a href="#section-11">차근차근 이해하기: 같은 값과 같은 락을 공유하는지 먼저 본다</a></li><li><a href="#section-12">9. 상세 면접 Q&amp;A</a></li><li><a href="#section-13">10. 공식 근거와 복습</a></li></ol></aside><article><h2 id="section-1">시작 전에: 이 편에서 쓰는 말</h2>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="synchronized·monitorenter/exit·happens-before·락 경합·안전 지점과 Java 21 가상 스레드를 연결한다"><title>JVM 15 · 스레드·모니터·Safepoint: 대기와 정지를 구분하기 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/jvm-study-15.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><script src="/assets/series-category.js" defer></script><link rel="stylesheet" href="/assets/jvm-study.css"></head><body><main><a href="/">← 전체 글</a> · <a href="/posts/jvm-study-00.html">JVM 학습 지도</a><header><p class="meta">JVM QUEST · 15 / 16 · JAVA 21 · 2026-10-21</p><h1>스레드·모니터·Safepoint: 대기와 정지를 구분하기</h1><p class="subtitle">synchronized·monitorenter/exit·happens-before·락 경합·안전 지점과 Java 21 가상 스레드를 연결한다</p><p class="note">기준: Java SE 21 사양과 HotSpot JDK 21. 첨부 자료의 JVMS 23·JDK 17 발췌는 이 기준으로 대조했습니다. 설명 속 장애 상황은 학습용 가상 사례입니다. 예제는 외부 라이브러리 없이 실행할 수 있습니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이 글에서 배울 것</h2><ol><li><a href="#section-1">시작 전에: 이 편에서 쓰는 말</a></li><li><a href="#section-2">1. 한 대의 창고 단말기를 여러 직원이 쓴다면</a></li><li><a href="#section-3">2. 원자성과 가시성을 함께 보기</a></li><li><a href="#section-4">3. 정확히 2만 번 증가하는 코드</a></li><li><a href="#section-5">4. synchronized 메서드와 블록의 바이트코드</a></li><li><a href="#section-6">5. BLOCKED·WAITING·RUNNABLE과 wait/sleep</a></li><li><a href="#section-7">6. Safepoint는 무엇을 안전하게 만드는가</a></li><li><a href="#section-8">7. Java 21 가상 스레드는 무엇이 다른가</a></li><li><a href="#section-9">8. 장애 사례: CPU는 낮은데 요청이 밀림</a></li><li><a href="#section-10">더 깊이: 락 경합·교착·Safepoint 지연의 차이</a></li><li><a href="#section-11">차근차근 이해하기: 같은 값과 같은 락을 공유하는지 먼저 본다</a></li><li><a href="#section-12">심화 실험실: AtomicInteger라도 재고 차감 전체가 원자적이지 않을 수 있다</a></li><li><a href="#section-13">9. 상세 면접 Q&amp;A</a></li><li><a href="#section-14">10. 공식 근거와 복습</a></li></ol></aside><article><h2 id="section-1">시작 전에: 이 편에서 쓰는 말</h2>
 <p>처음 읽는다면 아래 용어의 뜻만 확인한 뒤 본문으로 넘어가세요. 먼저 예제의 결과를 예상하고, 실행 과정을 따라간 다음, 면접 답변을 펼쳐 자신의 설명과 비교하면 좋습니다.</p>
 <table>
 <thead>
@@ -160,7 +160,60 @@ public class VirtualThreads {
 <p>Java 21에서는 synchronized 내부의 일부 블로킹처럼 carrier를 붙잡는 pinning 조건을 구분해야 합니다. 이 내용은 버전 의존적이므로 JDK 24의 변경을 Java 21에 소급해 설명하지 않습니다. 스레드 수를 늘리기 전에 CPU 작업인지 I/O 대기인지, 실제 병목 자원이 무엇인지부터 확인하세요.</p>
 <details class="question"><summary>확인 문제. synchronized 블록이 있는데도 결과가 틀리면 JVM 버그일까요?</summary><div class="answer"><p><strong>판단:</strong> 먼저 모든 관련 경로가 같은 모니터와 같은 규칙을 사용하는지 확인해야 합니다. 읽는 경로가 락을 사용하지 않거나, 호출마다 다른 객체를 락으로 쓰거나, 보호 구간 밖에서 복합 갱신을 수행하면 문제가 남을 수 있습니다.</p><p><strong>예:</strong> 조회를 락 안에서 하고 계산 후 저장을 별도의 락 구간에서 하면 그 사이에 다른 갱신이 들어올 수 있습니다. 원자적으로 유지해야 할 전체 작업을 정의한 뒤 해당 경계를 보호해야 합니다.</p><p><strong>꼬리질문:</strong> 서버가 두 대라면요? 각 JVM의 모니터는 다른 프로세스의 작업을 함께 잠그지 않습니다. 공유 DB 데이터의 일관성은 DB 트랜잭션·제약과 분산 환경의 동시성 설계를 포함해 해결해야 합니다.</p></div></details>
 
-<h2 id="section-12">9. 상세 면접 Q&amp;A</h2>
+<h2 id="section-12">심화 실험실: AtomicInteger라도 재고 차감 전체가 원자적이지 않을 수 있다</h2>
+<h3>한 동작이 안전한 것과 두 동작의 묶음이 안전한 것은 다르다</h3>
+<p>은행 창구가 잔액 조회와 인출을 각각 정확하게 처리해도, 두 직원이 모두 마지막 잔액을 본 뒤 각각 인출하면 문제가 됩니다. AtomicInteger의 get과 decrementAndGet이 각각 원자적이어도 그 둘을 연결한 조건부 차감이 하나의 원자적 연산이 되는 것은 아닙니다.</p>
+<pre><code class="language-java">// file: Deep15.java
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
+public class Deep15 {
+    public static void main(String[] args) throws Exception {
+        AtomicInteger stock = new AtomicInteger(1);
+        CountDownLatch checked = new CountDownLatch(2);
+        Runnable buy = () -&gt; {
+            boolean available = stock.get() &gt; 0;
+            checked.countDown();
+            try { checked.await(); }
+            catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            if (available) stock.decrementAndGet();
+        };
+        Thread a = new Thread(buy);
+        Thread b = new Thread(buy);
+        a.start(); b.start(); a.join(); b.join();
+        System.out.println(&quot;broken=&quot; + stock.get());
+        stock.set(1);
+        System.out.println(&quot;first=&quot; + takeOne(stock));
+        System.out.println(&quot;second=&quot; + takeOne(stock));
+        System.out.println(&quot;fixed=&quot; + stock.get());
+    }
+    static boolean takeOne(AtomicInteger stock) {
+        for (;;) {
+            int current = stock.get();
+            if (current &lt;= 0) return false;
+            if (stock.compareAndSet(current, current - 1)) return true;
+        }
+    }
+}
+</code></pre>
+<pre><code class="language-sh">javac --release 21 Deep15.java
+java Deep15
+</code></pre>
+<p>출력은 <code>broken=-1</code>, <code>first=true</code>, <code>second=false</code>, <code>fixed=0</code>입니다. latch는 두 스레드가 모두 재고 1을 읽도록 순서를 만들어 오류를 재현합니다. 단순히 수천 번 실행해서 운 좋게 실패하기를 기다리지 않습니다. 수정된 takeOne은 읽은 값이 여전히 같을 때만 변경하고, 경쟁에서 졌다면 현재 값을 다시 읽습니다.</p>
+<h3>CAS가 보호하는 범위를 정확히 말하기</h3>
+<p>CAS는 compare-and-set, 즉 기대한 값과 같을 때 바꾸는 원자적 조건부 연산입니다. 이 예제에서는 stock 한 값의 조건과 변경을 연결합니다. 하지만 DB에 주문을 저장하고 Kafka로 이벤트를 보내는 전체 과정이 원자적으로 되는 것은 아닙니다. JVM 안의 원자 변수, DB 트랜잭션, 분산 메시지 전달은 서로 다른 경계입니다.</p>
+<p>여러 필드를 함께 일관되게 바꾸려면 같은 락으로 묶거나 상태 전체를 불변 객체로 구성해 원자적으로 교체하는 등 별도 설계가 필요합니다. 여러 AtomicInteger를 하나씩 바꾸는 것만으로 여러 값의 불변식이 유지되지는 않습니다. 또한 CAS 루프는 경쟁이 심하면 재시도가 늘고 특정 스레드의 공정성을 자동 보장하지 않습니다.</p>
+<h3>happens-before는 “바로 보인다”보다 정확한 규칙이다</h3>
+<p><code>Thread.start()</code> 이전의 준비 작업과 시작한 스레드의 동작, 스레드 종료와 성공한 join 이후의 관측 사이에는 happens-before 관계가 있습니다. 이 예제에서 main이 join한 뒤 결과를 읽는 것과 두 작업 스레드가 동시에 조건을 검사하는 것은 다른 문제입니다. 결과 관측이 안전하다고 중간 업무 연산도 원자적인 것은 아닙니다.</p>
+<p>volatile도 마찬가지입니다. 가시성과 순서에 대한 보장이 있어도 <code>if (stock &gt; 0) stock--</code>를 하나의 원자적 묶음으로 만들지 않습니다. 스레드 안전성을 설명할 때는 <strong>어떤 값, 어떤 연산 묶음, 어떤 관측 관계</strong>를 보장하는지 구체적으로 말해야 합니다.</p>
+<h3>Java 21 가상 스레드에도 같은 원칙이 적용된다</h3>
+<p>가상 스레드를 사용해도 공유 재고 변수의 경쟁 조건은 사라지지 않습니다. 더 많은 대기를 저렴하게 표현할 수 있다는 것과 DB 연결·외부 API 처리 용량이 늘어난다는 것도 다릅니다. Java 21에서는 synchronized 안에서의 일부 블로킹이 carrier pinning 문제와 연결될 수 있으므로 관찰이 필요합니다. 이후 JDK의 변경을 Java 21 동작에 소급해서 설명하지 않습니다.</p>
+<details class="question"><summary>심화 면접. AtomicInteger를 썼는데도 재고가 음수가 되었습니다. 어떻게 설명하겠습니까?</summary><div class="answer"><p><strong>답변:</strong> 원자적인 개별 메서드 호출 사이에 다른 스레드가 끼어들 수 있습니다. 조회와 조건 판단, 차감 전체를 하나의 원자적 규칙으로 만들지 않으면 두 요청이 같은 재고를 보고 모두 차감할 수 있습니다.</p><p><strong>해결:</strong> 단일 값이면 CAS 반복으로 조건부 변경을 구현할 수 있고, 여러 값이면 공통 락이나 상태 모델을 검토합니다. latch로 두 요청의 조회 시점을 맞추면 경쟁을 결정적으로 재현할 수 있습니다.</p><p><strong>경계:</strong> 서버가 여러 대라면 이 메모리 변수는 서버별로 따로 존재합니다. 전체 재고 정합성은 DB의 조건부 갱신 등 실제 공유 저장소의 동시성 정책까지 설계해야 합니다.</p></div></details>
+
+<p>추가 근거: <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/atomic/AtomicInteger.html#compareAndSet(int,int)">AtomicInteger CAS</a>, <a href="https://docs.oracle.com/javase/specs/jls/se21/html/jls-17.html#jls-17.4.5">JLS happens-before</a>, <a href="https://docs.oracle.com/en/java/javase/21/core/virtual-threads.html">Java 21 가상 스레드</a>.</p>
+<h2 id="section-13">9. 상세 면접 Q&amp;A</h2>
 <details class="question"><summary>Q1. synchronized는 원자성만 제공하나요?</summary><div class="answer"><p>같은 모니터의 상호 배제와 unlock→이후 lock의 happens-before를 함께 봐야 합니다. 올바른 공유 규칙 없이 다른 락으로 읽으면 같은 보호를 얻지 못합니다. volatile과 복합 연산 원자성의 차이도 구분합니다.</p><p><strong>구체적으로:</strong> 같은 모니터의 unlock 이후 다른 스레드의 lock은 happens-before 관계를 형성합니다. 공유 상태의 관찰과 순서를 설명하는 언어 수준의 보장입니다.</p><p><strong>꼬리질문까지:</strong> 락을 사용하는 쓰기 경로만 있고 읽기 경로가 다른 규칙을 쓰면 전체 접근을 다시 검토해야 합니다.</p></div></details>
 <details class="question"><summary>Q2. javap에 monitorenter가 없으면 동기화되지 않은 메서드인가요?</summary><div class="answer"><p>동기화 메서드는 ACC_SYNCHRONIZED 플래그로 표시될 수 있습니다. 블록의 명령과 메서드 플래그를 함께 확인해야 합니다. static과 인스턴스 메서드가 사용하는 모니터도 다릅니다.</p><p><strong>구체적으로:</strong> synchronized 메서드는 ACC_SYNCHRONIZED 플래그로 나타날 수 있습니다. 블록 형태의 monitorenter·monitorexit만 검색하면 메서드 수준 동기화를 놓칩니다.</p><p><strong>꼬리질문까지:</strong> 인스턴스 메서드와 static 메서드가 어떤 모니터를 사용하는지도 구분해야 합니다.</p></div></details>
 <details class="question"><summary>Q3. sleep은 락을 놓나요?</summary><div class="answer"><p>sleep은 보유한 모니터를 자동으로 놓지 않습니다. wait는 해당 모니터의 소유 규칙을 만족해야 하고 대기 중 그 모니터를 놓습니다. 긴 sleep이나 I/O를 임계 구역 안에 두면 다른 스레드가 계속 막힐 수 있습니다.</p><p><strong>구체적으로:</strong> synchronized 안에서 sleep하면 그동안 같은 모니터를 원하는 다른 스레드는 기다릴 수 있습니다. 쉬고 있다는 사실과 락을 놓았다는 사실은 다릅니다.</p><p><strong>꼬리질문까지:</strong> Object.wait는 해당 모니터를 놓지만 보유한 모든 락을 놓는 것은 아니며, 다시 진행하려면 재획득이 필요합니다.</p></div></details>
@@ -168,7 +221,7 @@ public class VirtualThreads {
 <details class="question"><summary>Q5. 가상 스레드를 늘리면 CPU 계산도 무한히 빨라지나요?</summary><div class="answer"><p>아닙니다. 실제 계산 병렬성은 CPU와 캐리어 실행 자원에 제한됩니다. 가상 스레드는 주로 많은 블로킹 작업을 저렴하게 표현하는 데 유리합니다. DB 풀·API 한도·메모리 등 외부 제약은 따로 제한해야 합니다.</p><p><strong>구체적으로:</strong> 계산 가능한 CPU 코어 수와 처리 자원은 그대로입니다. 가상 스레드는 대기 중심 동시성의 표현 비용에 장점이 있고 무한한 계산 능력을 만드는 장치는 아닙니다.</p><p><strong>꼬리질문까지:</strong> DB 연결이나 외부 API 제한도 남으므로 작업 개수와 동시에 사용하는 자원을 별도로 제어해야 합니다.</p></div></details>
 <details class="question"><summary>Q6. Java 21의 pinning 설명을 JDK 24에도 그대로 적용하나요?</summary><div class="answer"><p>그대로 적용하면 안 됩니다. JEP 491은 synchronized 관련 pinning을 개선했습니다. 사용하는 JDK의 기능·버전과 실제 스택·JFR 이벤트를 기준으로 진단해야 합니다. 모든 지연을 pinning 한 단어로 설명하지 않습니다.</p><p><strong>구체적으로:</strong> 동일한 synchronized 사용이라도 런타임 버전의 구현 변화에 따라 carrier를 붙잡는 조건이 달라질 수 있습니다. 21의 제약을 24의 보장처럼 말하거나 그 반대로 설명하면 안 됩니다.</p><p><strong>꼬리질문까지:</strong> 문제 재현과 해결 안내에는 JDK 패치 버전·해당 JEP의 적용 버전을 함께 적으세요.</p></div></details>
 
-<h2 id="section-13">10. 공식 근거와 복습</h2>
+<h2 id="section-14">10. 공식 근거와 복습</h2>
 <ul>
 <li><a href="https://docs.oracle.com/javase/specs/jls/se21/html/jls-17.html">JLS §17 동기화·메모리 모델</a>.</li>
 <li><a href="https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.11.10">JVMS §2.11.10 동기화</a>.</li>

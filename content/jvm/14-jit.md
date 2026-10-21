@@ -144,6 +144,69 @@ JMH에서 warmup·measurement·fork를 정할 때는 어떤 상태를 측정하�
 
 <details class="question"><summary>확인 문제. JIT 로그에 컴파일 기록이 있으면 그 메서드가 병목이라는 뜻인가요?</summary><div class="answer"><p><strong>판단:</strong> 컴파일 기록은 해당 컴파일 활동의 증거이지 메서드가 전체 시간을 가장 많이 소비한다는 증거가 아닙니다. 호출 빈도가 높아도 실행 비용은 작을 수 있습니다.</p><p><strong>연결:</strong> 프로파일링에서 시간이 많이 쓰인 경로를 찾고, 그 경로의 인라이닝·컴파일 상태를 보조 자료로 조사합니다. 대기 시간이 대부분인 서비스라면 계산 최적화보다 외부 호출과 락의 영향을 먼저 확인할 수도 있습니다.</p><p><strong>꼬리질문:</strong> 역최적화 횟수를 0으로 만들면 좋나요? 항상 그렇지는 않습니다. 적응적 최적화 과정에서 정상적으로 발생할 수 있으므로 반복 빈도, CPU 비용, 지연과의 상관관계를 확인해야 합니다.</p></div></details>
 
+## 심화 실험실: 같은 인터페이스 호출이 실행 중 달라지는 이유
+
+### 대부분 같은 손님이 온다는 관측은 영구적인 약속이 아니다
+
+매일 같은 배송사가 오는 창구라면 자주 쓰는 처리 절차를 빠르게 만들 수 있습니다. 하지만 새 배송사가 오면 기존 가정이 여전히 맞는지 확인해야 합니다. JIT의 프로파일 기반 최적화도 실제 관측한 타입과 실행 빈도를 활용할 수 있지만, 관측을 Java 언어의 영구 보장으로 바꾸지는 못합니다.
+
+```java
+// file: Deep14.java
+public class Deep14 {
+    interface Fee { int apply(int quantity); }
+    static class Normal implements Fee {
+        public int apply(int quantity) { return quantity + 1; }
+    }
+    static class Express implements Fee {
+        public int apply(int quantity) { return quantity + 10; }
+    }
+    static volatile long sink;
+    static long batch(Fee fee) {
+        long sum = 0;
+        for (int i = 0; i < 100; i++) sum += fee.apply(i);
+        return sum;
+    }
+    public static void main(String[] args) {
+        Fee normal = new Normal();
+        for (int i = 0; i < 30_000; i++) sink = batch(normal);
+        System.out.println(batch(normal));
+        System.out.println(batch(new Express()));
+    }
+}
+```
+
+```sh
+javac --release 21 Deep14.java
+java -XX:+UnlockDiagnosticVMOptions -XX:+PrintCompilation -XX:+PrintInlining Deep14
+```
+
+업무 결과는 `5050`, `5950`입니다. 로그에는 JDK 내부 컴파일 기록도 섞입니다. 자신의 클래스와 batch·apply를 찾아 인라이닝 판단을 읽습니다. 로그 순서와 최적화 결정, deoptimization 발생 여부는 실행 환경에 따라 달라집니다. 이 예제가 반드시 특정 컴파일 단계나 deoptimization 한 번을 재현한다고 주장하지 않습니다.
+
+### 가능한 최적화와 반드시 지켜야 할 의미
+
+Normal만 관측된 호출 지점은 타입 검사와 함께 빠른 경로로 최적화될 수 있습니다. Express가 나중에 들어왔을 때 JVM은 새 타입에 맞는 올바른 결과를 내야 합니다. 검사 실패 후 다른 경로로 가거나, 기존 코드의 가정을 무효화하고 재컴파일하는 등 구현에 따라 대응할 수 있습니다. “인터페이스는 언제나 느리다”도, “한 번 인라인되면 이후 타입 변화는 무시한다”도 정확하지 않습니다.
+
+| 개념 | 해결하는 문제 | 흔한 혼동 |
+|---|---|---|
+| 인라이닝 | 호출 경계를 없애 더 넓은 최적화 | 소스를 사람이 복사한 것과 동일하다고 생각 |
+| OSR | 오래 도는 메서드의 실행 중 루프를 최적화 코드로 전환 | 다음 메서드 호출까지 무조건 기다린다고 생각 |
+| Deoptimization | 기존 최적화 가정으로 실행하기 어려운 상태 복원 | 업무 예외 또는 JVM 장애라고 단정 |
+| Code cache | 컴파일한 네이티브 코드 보관 | Java 객체 Heap과 동일하게 취급 |
+
+### volatile sink가 있어도 벤치마크는 아니다
+
+예제의 sink는 결과가 전혀 사용되지 않는 실험보다 관측을 분명하게 만들지만, 그 자체로 정밀 성능 측정이 되지는 않습니다. volatile 쓰기 비용이 추가되고, 루프 패턴이 실제 요청과 다르며, 입력 타입 분포도 인위적입니다. 이 코드는 컴파일 동작 관찰용입니다. 성능 비교는 JMH 같은 도구로 warm-up, 측정 반복, 별도 프로세스 fork, 결과 소비를 설계해야 합니다.
+
+또한 작은 메서드만 빠르게 만든 결과가 서비스 처리량 개선으로 바로 이어지는 것은 아닙니다. 대부분의 시간이 DB 대기라면 계산 메서드의 20% 개선은 전체 응답에서 매우 작을 수 있습니다. 전체 시간 중 그 코드가 차지하는 비중을 먼저 프로파일링하는 것이 우선입니다.
+
+### 새 인스턴스가 느릴 때 확인할 순서
+
+배포 직후 CPU가 높다는 이유만으로 JIT를 끄지 않습니다. 클래스 로딩과 초기화, JIT 컴파일, 캐시 구축, 트래픽 집중을 분리합니다. compiler thread 활동과 코드 캐시 상태, 애플리케이션 CPU 스택을 확인하고 이전 인스턴스와 동일한 트래픽·자원 조건에서 비교합니다. 워밍업 트래픽도 실제 유형을 반영하지 않으면 다른 타입 분포로 준비되어 효과가 제한될 수 있습니다.
+
+<details class="question"><summary>심화 면접. JIT가 이미 인터페이스 구현체를 인라인했는데 다른 구현체가 들어오면 오답이 나오나요?</summary><div class="answer"><p><strong>답변:</strong> 올바른 JVM 구현은 Java의 의미를 유지해야 합니다. 관측한 타입을 전제로 최적화했다면 그 전제가 유효한지 검사하거나 관련 의존성을 관리하고, 달라질 때 올바른 실행 경로로 복귀해야 합니다.</p><p><strong>주의:</strong> 모든 경우가 반드시 deoptimization 하나로만 처리되는 것은 아닙니다. 타입 검사와 느린 경로, 여러 타입의 인라이닝 등 실제 컴파일 결과에 따라 다릅니다.</p><p><strong>실무:</strong> 타입 분포가 다른 마이크로벤치마크 하나로 운영 성능을 단정하지 않고 실제 호출 지점의 프로파일과 워밍업 이후 성능을 확인하겠습니다.</p></div></details>
+
+추가 근거: [HotSpot 성능 개선과 계층형 컴파일](https://docs.oracle.com/en/java/javase/21/vm/java-hotspot-virtual-machine-performance-enhancements.html), [OpenJDK JMH](https://github.com/openjdk/jmh).
+
 ## 9. 상세 면접 Q&A
 
 <details class="question"><summary>Q1. JIT는 정확히 몇 번 호출하면 시작하나요?</summary><div class="answer"><p>단일 고정 횟수로 모든 메서드를 설명할 수 없습니다. 호출과 루프 빈도, 계층형 정책, 프로파일·컴파일 큐·자원 조건 등이 영향을 줍니다. 임계값 하나를 언어의 보장값처럼 외우지 말고 실제 로그로 확인합니다.</p><p><strong>구체적으로:</strong> 컴파일 결정은 호출 횟수뿐 아니라 루프 실행과 단계별 정책, 실행 프로파일, 컴파일 자원 등의 영향을 받습니다. 숫자 하나를 모든 메서드의 보장으로 제시하지 않습니다.</p><p><strong>꼬리질문까지:</strong> 정확한 실행에서는 PrintCompilation 등으로 실제 컴파일 시점을 관찰하고 관련 옵션을 기록합니다.</p></div></details>
@@ -161,3 +224,4 @@ JMH에서 warmup·measurement·fork를 정할 때는 어떤 상태를 측정하�
 - [OpenJDK JMH 및 예제](https://github.com/openjdk/jmh/tree/master/jmh-samples).
 
 PlusOne만 반복하는 경우와 두 구현을 번갈아 호출하는 경우를 비교하세요. 실행 시간 숫자보다 인라이닝 로그와 실제 타입 분포가 어떻게 연결되는지 먼저 설명해 보세요.
+
