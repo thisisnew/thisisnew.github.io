@@ -1,8 +1,8 @@
 {
-  "checkedAt": "2026-10-22T15:18:26.839057+00:00",
+  "checkedAt": "2026-10-22T15:28:10.824318+00:00",
   "runtime": "openjdk version \"21.0.12.1\" 2026-08-18 LTS\nOpenJDK Runtime Environment Corretto-21.0.12.12.1 (build 21.0.12.1+12-LTS)\nOpenJDK 64-Bit Server VM Corretto-21.0.12.12.1 (build 21.0.12.1+12-LTS, mixed mode, sharing)",
-  "compiledClasses": 16,
-  "executedClasses": 13,
+  "compiledClasses": 19,
+  "executedClasses": 16,
   "compilation": "All complete classes compiled with --release 21; Spring examples against Spring Data Redis 3.2.0 and Spring Framework 6.1.1",
   "sources": [
     {
@@ -46,6 +46,16 @@
       "sha256": "49d768625e7df2500cd76ad88e9fd430226c939c49105aa3c918e3a03bd875fb"
     },
     {
+      "file": "PromotionReadinessLesson.java",
+      "lesson": "08-replication-operations.md",
+      "sha256": "da5ac4b8dd37b770afb17954572261d8798b72c427802757e7a7ca8eebccb02f"
+    },
+    {
+      "file": "ReadFreshnessLesson.java",
+      "lesson": "08-replication-operations.md",
+      "sha256": "86ca35985ea8b1335d46b2580da1035f66c7bf9308ee23b028ec739376e66903"
+    },
+    {
       "file": "RedisBucketAddress.java",
       "lesson": "03-memory-encoding.md",
       "sha256": "ee0edb0564a93dc4027d47326455198bbd8f346a18d946ed12658f4dfea74ee8"
@@ -69,6 +79,11 @@
       "file": "RedisTextBytes.java",
       "lesson": "03-memory-encoding.md",
       "sha256": "012cf5bf2e27e430d5c508aa8f372e32e6c2b5af00fbc46ef28f72b3bb89eb3f"
+    },
+    {
+      "file": "ReplicaWriteGateLesson.java",
+      "lesson": "08-replication-operations.md",
+      "sha256": "5e5c8e285c6e9621d1b7f042d30dd5f58fefc0c34096ede07bf2db566115f818"
     },
     {
       "file": "ReplicationBacklogPlan.java",
@@ -113,6 +128,16 @@
       "stdout": "알배기배추"
     },
     {
+      "class": "PromotionReadinessLesson",
+      "status": "passed",
+      "stdout": "ready candidate: passed\ninsufficient measured headroom\ndifferent maxmemory contract\ndifferent eviction policy\nAOF required by this service contract\nadvertised address not reachable from application network"
+    },
+    {
+      "class": "ReadFreshnessLesson",
+      "status": "passed",
+      "stdout": "6 read-routing policy cases passed"
+    },
+    {
       "class": "RedisBucketAddress",
       "status": "passed",
       "stdout": "Address[key=goods:bucket:v1:12, field=34]\nAddress[key=goods:bucket:v1:13, field=0]"
@@ -136,6 +161,11 @@
       "class": "RedisTextBytes",
       "status": "passed",
       "stdout": "A | units=1 | points=1 | bytes=1\n서울 | units=2 | points=2 | bytes=6\n😀 | units=2 | points=1 | bytes=4\nname=서울 | units=7 | points=7 | bytes=11"
+    },
+    {
+      "class": "ReplicaWriteGateLesson",
+      "status": "passed",
+      "stdout": "accepted=true\nthis write already replicated=false"
     },
     {
       "class": "ReplicationBacklogPlan",

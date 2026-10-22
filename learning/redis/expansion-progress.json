@@ -1,10 +1,10 @@
 {
-  "checkedAt": "2026-10-22T15:17:31.120641+00:00",
+  "checkedAt": "2026-10-22T15:28:08.246517+00:00",
   "baselineCommit": "94e8975d49101d16d68b445a030944b3f846ad87",
   "measurement": "Unicode code points in Markdown body, excluding JSON metadata",
   "goal": "Each of the 31 lessons individually at least twice its baseline body length; length alone does not prove teaching quality",
   "complete": false,
-  "expandedCount": 8,
+  "expandedCount": 9,
   "totalCount": 31,
   "lessons": [
     {
@@ -92,10 +92,10 @@
       "baselineCharacters": 17118,
       "minimumCharacters": 34236,
       "baselineSha256": "7558aefce2cca171f573a5fbb87fe6265af4d932f3defbb93da8a92240a76aac",
-      "currentCharacters": 17118,
-      "currentSha256": "7558aefce2cca171f573a5fbb87fe6265af4d932f3defbb93da8a92240a76aac",
-      "ratio": 1.0,
-      "expanded": false
+      "currentCharacters": 35805,
+      "currentSha256": "f73331c5b36f1f6f0d1128626d815d48fb055be3906e0816f4b21cb2e876dcde",
+      "ratio": 2.092,
+      "expanded": true
     },
     {
       "file": "09-sentinel-topology.md",

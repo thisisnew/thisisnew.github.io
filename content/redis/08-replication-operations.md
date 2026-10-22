@@ -6,6 +6,17 @@
 
 제공 자료 08장의 운영 설정을 중심으로, 원문에서 서로 떨어져 있는 읽기 전용·인증·메모리·만료·주소 문제를 하나의 운영 모델로 연결한다. 설정 이름과 기본 동작은 실제 바이너리 버전과 배포 방식에서 확인한다. Redis Open Source의 설정을 관리형 서비스에 그대로 적용할 수 있다고 가정하지 않는다. 이 장에서는 원본을 primary, 복제본을 replica라고 부르되 `masterauth`, `master_link_status`처럼 실제 설정·출력 이름은 그대로 쓴다. [공식 복제 문서](https://redis.io/docs/latest/operate/oss_and_stack/management/replication/)
 
+## 먼저 이해할 바탕. 초록 불 하나로 복제본의 모든 상태를 표현할 수 없다
+
+서버가 살아 있다는 말에는 여러 뜻이 숨어 있다. 프로세스가 존재하는지, 네트워크 연결이 되는지, Redis 명령에 응답하는지, 복제 데이터를 따라오는지, 지금 읽어도 되는지, 새 primary로 써도 되는지가 다르다. 처음에는 이 모든 것을 “정상”이라고 묶기 쉽다. 운영에서는 어떤 질문에 정상인지 나누어야 한다.
+
+병원에 비유하면 접수 창구가 열려 있다는 사실과 의사가 진료할 준비가 됐다는 사실, 응급 수술이 가능하다는 사실이 다른 것과 같다. PING에 응답하는 replica라도 초기 동기화 중일 수 있고, 큰 조회 때문에 복제 적용이 늦을 수 있다. 현재 읽기에는 쓸 수 있어도 승격 후의 쓰기와 영속성 부하를 감당하지 못할 수 있다. 비유는 준비 수준을 구별하는 데 쓰고 실제 판단은 Redis와 시스템의 상태로 한다.
+
+복제본에 기대하는 기능도 분리하자. 읽기 분산용 서버는 오래된 값을 어느 정도 허용할 수 있다. 장애 전환 후보는 primary의 쓰기를 이어 받아야 한다. 분석 조회용 서버는 큰 요청을 처리하느라 자원을 많이 사용할 수 있다. 한 서버가 여러 역할을 맡으면 비용과 목적이 충돌할 수 있다. 역할을 나누는 것은 반드시 서버 수를 늘리라는 말이 아니라 **서로 다른 요구를 같은 정상 기준으로 숨기지 말라는 뜻**이다.
+
+이 장의 설정들은 이런 질문의 일부에 답한다. read-only는 잘못된 데이터 쓰기를 막는 역할이고, stale-data 정책은 특정 연결 상태에서 오래된 데이터 제공을 어떻게 다룰지와 관련되며, 최소 replica 조건은 쓰기 수락의 보호 조건이다. 인증과 메모리, 광고 주소는 또 다른 축이다. 설정 하나가 전체 안전성을 대신하지 않는다는 관점으로 읽으면 많은 옵션이 정리된다.
+
+
 ## 1. 복제본의 역할부터 명확히 하기
 
 복제본에는 여러 기대가 붙는다. 읽기 요청을 나눠 처리하는 서버, 원본 장애 때 승격할 예비 서버, 백업 파일을 만드는 서버, 무거운 조회를 대신 처리하는 서버가 그것이다. 하나의 복제본이 여러 역할을 맡을 수 있지만 역할들이 항상 잘 어울리는 것은 아니다. 대량 조회로 CPU가 바쁜 복제본은 복제 스트림 적용이 늦어질 수 있고, 그 순간 승격 후보로서의 품질도 떨어질 수 있다.
@@ -262,6 +273,298 @@ redis-cli -h 127.0.0.1 -p 16390 SHUTDOWN NOSAVE
 
 **사고 C: 승격 직후 OOM 오류가 발생했다.** replica 시절에는 maxmemory를 독립적으로 적용하지 않다가 primary가 되면서 작은 한도와 `noeviction` 정책이 영향을 줄 수 있다. 역할 전환 전후 설정을 비교하고, 후보의 자원이 실제 primary 부하를 감당하는지 확인한다. failover 시험은 역할만 바뀌는지 보는 테스트가 아니라 쓰기·영속성·메모리·클라이언트 연결까지 포함해야 한다.
 
+## 상태 읽기 보충. 생존·연결·진행·신선도·승격 준비를 다섯 칸으로 나누기
+
+첫 칸은 생존이다. 프로세스가 살아 있고 기본 명령을 처리하는가? 두 번째 칸은 연결이다. 기대한 primary와 복제 연결이 유지되는가? 세 번째 칸은 진행이다. 새 복제 스트림을 계속 적용하고 따라잡는가? 네 번째 칸은 신선도다. 이 업무 요청이 필요한 버전의 값을 읽을 수 있는가? 마지막 칸은 승격 준비다. 역할이 바뀐 뒤 실제 primary 부하와 정책을 감당하는가?
+
+각 칸은 이전 칸이 초록이라고 자동으로 초록이 되지 않는다. 소켓이 열려도 진행이 멈출 수 있고, 전체적으로 잘 따라와도 지금 막 쓴 특정 값은 아직 없을 수 있다. 모든 데이터를 최신으로 읽을 수 있더라도 승격 후 디스크 쓰기나 인증 구성은 실패할 수 있다. 그래서 건강 점검을 하나의 PING 결과로 끝내기 어렵다.
+
+| 상태 칸 | 대표 질문 | 가능한 관찰 | 이 관찰만으로 남는 한계 |
+|---|---|---|---|
+| 생존 | 요청을 받을 수 있는가? | 프로세스·PING·오류 | 올바른 복제 대상인지는 모름 |
+| 연결 | 기대한 primary와 이어져 있는가? | 역할·링크·주소 | 실제 적용이 충분히 빠른지는 모름 |
+| 진행 | 이력을 계속 따라가는가? | 같은 이력의 offset 변화·로그 | 특정 업무의 신선도는 별도 |
+| 신선도 | 이 요청의 최소 버전을 만족하는가? | 업무 버전·라우팅 계약 | 장애 후 내구성은 별도 |
+| 승격 준비 | 쓰기 역할로 전환해도 되는가? | 자원·구성·클라이언트 검증 | 모든 장애에서 무손실을 증명하지 않음 |
+
+운영 경보도 이 구분에 맞춰 표현하면 조치가 쉬워진다. “Redis 이상”이라는 알림보다 “읽기 후보가 초기 동기화 중이라 제외됐다”와 “최소 replica 조건이 깨져 쓰기를 거절한다”는 알림이 다음 행동을 더 잘 안내한다. 다만 알림을 잘 나누는 것만으로 원인이 확정되는 것은 아니다. 상태와 원인을 구별해 조사한다.
+
+
+## 읽기 정책 보충. 모든 GET이 같은 신선도를 요구하지 않는다
+
+입고 작업의 통계 화면과 확정 직후의 상세 화면을 비교해 보자. 통계는 최근 몇 초의 변화가 늦게 반영되어도 업무상 허용될 수 있다. 반면 확정 버튼을 누른 직후 다시 대기 상태를 보여 주면 사용자가 버튼을 다시 누르거나 작업이 실패했다고 판단할 수 있다. 둘 다 GET이지만 사용자에게 필요한 의미는 다르다.
+
+이 차이는 읽기 전용 트랜잭션이라는 말만으로 결정되지 않는다. DB의 읽기 전용 표시와 Redis replica 라우팅은 서로 다른 설정과 실행 경로일 수 있다. “수정하지 않는 메서드니까 replica로 보내도 된다”는 분류는 최신성 요구를 빠뜨린다. 읽기 여부와 오래된 결과의 허용 여부를 별도의 속성으로 본다.
+
+가장 이해하기 쉬운 설계는 기능별로 계약을 적는 것이다. 상품 소개는 어느 정도 오래됨을 허용한다. 권한 변경 직후 확인은 최신 근거가 필요하다. 중복 처리 판정은 업무 확정 기록과 연결한다. 통계는 별도 집계 시점에 맞는 결과를 보여 준다. 실제 허용 범위는 서비스가 정하지만, 기술 옵션이 그 값을 대신 정하지는 않는다.
+
+읽기 경로를 바꾸면 장애 시 부하 이동도 바뀐다. replica를 모두 제외한 순간 모든 요청이 primary로 몰리면 쓰기 지연까지 악화될 수 있다. fallback이 있다는 사실과 fallback이 전체 트래픽을 감당한다는 사실은 다르다. 요청 제한과 중요도, 용량을 함께 계획해야 한다. 일관성 정책은 라우팅 설정인 동시에 부하 정책이다.
+
+
+## Java 사고 실험. 업무 버전으로 오래된 읽기를 구별하기
+
+아래 코드는 실제 Redis 클라이언트가 아니다. 요청자가 필요한 최소 업무 버전과 읽기 후보의 값을 비교해 primary 재조회를 선택하는 작은 정책 모델이다. 이 버전은 애플리케이션이 의미를 정한 번호이며 replication offset이 아니다. Java 21에서 독립 실행한다.
+
+```java
+public final class ReadFreshnessLesson {
+    enum Target { REPLICA, PRIMARY }
+    record Request(boolean replicaAllowed, long minimumBusinessVersion) {
+        Request {
+            if (minimumBusinessVersion < 0) throw new IllegalArgumentException("version");
+        }
+    }
+    record Replica(boolean connected, boolean initialSyncInProgress,
+                   long observedBusinessVersion) {}
+
+    static Target choose(Request request, Replica replica) {
+        if (!request.replicaAllowed()) return Target.PRIMARY;
+        if (!replica.connected() || replica.initialSyncInProgress()) return Target.PRIMARY;
+        if (replica.observedBusinessVersion() < request.minimumBusinessVersion()) {
+            return Target.PRIMARY;
+        }
+        return Target.REPLICA;
+    }
+
+    static void expect(Target expected, Target actual, String label) {
+        if (actual != expected) throw new AssertionError(label);
+    }
+
+    public static void main(String[] args) {
+        Request afterWrite = new Request(true, 42);
+        expect(Target.PRIMARY, choose(afterWrite, new Replica(true, false, 41)),
+                "older than the version returned by the write");
+        expect(Target.REPLICA, choose(afterWrite, new Replica(true, false, 42)),
+                "minimum version satisfied");
+        expect(Target.PRIMARY, choose(afterWrite, new Replica(true, true, 100)),
+                "initial synchronization is not a ready candidate");
+        expect(Target.PRIMARY, choose(afterWrite, new Replica(false, false, 100)),
+                "disconnected candidate excluded by this policy");
+        expect(Target.PRIMARY, choose(new Request(false, 0),
+                new Replica(true, false, 100)), "primary-only business flow");
+        expect(Target.REPLICA, choose(new Request(true, 0),
+                new Replica(true, false, 10)), "stale-tolerant example");
+        System.out.println("6 read-routing policy cases passed");
+    }
+}
+```
+
+이 모델은 replica에서 읽은 업무 버전이 쓰기 응답의 42보다 작으면 primary 경로를 선택한다. 그러나 실제 구현에는 더 많은 계약이 필요하다. 버전과 값이 같은 상태로 읽혀야 하고, 모든 writer가 같은 버전 규칙을 지켜야 하며, failover 뒤 버전의 의미가 유지되어야 한다. 단순히 숫자 필드를 추가했다고 최신성 보장이 완성되는 것은 아니다.
+
+또한 primary로 재조회해도 해당 업무의 최종 진실이 다른 DB에 있다면 그 DB와의 관계가 남는다. 이 예제의 Target.PRIMARY는 정책 선택의 결과일 뿐, 외부 시스템 전체의 최신성을 선언하는 값이 아니다. 실제 라우팅은 요청 시간 예산과 실패 처리, 연결 대상 확인까지 구현해야 한다.
+
+연결이나 동기화 상태를 읽은 직후 상황이 바뀔 수도 있다. 건강 점검의 한 시점 결과를 영원한 보장으로 사용하지 않는다. 실행 오류와 시간 초과를 처리하고, 응답 데이터의 조건을 가능한 범위에서 확인한다. 사전 후보 선정과 실제 요청 결과 검증은 서로 보완하는 단계다.
+
+
+## 쓰기 보호 보충. 최근에 대답한 replica와 지금 쓰기를 받은 replica는 다르다
+
+최소 replica 설정은 최근 상태를 보고 새 쓰기를 받아도 되는지 판단하는 보호 조건으로 이해하면 쉽다. 시험장 출입구에서 감독관이 있는지 확인하는 것과, 방금 제출한 답안지를 감독관이 실제로 보관했다고 확인하는 것은 다른 사건이다. 감독관이 근처에 있다는 사실이 특정 답안의 전달 완료를 뜻하지 않는다.
+
+복제에서도 최근 ACK가 있었다면 그 시점까지의 진행을 알 수 있다. 그 뒤 새 쓰기를 받았을 때 그 쓰기가 replica에 도달하기 전에 장애가 생길 수 있다. 따라서 최소 수 조건이 충족되어 쓰기가 성공했다는 사실을 해당 쓰기의 복제 완료 확인으로 바꾸어 말하면 안 된다. WAIT와도 목적을 구별해야 한다.
+
+`min-replicas-max-lag`의 시간은 특정 업무 키의 갱신 나이를 직접 재는 타이머가 아니다. replica의 확인 상태를 판단하는 기준과 관련된다. primary가 쓰기를 거의 만들지 않는 동안의 ACK 최근성과, 대량 쓰기 중의 적용 바이트 차이는 다른 관찰이다. “3초로 설정했으니 모든 값은 3초 이내 최신”이라는 문장은 성립하지 않는다.
+
+조건을 강하게 잡으면 홀로 쓰는 위험 구간을 줄이는 데 도움이 될 수 있지만, replica 점검이나 네트워크 문제로 정상적인 업무 쓰기도 거절할 수 있다. 이것은 보호 장치의 고장이 아니라 정책이 선택한 동작일 수 있다. 오류를 없애기 전에 어떤 조건을 지키려 했는지 확인해야 한다.
+
+
+## Java 사고 실험. 쓰기 수락 조건과 개별 복제 완료를 분리하기
+
+아래 모델은 최근 상태가 좋은 복제본의 수로 쓰기 수락 여부를 결정한다. Redis의 실제 내부 검사 주기와 모든 설정 의미를 구현하지 않으며, 교육용 정책에서 연결·초기 동기화·최근 ACK를 조건으로 정했다. 정책 판단과 이번 쓰기의 전달 완료가 서로 다른 정보라는 점을 보여 준다.
+
+```java
+import java.util.List;
+
+public final class ReplicaWriteGateLesson {
+    record Replica(boolean connected, boolean initialSyncComplete,
+                   long millisSinceAck) {
+        Replica {
+            if (millisSinceAck < 0) throw new IllegalArgumentException("negative age");
+        }
+    }
+
+    static boolean mayAccept(List<Replica> replicas, int minimum,
+                             long maximumAckAgeMillis) {
+        if (minimum < 1 || maximumAckAgeMillis <= 0) {
+            throw new IllegalArgumentException("this model requires an active gate");
+        }
+        long acceptable = replicas.stream()
+                .filter(Replica::connected)
+                .filter(Replica::initialSyncComplete)
+                .filter(replica -> replica.millisSinceAck() <= maximumAckAgeMillis)
+                .count();
+        return acceptable >= minimum;
+    }
+
+    public static void main(String[] args) {
+        Replica ready = new Replica(true, true, 200);
+        Replica stale = new Replica(true, true, 5000);
+        Replica loading = new Replica(true, false, 100);
+        if (!mayAccept(List.of(ready, stale), 1, 3000)) {
+            throw new AssertionError("one acceptable replica");
+        }
+        if (mayAccept(List.of(ready, stale), 2, 3000)) {
+            throw new AssertionError("two acceptable replicas required");
+        }
+        if (mayAccept(List.of(stale, loading), 1, 3000)) {
+            throw new AssertionError("no acceptable candidate");
+        }
+        boolean accepted = mayAccept(List.of(ready), 1, 3000);
+        boolean thisWriteAlreadyReplicated = false;
+        if (!accepted || thisWriteAlreadyReplicated) {
+            throw new AssertionError("gate and per-write delivery must stay distinct");
+        }
+        System.out.println("accepted=" + accepted);
+        System.out.println("this write already replicated=" + thisWriteAlreadyReplicated);
+    }
+}
+```
+
+마지막 두 변수는 의도적으로 다른 정보다. 수락 조건은 만족하지만 새 쓰기의 전달 여부는 아직 확인되지 않았다. 이 상태는 논리적으로 모순이 아니다. 이 구별을 이해하면 최소 replica 조건을 동기 커밋이나 롤백 기능으로 오해하지 않는다.
+
+모델은 minimum이 1 이상인 활성 정책만 다룬다. Redis 제품에서 0이 어떤 설정 의미를 갖는지 구현한 것이 아니다. 설정값의 전체 범위와 교육 모델의 입력 범위를 구분해야 한다. 또한 millis 단위를 사용한 이유는 Java 계산의 편의를 위해서이며 Redis 설정의 단위를 그대로 옮겼다는 뜻이 아니다.
+
+실제 운영에서 필요한 것은 이 함수의 true만이 아니다. 누가 조건을 충족하는지, 왜 나머지가 제외됐는지, 상태가 얼마나 오래 지속됐는지 관측해야 한다. 장애 중 쓰기가 막혔을 때 조건을 무조건 낮추기보다 끊긴 링크와 인증, 동기화 실패, 자원 부족을 구별하는 데 도움이 된다.
+
+
+## 점검 계획 보충. replica 한 대를 내릴 때 쓰기가 막힐지 미리 계산하기
+
+primary 하나와 replica 하나에서 최소 replica 수가 1이라고 하자. 유일한 replica를 점검하기 위해 종료하면 수락 조건을 만족할 수 없게 될 수 있다. primary가 살아 있고 메모리도 넉넉한데 쓰기가 거절되는 이유가 여기에 있다. 서비스 준비 문서가 노드 생존만 세면 계획된 점검에서도 예상치 못한 장애처럼 보일 수 있다.
+
+replica가 두 대이고 최소 수가 1이라면 한 대를 내리는 동안 다른 한 대가 조건을 충족할 수 있다. 그러나 두 번째가 초기 동기화 중이거나 지연이 크면 단순 대수 계산과 결과가 달라진다. “두 대 있으니 하나 내려도 된다”보다 **현재 수락 조건을 충족하는 후보가 몇 대인지** 확인해야 한다.
+
+점검 절차에는 변경 전 상태, 내릴 대상, 유지해야 할 조건, 예상 오류와 중단 기준, 복귀 후 확인을 적는다. replica를 올린 직후 소켓이 열렸다고 즉시 다음 replica를 내리지 않는다. 초기 동기화와 진행 상태, 서비스 요구에 맞는 준비 조건을 확인한다. 순차 점검에서 이 기다림이 다음 단계의 선행 조건이다.
+
+| 점검 단계 | 확인할 것 | 성급하게 다음으로 가면 생기는 문제 |
+|---|---|---|
+| 시작 전 | 남을 replica의 실제 준비 상태 | 대수만 맞고 보호 조건은 깨짐 |
+| 대상 중지 | 의도한 노드만 내려갔는지·쓰기 영향 | 다른 대상 중지나 예상 밖 오류 확대 |
+| 대상 복귀 | 역할·상위 주소·동기화·진행 | 연결만 된 미준비 노드를 정상으로 오해 |
+| 다음 노드 점검 | 남은 후보가 조건 충족하는지 | 연속 점검으로 준비된 복제본이 없어짐 |
+
+위험을 받아들이고 제한을 일시 완화해야 하는 운영 상황이 있을 수 있다. 그런 결정은 기존값과 새 값, 허용 시간, 감시와 복원 조건을 갖춘 변경으로 다뤄야 한다. 매번 오류가 보일 때 자동으로 보호를 끄는 대응은 보호 기능을 사실상 무력화한다. 가용성과 데이터 보호 사이에서 무엇을 선택했는지 기록해야 한다.
+
+
+## 오류 처리 보충. 명시적 거절과 시간 초과를 같은 재시도로 묶지 않기
+
+`NOREPLICAS`처럼 정책상 쓰기가 거절된 응답과, 명령의 결과를 받지 못한 시간 초과는 다르다. 전자는 서버가 조건을 판단해 거절한 결과를 받은 것이다. 후자는 실행되지 않았는지, 실행됐는데 응답을 못 받았는지 불확실할 수 있다. 애플리케이션 예외 계층에서 둘을 모두 “RedisException” 한 가지로 기록하면 필요한 업무 처리가 흐려진다.
+
+명시적 거절이라도 즉시 무제한 재시도가 좋은 것은 아니다. replica가 복구되기까지 몇 초 이상 걸린다면 같은 요청을 밀어 넣는 양만 늘릴 수 있다. 시간 예산, 재시도 횟수, 지수 백오프와 jitter, 기능별 실패 응답을 설계한다. 재시도는 문제를 없애는 기능이 아니라 같은 의존성에 다시 부하를 보내는 행위다.
+
+시간 초과 뒤의 쓰기는 멱등성 계약과 연결한다. 증가나 작업 제출을 다시 실행할 수 있는지, 같은 업무 ID를 유지하는지, 처리 결과를 어디에서 조회할지 정한다. 보호 조건 오류와 결과 불확실을 구분하면 사용자에게 전달할 메시지도 달라질 수 있다. “안전하게 거절됐다”와 “결과 확인이 필요하다”는 다른 상태다.
+
+라이브러리의 자동 재연결도 같은 주의가 필요하다. 연결이 다시 만들어졌다는 사실만으로 업무 요청을 다시 실행해도 된다는 뜻은 아니다. 하위 드라이버가 어떤 명령을 큐에 두거나 재전송하는지, 상위 코드도 다시 시도하는지 확인한다. 여러 계층의 재시도가 겹치면 요청 수가 예상보다 크게 늘 수 있다.
+
+
+## 인증 보충. 세 종류의 연결을 화살표의 출발점으로 구별하기
+
+복제 환경에는 애플리케이션이 Redis로 들어오는 연결, replica가 primary로 만드는 연결, Sentinel이나 관리 도구가 노드를 확인하는 연결이 있을 수 있다. 각 연결은 출발 주체와 목적, 필요한 권한이 다르다. 같은 비밀번호를 여러 곳에 넣었다고 각 설정의 역할이 같아지는 것은 아니다.
+
+`masterauth`는 replica가 상위에 제시하는 비밀이라는 방향을 먼저 그린다. replica로 들어오는 애플리케이션의 인증을 정하는 값과 다르다. primary에서 앱 로그인은 잘되는데 복제가 끊긴다면 앱 계정만 시험해 보고 인증 전체가 정상이라고 결론 내리면 안 된다. 실제 복제 계정과 방향을 확인해야 한다.
+
+인증 비밀을 교체할 때도 연결별 순서를 설계한다. 한쪽만 새 값으로 바꾸면 replica가 재연결할 때 실패할 수 있다. 기존 연결이 살아 있는 동안 문제가 숨었다가 연결 재생성 시 드러날 수 있으므로, 설정 파일 갱신만으로 검증을 끝내지 않는다. 승인된 방식으로 새 인증을 사용하는 재연결을 확인하고 이전 비밀을 폐기하는 절차가 필요하다.
+
+권한을 광범위하게 열면 인증 오류가 사라질 수 있지만 왜 실패했는지는 남는다. 사용자 이름과 비밀의 불일치, 필요한 명령 권한 부족, 대상 주소 오류, TLS 조건을 나누어 조사한다. 복제 계정은 데이터를 전달받는 역할을 가질 수 있으므로 단순 조회 명령을 직접 허용하지 않았다는 이유로 낮은 민감도로 취급하지 않는다.
+
+또한 인증 성공은 통신 암호화를 의미하지 않는다. 비밀번호를 확인한 상대와 암호화된 경로를 사용하는지, 인증서의 신원을 검증하는지는 별도다. TLS 편에서 다시 다루지만 지금은 인증과 암호화가 다른 질문이라는 점만 정확히 기억해도 된다.
+
+
+## 주소 보충. 연결에 쓴 주소와 다른 사람에게 알려 주는 주소
+
+NAT와 컨테이너가 등장하면 주소가 두 종류로 보일 수 있다. replica가 primary로 연결할 때 사용한 주소와, 다른 노드에게 “나에게 연결하려면 여기로 오세요”라고 알려 주는 주소다. 이미 만들어진 한 방향의 연결이 성공했다고 모든 위치에서 새 연결을 만들 수 있는 것은 아니다.
+
+주소를 명함으로 비유하면 쉽다. 직원이 본사에 전화하는 데 성공했어도 명함에 잘못된 지점 주소를 적었다면 고객은 그 직원을 찾아오지 못한다. announce 설정은 명함에 적는 주소를 정하는 역할에 가깝다. 방화벽을 열거나 포트 전달 규칙을 만들거나 컨테이너의 bind를 자동 수정하는 기능은 아니다.
+
+확인은 실제 접속 주체의 위치에서 해야 한다. Redis 노드끼리 접근할 수 있는 주소를 애플리케이션도 사용할 수 있는지, Sentinel이 같은 주소로 접근할 수 있는지 나누어 본다. 운영자 노트북에서 연결됐다는 사실이 서버 네트워크에서의 접근성 증거가 되지는 않는다. 네트워크 경로는 출발점에 따라 다르다.
+
+TLS가 있다면 IP와 호스트 이름, 인증서 이름도 연결된다. 접속 가능한 숫자 IP로 바꿨더니 인증서 검증이 실패할 수 있다. 이때 검증을 끄는 방식으로 문제를 덮기보다 광고 주소와 인증서의 신원 계약을 맞춰야 한다. 접속 성공과 올바른 상대에 안전하게 접속하는 것은 다르다.
+
+이 문제는 평상시보다 failover 때 드러나기 쉽다. 기존 연결은 잘 동작했지만 승격된 노드를 새로 발견한 클라이언트가 광고 주소로 연결하지 못하는 것이다. 그래서 장애 전환 시험에는 역할 변경뿐 아니라 새 연결 경로가 포함되어야 한다. 이전 연결을 유지한 읽기 시험만으로는 그 경로를 검증하지 못한다.
+
+
+## 승격 준비 보충. 예비 서버는 역할 이름만 바뀌는 것이 아니다
+
+replica가 primary가 되면 클라이언트 쓰기를 직접 받고 그 역할의 메모리 정책과 영속성 경로를 사용하게 된다. 평소 복제 적용과 조회만 수행할 때의 자원 그래프가 승격 후 부하를 전부 설명하지 않는다. 쓰기 비율, 디스크 동기화, 재연결, 백업 작업이 함께 달라질 수 있다.
+
+특히 replica에서 독립적으로 적용하지 않던 메모리 한도가 승격 뒤 영향을 줄 수 있다. 작은 한도와 noeviction 정책이 남아 있으면 새 primary에서 쓰기 오류가 발생할 수 있다. 반대로 eviction 정책이 업무 상태에 맞지 않으면 중요한 키가 자원 압력으로 제거될 수 있다. 역할 전환은 설정의 의미를 다시 확인하는 사건이다.
+
+아래 모델은 특정 팀이 정한 승격 준비 계약과 후보의 관측값을 비교한다. Sentinel의 실제 선출 알고리즘이나 자동 승격 명령을 구현하지 않는다. “이 후보는 선출될 수 있다”와 “우리 서비스가 필요한 조건을 갖췄다”를 구별하기 위한 Java 21 예제다.
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+public final class PromotionReadinessLesson {
+    record Contract(long requiredHeadroomBytes, long expectedMaxmemoryBytes,
+                    String expectedEvictionPolicy, boolean aofRequired) {}
+    record Candidate(long observedHeadroomBytes, long configuredMaxmemoryBytes,
+                     String evictionPolicyAfterPromotion, boolean aofEnabled,
+                     boolean advertisedAddressReachable) {}
+
+    static List<String> evaluate(Contract contract, Candidate candidate) {
+        List<String> gaps = new ArrayList<>();
+        if (candidate.observedHeadroomBytes() < contract.requiredHeadroomBytes()) {
+            gaps.add("insufficient measured headroom");
+        }
+        if (candidate.configuredMaxmemoryBytes() != contract.expectedMaxmemoryBytes()) {
+            gaps.add("different maxmemory contract");
+        }
+        if (!contract.expectedEvictionPolicy().equals(candidate.evictionPolicyAfterPromotion())) {
+            gaps.add("different eviction policy");
+        }
+        if (contract.aofRequired() && !candidate.aofEnabled()) {
+            gaps.add("AOF required by this service contract");
+        }
+        if (!candidate.advertisedAddressReachable()) {
+            gaps.add("advertised address not reachable from application network");
+        }
+        return List.copyOf(gaps);
+    }
+
+    public static void main(String[] args) {
+        long mib = 1024L * 1024L;
+        Contract contract = new Contract(512L * mib, 2048L * mib,
+                "noeviction", true);
+        Candidate ready = new Candidate(768L * mib, 2048L * mib,
+                "noeviction", true, true);
+        Candidate gaps = new Candidate(128L * mib, 1024L * mib,
+                "allkeys-lru", false, false);
+        if (!evaluate(contract, ready).isEmpty()) {
+            throw new AssertionError("matching contract should pass");
+        }
+        List<String> found = evaluate(contract, gaps);
+        if (found.size() != 5) throw new AssertionError("five contract gaps expected");
+        System.out.println("ready candidate: passed");
+        for (String gap : found) System.out.println(gap);
+    }
+}
+```
+
+AOF를 요구하는 것은 이 예제의 서비스 계약이다. 모든 Redis 용도에서 AOF가 필수라는 제품 규칙을 선언한 것이 아니다. requiredHeadroomBytes도 측정과 계획으로 정했다고 가정한 입력이며, 512 MiB가 보편적인 권장 여유라는 뜻은 아니다. 코드가 정확히 비교하더라도 계약의 입력이 적절한지는 별도로 검증해야 한다.
+
+광고 주소 도달성은 boolean으로 주입했지만 실제 도구는 어느 위치에서 언제 어떤 방식으로 확인했는지 기록해야 한다. 후보가 하나의 시점에서 통과했다고 이후 상태가 영원히 유지되는 것은 아니다. 이 모델은 준비 차이를 드러내는 점검이지 자동 승격 승인이나 장애 안전성의 증명이 아니다.
+
+
+## 메모리·만료 보충. 복제본이 원본과 다르게 보인다고 바로 손상은 아니다
+
+논리 데이터의 상태와 물리 메모리 지표는 다른 층이다. 같은 키와 값을 따라와도 allocator의 상태, 연결 버퍼, 로딩 경로 때문에 RSS가 다를 수 있다. primary와 replica의 메모리 사용량이 바이트 단위로 같아야 한다는 검증 기준은 적절하지 않다. 무엇을 같은 것으로 비교할지 먼저 정한다.
+
+만료에서도 논리적 부재와 실제 정리를 구분한다. 시간이 지나 읽기에서 없는 값으로 취급되더라도 메모리의 물리 제거 시점은 다른 경로와 연결될 수 있다. replica가 primary의 만료 효과를 따라가는 동작과 읽기에서 만료를 다루는 동작을 한 문장으로 축약하면 모순처럼 보일 수 있다. “GET은 없는데 메모리는 남아 있다”는 관측만으로 누수나 손상을 확정하지 않는다.
+
+그렇다고 모든 차이를 정상으로 넘겨도 되는 것은 아니다. 같은 이력인지, 링크와 적용 상태가 어떤지, TTL과 시계가 어떤지, 버퍼가 계속 커지는지 확인한다. 지표 차이에 설명 가능한 원인이 있는지 조사하는 것과 차이가 있으니 바로 손상이라고 판단하는 것은 다르다. 증거에 맞춰 가설을 좁힌다.
+
+복제본의 maxmemory 관련 동작도 OS 한도를 없애지 않는다. 복제 일관성을 유지하기 위해 독립적인 eviction을 하지 않는 경로가 있어도 물리 메모리와 컨테이너 limit은 남는다. 프로세스가 종료될 때까지 메모리를 무한히 받을 수 있다는 뜻으로 읽지 않는다. 역할별 메모리 예산과 승격 후 정책을 함께 점검한다.
+
+
+## 장애 조사 보충. READONLY 오류가 오래 이어지면 무엇을 분리해서 볼까
+
+Java 애플리케이션에서 READONLY 오류가 보이면 우선 쓰기 대상이 replica인지와 현재 토폴로지를 확인한다. failover 직후라면 이전 primary와 새 primary의 역할이 바뀌었을 수 있다. 클라이언트가 오래된 주소나 연결을 계속 사용하면 새 쓰기를 잘못된 역할에 보낼 수 있다. 오류를 없애려고 replica의 read-only를 끄면 라우팅 문제를 데이터 불일치 위험으로 바꾸게 된다.
+
+시간을 네 구간으로 나누어 보자. 서버가 장애를 감지하고 새 primary를 정하는 시간, 클라이언트가 변경을 발견하는 시간, 오래된 연결을 교체하는 시간, 실제 업무 요청이 새 연결에서 성공하는 시간이다. “5분 뒤 정상화됐다”는 관측이 있다면 어느 구간이 5분을 차지했는지 확인해야 한다. 서버 승격 자체가 5분이었다고 바로 단정하지 않는다.
+
+로그에는 오류가 난 대상 주소와 역할, 클라이언트 버전과 토폴로지 설정, 재연결과 발견 이벤트, 최초 성공 시각을 연결한다. 인증과 DNS, 광고 주소, 연결 풀 또는 드라이버의 재연결 동작도 후보가 될 수 있다. 특정 라이브러리 버전의 문제라고 결론 내리기 전에 해당 버전의 공식 변경 기록과 재현 조건을 확인한다.
+
+이 절차는 실제 장애의 원인을 미리 확정하는 목록이 아니다. 서버 측 역할 전환과 클라이언트 측 발견을 분리하는 진단 틀이다. 증상이 비슷해도 원인은 다를 수 있으며, 개별 환경의 기록 없이 특정 설정 하나를 만능 해결책으로 제시하면 안 된다.
+
+
 ## 면접 질문과 상세 답변
 
 <details><summary>1. replica-read-only를 켜면 인터넷에 공개해도 안전한가요?</summary>
@@ -315,6 +618,48 @@ redis-cli -h 127.0.0.1 -p 16390 SHUTDOWN NOSAVE
 <details><summary>9. replica에서 키가 읽히지 않는데 메모리는 남아 있을 수 있나요?</summary>
 
 논리적으로 만료된 키를 읽기에서 없는 것으로 취급하는 것과 실제 메모리 정리 시점은 다를 수 있다. replica는 primary의 만료·축출 효과를 따라가므로 잠시 메모리에 남은 데이터와 읽기 결과가 다르게 보일 수 있다. TTL 경과, 복제 링크와 offset, 키 개수의 의미를 함께 확인해야 한다. 단순히 GET이 nil인데 메모리가 줄지 않았다고 즉시 누수나 손상으로 단정하지 않는다.
+
+</details>
+
+## 추가 면접 문답: 읽기·보호·승격의 계약을 나누기
+
+<details><summary>10. 읽기 전용 메서드는 전부 replica에 보내면 되나요?</summary>
+
+읽기 여부와 오래된 결과 허용 여부는 다르다. 확정 직후 상태 확인이나 권한 변경 확인은 읽기여도 최신 근거가 필요할 수 있다. 통계나 일부 캐시는 일정한 오래됨을 허용할 수 있다. 기능별 신선도 요구를 먼저 정하고 라우팅을 선택한다.
+
+프레임워크의 read-only 표시가 Redis 읽기 경로를 어떤 방식으로 바꾸는지도 실제 구성에서 확인해야 한다. 이름이 비슷한 설정들을 동일한 계약으로 취급하지 않는다. fallback 때 primary가 받을 부하와 요청 시간 예산까지 함께 설계한다.
+
+</details>
+
+<details><summary>11. replica가 두 대인데 한 대 점검 중 쓰기가 막힐 수 있나요?</summary>
+
+남은 한 대가 조건을 충족하지 못하면 가능하다. 초기 동기화 중이거나 연결과 최근 ACK 상태가 정책 밖일 수 있다. 단순 프로세스 대수와 쓰기 수락 조건을 충족하는 복제본 수는 다르다.
+
+점검 전후에 역할과 동기화, 진행 상태를 확인하고 다음 노드를 내릴 통과 조건을 둔다. 오류를 없애려고 최소 수 조건을 습관적으로 끄지 말고, 정책의 목적과 남은 위험을 분명히 판단해야 한다.
+
+</details>
+
+<details><summary>12. 승격 성공을 확인했는데 왜 새 primary가 쓰기를 못 받나요?</summary>
+
+역할 변경과 실제 서비스 준비가 다르기 때문이다. 승격 후 적용되는 메모리 한도와 정책, 디스크와 AOF 상태, 인증, 광고 주소와 클라이언트 연결이 조건을 만족하지 못할 수 있다. replica로 잘 따라왔다는 사실만으로 쓰기 역할의 모든 준비가 끝난 것은 아니다.
+
+시험에는 실제 애플리케이션 위치에서 새 연결을 만들고 작은 업무 동작을 확인하는 단계가 필요하다. 프로세스 역할만 보는 검사와 사용자 요청이 안정적으로 성공하는 검사를 분리한다. 자원 피크와 업무 정합성도 목적에 맞게 확인한다.
+
+</details>
+
+<details><summary>13. READONLY 오류를 없애려고 replica-read-only를 끄면 안 되나요?</summary>
+
+잘못된 쓰기 경로를 writable replica로 받아 주면 원본과 다른 상태를 만들 수 있다. 로컬 쓰기가 primary로 자동 병합되는 구조가 아니므로 오류만 사라지고 더 어려운 불일치가 남을 수 있다. 먼저 현재 역할과 실제 쓰기 대상, 토폴로지 발견과 연결 교체를 확인한다.
+
+특정 실험이나 지원되는 별도 설계의 예외를 일반적인 운영 처방으로 확대하지 않는다. 서버 역할 전환과 클라이언트 반영의 시간선을 분리해 원인을 좁히는 것이 우선이다.
+
+</details>
+
+<details><summary>14. 최근 ACK가 1초 전이면 모든 데이터가 1초 이내 최신인가요?</summary>
+
+ACK의 최근성은 특정 키의 업무 갱신 나이와 같은 지표가 아니다. 어떤 이력 위치까지 확인했는지와 그 뒤 생성된 스트림, 해당 키의 변경 시점과 읽기 경로가 필요하다. 최소 replica의 시간 조건을 모든 읽기의 최신성 상한으로 바꾸면 안 된다.
+
+바이트 차이, 확인 시각, 업무 버전은 서로 다른 질문에 답한다. 요구하는 보장이 무엇인지 먼저 정하고 그에 맞는 관측과 라우팅 정책을 선택한다. 숫자 하나의 단위를 정확히 읽는 것이 출발점이다.
 
 </details>
 
