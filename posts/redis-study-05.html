@@ -1,11 +1,17 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="쓰기 버퍼와 fsync, 다중 파일 AOF, rewrite의 세대 전환, 손상 복구와 안전한 활성화 절차를 연결한다."><title>Redis 05 · AOF 기록·재작성·복구 — 성공 응답과 디스크 내구성 사이 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/redis-study-05.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/redis-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="redis"><main><a href="/">← 전체 글</a> · <a href="/posts/redis-study-00.html">Redis 학습 지도</a><header><p class="meta">REDIS QUEST · 05 / 30 · DEEP STUDY</p><h1>AOF 기록·재작성·복구 — 성공 응답과 디스크 내구성 사이</h1><p class="subtitle">쓰기 버퍼와 fsync, 다중 파일 AOF, rewrite의 세대 전환, 손상 복구와 안전한 활성화 절차를 연결한다.</p><p class="note">첨부 Redis 학습 자료의 주제를 쉬운 설명과 공식 문서 근거로 재구성했습니다. 명령·설정의 버전 조건은 본문을 확인하세요. 장애 시나리오와 수치는 별도 표시가 없으면 학습용 가정이며, 코드가 실려 있다는 사실만으로 실행 검증을 의미하지 않습니다. <a href="/learning/redis/verification.html">검증 범위와 남은 한계</a></p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">이번 장의 질문</a></li><li><a href="#section-2">1. AOF는 무엇을 기록하는가</a></li><li><a href="#section-3">2. 쓰기 경로를 네 개의 층으로 나누기</a></li><li><a href="#section-4">3. appendfsync 세 정책을 비교하기</a></li><li><a href="#section-5">4. 다중 파일 AOF: base, incremental, manifest</a></li><li><a href="#section-6">5. rewrite를 시간순으로 추적하기</a></li><li><a href="#section-7">6. copy-on-write와 디스크 여유가 필요한 이유</a></li><li><a href="#section-8">7. 격리 실습 A: 파일 구조와 rewrite 관찰</a></li><li><a href="#section-9">8. 격리 실습 B: 정상 재시작과 내구성 검증의 차이</a></li><li><a href="#section-10">9. RDB만 쓰던 인스턴스에서 AOF를 켤 때</a></li><li><a href="#section-11">10. 손상 복구: 원본 보존이 첫 번째 명령이다</a></li><li><a href="#section-12">11. 운영 장애 시나리오와 지표 해석</a></li><li><a href="#section-13">12. 애플리케이션의 책임: 응답을 못 받았을 때</a></li><li><a href="#section-14">면접 질문과 상세 답변</a></li><li><a href="#section-15">정리와 공식 자료</a></li></ol></aside><article><h2 id="section-1">이번 장의 질문</h2>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="쓰기 버퍼와 fsync, 다중 파일 AOF, rewrite의 세대 전환, 손상 복구와 안전한 활성화 절차를 연결한다."><title>Redis 05 · AOF 기록·재작성·복구 — 성공 응답과 디스크 내구성 사이 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/redis-study-05.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/redis-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="redis"><main><a href="/">← 전체 글</a> · <a href="/posts/redis-study-00.html">Redis 학습 지도</a><header><p class="meta">REDIS QUEST · 05 / 30 · DEEP STUDY</p><h1>AOF 기록·재작성·복구 — 성공 응답과 디스크 내구성 사이</h1><p class="subtitle">쓰기 버퍼와 fsync, 다중 파일 AOF, rewrite의 세대 전환, 손상 복구와 안전한 활성화 절차를 연결한다.</p><p class="note">첨부 Redis 학습 자료의 주제를 쉬운 설명과 공식 문서 근거로 재구성했습니다. 명령·설정의 버전 조건은 본문을 확인하세요. 장애 시나리오와 수치는 별도 표시가 없으면 학습용 가정이며, 코드가 실려 있다는 사실만으로 실행 검증을 의미하지 않습니다. <a href="/learning/redis/verification.html">검증 범위와 남은 한계</a></p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">이번 장의 질문</a></li><li><a href="#section-2">먼저 이해할 바탕. 메모리에서 바뀐 값은 어떻게 파일이 되는가</a></li><li><a href="#section-3">1. AOF는 무엇을 기록하는가</a></li><li><a href="#section-4">2. 쓰기 경로를 네 개의 층으로 나누기</a></li><li><a href="#section-5">3. appendfsync 세 정책을 비교하기</a></li><li><a href="#section-6">4. 다중 파일 AOF: base, incremental, manifest</a></li><li><a href="#section-7">5. rewrite를 시간순으로 추적하기</a></li><li><a href="#section-8">6. copy-on-write와 디스크 여유가 필요한 이유</a></li><li><a href="#section-9">7. 격리 실습 A: 파일 구조와 rewrite 관찰</a></li><li><a href="#section-10">8. 격리 실습 B: 정상 재시작과 내구성 검증의 차이</a></li><li><a href="#section-11">9. RDB만 쓰던 인스턴스에서 AOF를 켤 때</a></li><li><a href="#section-12">10. 손상 복구: 원본 보존이 첫 번째 명령이다</a></li><li><a href="#section-13">11. 운영 장애 시나리오와 지표 해석</a></li><li><a href="#section-14">12. 애플리케이션의 책임: 응답을 못 받았을 때</a></li><li><a href="#section-15">바이트 여행 1. SET 한 번을 사건 카드로 나누기</a></li><li><a href="#section-16">바이트 여행 2. 같은 쓰기라도 장애 종류에 따라 결과가 다른 이유</a></li><li><a href="#section-17">내부 원리 보충 1. fsync를 자주 하면 왜 느려질 수 있는가</a></li><li><a href="#section-18">내부 원리 보충 2. rewrite는 과거의 이야기를 현재 상태로 바꾼다</a></li><li><a href="#section-19">내부 원리 보충 3. 전환 중 장애를 생각하면 필요한 순서가 보인다</a></li><li><a href="#section-20">Java 사고 실험. 기록 단계별로 복구 결과가 달라지는 작은 모델</a></li><li><a href="#section-21">Java 사고 실험. rewrite가 지우는 것은 현재 값이 아니라 불필요한 재생 단계다</a></li><li><a href="#section-22">응용 보충. Spring의 트랜잭션과 AOF 동기화는 서로 다른 경계다</a></li><li><a href="#section-23">실습 노트 보충. 파일 크기, 작업 완료, 복원 성공을 따로 기록하기</a></li><li><a href="#section-24">면접 질문과 상세 답변</a></li><li><a href="#section-25">기록 해석 보충. 응답 시각과 파일 시각을 바로 빼지 않기</a></li><li><a href="#section-26">추가 면접 문답: 내구성의 범위를 조건으로 말하기</a></li><li><a href="#section-27">정리와 공식 자료</a></li></ol></aside><article><h2 id="section-1">이번 장의 질문</h2>
 <p>Redis에 <code>SET</code>을 보내 <code>OK</code>를 받았다. 바로 뒤에 서버의 전원이 끊겼다면 그 값은 남아 있을까? 이 질문에 “AOF를 켰으니 남는다”라고만 답하면 중요한 조건을 놓친 것이다. 데이터가 메모리에서 바뀌는 시점, 운영체제에 전달되는 시점, 저장장치에 동기화되는 시점, 응답을 돌려주는 시점은 서로 다른 사건이다. <strong>AOF를 이해한다는 것은 이 사건의 순서와 실패 지점을 설명할 수 있다는 뜻</strong>이다.</p>
 <p>이 장은 제공된 학습 자료 05장의 AOF 부분을 재구성했다. 파일 구조는 Redis 7.0 이후의 다중 파일 AOF를 중심으로 설명하고, 이전 방식은 비교 대상으로만 다룬다. 정확한 설정 기본값, 명령 지원, 관리형 서비스의 제한은 실행 버전에서 확인한다. 문서의 <code>latest</code> 주소가 설치된 Redis의 버전을 뜻하지는 않는다. <a href="https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/">공식 영속성 문서</a></p>
-<h2 id="section-2">1. AOF는 무엇을 기록하는가</h2>
+<h2 id="section-2">먼저 이해할 바탕. 메모리에서 바뀐 값은 어떻게 파일이 되는가</h2>
+<p>AOF를 처음 배우면 “쓰기 명령을 파일에 적는다”라는 문장까지는 쉽다. 어려운 부분은 그 뒤다. 프로그램이 파일에 적었다는 것과 전원이 사라진 뒤에도 읽을 수 있다는 것은 같은 사건이 아니다. 이 차이를 이해하려면 Redis 바깥의 운영체제도 잠깐 등장해야 한다. 운영체제는 프로세스가 CPU·메모리·파일 같은 자원을 사용하도록 관리하는 소프트웨어다.</p>
+<p>우리가 Java에서 파일 쓰기 메서드를 호출하면 프로그램이 저장 장치의 모든 동작을 직접 제어하는 것은 아니다. 운영체제에 데이터를 전달하고, 운영체제와 파일 시스템, 장치가 그 요청을 처리한다. 성능을 높이기 위해 데이터를 메모리에 모았다가 장치로 내보낼 수도 있다. <strong>파일이라는 이름이 붙어 있어도 아직 휘발성 메모리에만 남아 있는 변경이 있을 수 있다.</strong></p>
+<p>휘발성은 전원이 사라졌을 때 내용을 유지하지 못한다는 뜻이다. Redis 프로세스의 메모리와 OS 페이지 캐시는 관리 주체가 다르지만 둘 다 RAM에 의존하는 부분이 있다. 반면 저장 장치는 정해진 내구성 계약 아래 데이터를 유지하는 역할을 한다. 어떤 계층까지 도달했는지에 따라 어떤 장애를 견디는지가 달라진다.</p>
+<p>비유하면 작업자가 기록할 내용을 메모지에 써 놓은 단계, 사무실의 공동 정리함에 넘긴 단계, 보관 장부에 정리한 단계가 다르다. 작업자만 퇴근하면 공동 정리함의 메모는 남아 있을 수 있다. 사무실 전체가 사라지면 메모도 함께 사라질 수 있다. 이 비유의 공동 정리함이 OS 페이지 캐시와 완전히 같은 구현은 아니지만, <strong>프로세스 하나의 상실과 호스트 전체의 상실을 구별</strong>하는 데 도움이 된다.</p>
+<p>그래서 테스트에서도 질문을 구체적으로 만들어야 한다. “Redis를 다시 시작했을 때 남는가?”와 “호스트 전원이 사라져도 남는가?”와 “디스크를 잃어도 남는가?”는 다른 시험이다. 정상 종료는 종료 처리 자체가 데이터를 정리할 수 있다. 정상 재시작으로 복원됐다는 결과를 전원 장애에서도 무손실이라는 증거로 확대하면 안 된다.</p>
+<h2 id="section-3">1. AOF는 무엇을 기록하는가</h2>
 <p>AOF는 Append Only File의 약자다. 직역하면 뒤에 내용을 덧붙이는 파일이다. RDB가 어느 순간의 데이터 모양을 저장한다면, AOF는 데이터를 재구성할 수 있는 변경 기록을 유지한다. 서버가 시작할 때 이 기록을 읽고 상태를 되살릴 수 있다. 하지만 “클라이언트가 보낸 모든 바이트를 영원히 보존하는 감사 로그”와는 다르다. 내부적으로 재생 가능한 형태로 기록될 수 있고, 재작성 후에는 과거의 개별 행위가 사라진다.</p>
 <p>예를 들어 카운터가 0에서 시작해 100번 증가했다면 현재 값은 100이다. 원래 변경 이력을 끝까지 읽는 방식은 100번 증가를 재생해야 한다. 현재 상태만 복원하면 되는 경우에는 100이라는 값을 만드는 짧은 표현으로 바꿀 수 있다. AOF rewrite가 하는 일은 바로 이런 <strong>현재 상태의 재표현</strong>이다. 누가 언제 어떤 이유로 증가시켰는지를 보존하려면 별도의 업무 이벤트 로그가 필요하다.</p>
 <p>은행 장부 비유를 써 보자. RDB는 오후 3시의 계좌 잔액표, AOF는 그 이후 잔액을 바꾸는 기록에 가깝다. rewrite는 지금의 잔액으로 새 장부를 열고 이후 거래를 이어 적는 일이다. 다만 Redis AOF가 법적 감사 장부라는 뜻은 아니다. Redis는 복원에 필요한 데이터를 관리할 뿐 업무 거래의 정당성, 외부 DB와의 원자성, 사용자 신원까지 자동 보장하지 않는다. 비유를 쓰되 보장 범위까지 함께 좁혀야 한다.</p>
-<h2 id="section-3">2. 쓰기 경로를 네 개의 층으로 나누기</h2>
+<h2 id="section-4">2. 쓰기 경로를 네 개의 층으로 나누기</h2>
 <p>처음 배울 때는 다음 그림을 기억하면 된다. 세부 구현은 버전에 따라 변하지만 구분 자체는 유용하다.</p>
 <pre><code class="language-text">클라이언트 명령
     ↓
@@ -20,7 +26,7 @@ AOF 기록 준비와 파일 write
 <p>페이지 캐시는 운영체제가 파일 데이터를 잠시 보관하는 메모리 영역이다. <code>write</code> 호출이 성공했다고 곧바로 물리 저장장치에 모든 데이터가 안전하게 남았다는 뜻은 아니다. 운영체제는 성능을 위해 쓰기를 묶고 나중에 전달할 수 있다. Redis 프로세스만 죽고 운영체제가 살아 있으면 페이지 캐시가 남아 복구될 수 있지만, 호스트 전원까지 사라지면 같은 결과를 기대할 수 없다.</p>
 <p><code>fsync</code>는 파일 변경을 내구성 있는 저장 영역으로 동기화하도록 운영체제에 요청하는 동작이다. 이것도 저장장치, 파일시스템, 가상화 계층이 약속을 제대로 지킨다는 전제를 포함한다. 그래서 “always면 어떤 재난에도 한 바이트도 잃지 않는다”는 표현은 과장이다. 파일이 있는 디스크 전체가 사라지는 장애는 다른 위치의 복제나 백업으로 다뤄야 한다.</p>
 <p>장애 실험에서도 이 층을 구별해야 한다. 프로세스를 정상 종료하는 실험은 종료 처리 자체가 기록을 정리할 수 있으므로 전원 장애와 같지 않다. 강제 프로세스 종료도 OS의 페이지 캐시를 없애지 않으므로 호스트 손실을 완벽히 재현하지 않는다. 실험 결과로 “데이터가 한 번도 안 사라졌으니 무조건 안전하다”라고 결론 내리면 실험한 장애 모델보다 넓은 주장을 한 셈이다.</p>
-<h2 id="section-4">3. appendfsync 세 정책을 비교하기</h2>
+<h2 id="section-5">3. appendfsync 세 정책을 비교하기</h2>
 <table>
 <thead>
 <tr>
@@ -52,7 +58,7 @@ AOF 기록 준비와 파일 write
 <p><code>always</code>를 명령마다 디스크를 반드시 따로 한 번씩 두드리는 방식으로 이해하면 안 된다. 여러 클라이언트 또는 파이프라인에서 처리된 쓰기가 묶여 하나의 동기화를 공유할 수 있다. 이것을 group commit, 즉 묶음 커밋이라고 부른다. 그렇다고 파이프라인이 공짜 내구성을 만드는 것은 아니다. 네트워크 왕복과 동기화 횟수를 줄일 여지는 있지만 저장장치가 감당할 수 있는 지속 처리량은 여전히 제약이다.</p>
 <p><code>everysec</code>는 흔히 “최대 1초 유실”이라고 소개된다. 입문용으로는 마지막 주기 이후의 쓰기가 위험하다는 뜻으로 읽으면 된다. 운영 계약서에는 디스크 지연, 커널 스케줄링, 동기화 지연, 관련 설정 변경을 무시한 절대 상한으로 적지 않는다. 정상적인 주기와 실제 실패 상황의 보장을 구분하고, 원하는 RPO에 맞춰 관측과 복구 시험을 설계한다. <code>no</code>도 “정확히 30초마다 저장”이라는 규칙이 아니다. OS의 정책과 상태에 맡긴다는 점이 본질이다.</p>
 <p>설정 선택은 데이터 성격에서 시작한다. 원본 DB에서 다시 가져올 수 있는 상품 설명 캐시와 Redis에만 존재하는 작업 상태는 유실 영향이 다르다. 먼저 “얼마나 잃어도 되는가”를 업무 언어로 정하고, 그다음 지연과 처리량을 측정한다. 가장 강한 정책을 무조건 고르는 것도 답이 아니다. 동기화가 느려져 요청이 시간 초과되고 재시도가 폭증하면 전체 시스템의 가용성과 중복 처리 위험이 커질 수 있다.</p>
-<h2 id="section-5">4. 다중 파일 AOF: base, incremental, manifest</h2>
+<h2 id="section-6">4. 다중 파일 AOF: base, incremental, manifest</h2>
 <p>Redis 7.0 이후 AOF는 하나의 큰 파일만으로 생각하면 안 된다. 일반적으로 AOF 전용 디렉터리 아래에 세 가지 역할의 파일이 있다.</p>
 <ul>
 <li><strong>base 파일</strong>: 재작성 시점의 기준 상태. 설정에 따라 RDB 또는 AOF 형식일 수 있다.</li>
@@ -68,7 +74,7 @@ AOF 기록 준비와 파일 write
  → 현재 데이터 상태 구성
 </code></pre>
 <p>여기서 한 incremental 파일을 임의로 빼면 이후 명령은 실행되더라도 업무적으로 올바른 상태가 아닐 수 있다. 카운터 증가, 리스트 조작, 키의 타입 변경은 이전 상태에 의존한다. “서버가 시작된다”와 “정확한 데이터로 복구되었다”는 다른 검증 단계다.</p>
-<h2 id="section-6">5. rewrite를 시간순으로 추적하기</h2>
+<h2 id="section-7">5. rewrite를 시간순으로 추적하기</h2>
 <p>현재 데이터는 1 GiB지만 같은 키를 수백 번 수정했다면 AOF 기록은 훨씬 커질 수 있다. 파일이 커지면 디스크 공간과 재시작 재생 시간이 늘어난다. rewrite는 오래된 명령 파일을 편집기로 압축하는 일이 아니라 메모리의 현재 상태를 기준으로 새로운 기반을 만드는 작업이다.</p>
 <p>다중 파일 방식의 흐름을 단순화하면 다음과 같다.</p>
 <ol>
@@ -82,11 +88,11 @@ AOF 기록 준비와 파일 write
 </ol>
 <p>원자적 교체는 관찰자가 반쯤 수정된 목차를 보지 않도록 하는 핵심 장치다. rewrite 중간에 실패했다고 기존의 복원 가능한 기록을 먼저 버리지 않도록 설계되어 있다. 하지만 이것이 “디스크 공간을 0까지 써도 괜찮다”거나 “백업 중 파일을 아무렇게나 복사해도 된다”는 뜻은 아니다. 실패를 견디는 전환 규칙과 자원 부족을 예방하는 운영은 별개다.</p>
 <p>Redis 7.0 이전 단일 파일 방식은 부모가 기존 AOF를 유지하면서 rewrite 중 변경을 메모리 버퍼에도 보관하고, 새 파일에 그 변경을 이어 붙이는 구조로 설명된다. 이 설명을 다중 파일 방식에 그대로 가져와 “항상 모든 rewrite 변경이 큰 별도 메모리 버퍼에 쌓인다”라고 단정하지 않는다. 다만 다중 파일 방식에서도 fork와 copy-on-write의 메모리 비용은 사라지지 않는다.</p>
-<h2 id="section-7">6. copy-on-write와 디스크 여유가 필요한 이유</h2>
+<h2 id="section-8">6. copy-on-write와 디스크 여유가 필요한 이유</h2>
 <p>fork 이후 부모와 자식은 처음에는 같은 물리 메모리 페이지를 공유할 수 있다. 부모가 어떤 페이지를 수정하면 자식이 보는 과거 상태를 보존하기 위해 페이지 복사가 일어난다. 이것이 copy-on-write, 줄여서 COW다. 키 하나를 바꾸더라도 OS가 복사하는 단위는 그 키의 문자열 길이가 아니라 메모리 페이지다. 따라서 “새 값이 10바이트니 추가 메모리도 10바이트”라는 계산은 틀릴 수 있다.</p>
 <p>rewrite 시간이 길고 그동안 여러 페이지가 계속 바뀌면 추가 메모리 부담이 커진다. 동시에 디스크에는 이전 복구 경로를 유지한 채 새 base와 새 incremental을 생성해야 한다. 운영 용량은 평소 데이터 크기뿐 아니라 <strong>세대가 겹치는 시간의 최대 점유량</strong>을 포함해야 한다. 디스크가 느리면 rewrite가 오래 걸리고, 오래 걸리면 COW와 incremental이 더 커지는 악순환도 생긴다.</p>
 <p>따라서 시작 전에는 RAM 여유, 컨테이너 한도, 디스크 여유, 쓰기 대역폭, 최근 rewrite 시간, 백그라운드 작업 상태를 함께 본다. 장애 중 급하게 반복 호출하는 것은 해결책이 아니다. 재작성은 파일을 줄일 가능성이 있지만 새 파일을 만들 공간이 없는 상태에서는 실패를 반복할 수 있다. 공간을 확보할 때도 AOF 파일을 임의 삭제하지 않고, 승인된 비관련 로그 정리나 볼륨 증설 등 복구 경로를 보존하는 방법을 고른다.</p>
-<h2 id="section-8">7. 격리 실습 A: 파일 구조와 rewrite 관찰</h2>
+<h2 id="section-9">7. 격리 실습 A: 파일 구조와 rewrite 관찰</h2>
 <p>다음은 Redis 7.0 이상을 대상으로 한 <strong>일회용 로컬 실습</strong>이다. 운영 서버 주소를 대입하지 않는다. 포트 16385가 비어 있는지 확인하고, 충돌하면 전체 명령을 같은 빈 포트로 바꾼다. bash, <code>redis-server</code>, <code>redis-cli</code>가 필요하다. 실습값과 파일명은 예상 관찰 기준이며 이 글에서 실제 실행 결과를 주장하지 않는다.</p>
 <pre><code class="language-bash">LAB=$(mktemp -d /tmp/redis-aof-lab.XXXXXX)
 printf &#39;실습 경로: %s\n&#39; &quot;$LAB&quot;
@@ -124,7 +130,7 @@ find &quot;$LAB/appendonlydir&quot; -maxdepth 1 -type f -print
 cat &quot;$LAB/appendonlydir/appendonly.aof.manifest&quot;
 </code></pre>
 <p>manifest를 읽는 것은 안전하지만 내용을 직접 편집하는 단계는 아니다. rewrite 전후의 세대와 파일 목록, 전체 파일 크기를 비교한다. 중간 쓰기를 거의 하지 않은 작은 카운터 실험에서는 기록이 줄어드는 경향을 기대할 수 있지만 정확한 바이트 수는 버전, 파일 형식, 메타데이터에 달려 있다. 예상 비율을 실제 측정값처럼 적지 않는다.</p>
-<h2 id="section-9">8. 격리 실습 B: 정상 재시작과 내구성 검증의 차이</h2>
+<h2 id="section-10">8. 격리 실습 B: 정상 재시작과 내구성 검증의 차이</h2>
 <p>앞선 실습에서 rewrite가 끝나고 상태가 정상인지 확인한 뒤 실습 서버만 정상 종료한다.</p>
 <pre><code class="language-bash">redis-cli -h 127.0.0.1 -p 16385 SHUTDOWN
 # 원래 LAB 값이 있는 첫 번째 터미널에서
@@ -132,7 +138,7 @@ redis-server &quot;$LAB/redis.conf&quot;
 </code></pre>
 <p>다시 연결해 <code>GET lab:counter</code>와 <code>INFO persistence</code>를 확인한다. 2000이 복원되면 <strong>이 구성과 정상 종료·재시작 경로에서 값이 복원되었다</strong>는 증거다. 여기서 얻지 못한 증거도 적는다. 갑작스러운 전원 손실의 유실 범위, 디스크 고장 시 생존 여부, 모든 장애 시점에서의 복구 가능성은 이 실습으로 검증하지 않았다.</p>
 <p>강제 종료를 무조건 추가하는 대신 먼저 장애 모델을 표로 만든다. 프로세스 크래시, OS 크래시, 볼륨 손실은 서로 다르다. 실제 장애 주입은 일회용 VM과 테스트 볼륨, 관찰용 클라이언트, 외부에 남기는 승인 기록을 준비한 뒤 실시한다. 응답 받은 순번과 복구된 마지막 순번을 비교해야 하며, 실험 부하와 fsync 정책도 함께 기록한다. 이 글에서는 호스트 종료나 디스크 손상 명령을 제공하지 않는다.</p>
-<h2 id="section-10">9. RDB만 쓰던 인스턴스에서 AOF를 켤 때</h2>
+<h2 id="section-11">9. RDB만 쓰던 인스턴스에서 AOF를 켤 때</h2>
 <p>흔한 실수는 설정 파일에 <code>appendonly yes</code>를 추가하고 곧바로 재시작하는 것이다. 지금 메모리에 있는 데이터를 AOF의 복구 가능한 초기 상태로 만들어 놓지 않았다면, 다음 시작에서 기대와 다른 파일을 읽을 수 있다. 전환은 “설정 한 줄”이 아니라 <strong>현재 상태를 새 영속성 경로로 옮기는 작업</strong>이다.</p>
 <p>안전한 계획은 다음 순서로 작성한다. 실제 운영 적용은 변경 승인과 버전별 문서를 따른다.</p>
 <ol>
@@ -145,7 +151,7 @@ redis-server &quot;$LAB/redis.conf&quot;
 <li>검증된 복구 절차에 따라 재기동 시험을 진행하고 대표 데이터와 TTL, 자료형을 비교한다.</li>
 </ol>
 <p>처음부터 RDB를 끄는 것이 필수는 아니다. 전환 안정성이 확인되기 전에 기존 복구 경로를 없애면 되돌아갈 선택지가 줄어든다. 정상 여부를 키 개수 하나로 판단하지 않는다. 값이 달라도 개수는 같을 수 있으므로 업무상 대표 키, 카운터, 자료형, 만료 상태까지 살펴본다.</p>
-<h2 id="section-11">10. 손상 복구: 원본 보존이 첫 번째 명령이다</h2>
+<h2 id="section-12">10. 손상 복구: 원본 보존이 첫 번째 명령이다</h2>
 <p>AOF 문제는 크게 마지막 기록이 덜 쓰인 <strong>끝부분 절단</strong>과 중간에 잘못된 바이트가 있는 <strong>중간 손상</strong>으로 나눠 생각한다. 끝부분 절단은 마지막 불완전 기록을 제외하면 그 이전까지 일관된 기록이 남아 있을 수 있다. <code>aof-load-truncated</code> 정책은 이 상황에서 가용성과 엄격한 중단 중 어떤 쪽을 택할지에 영향을 준다. 중간 손상은 이후 기록이 무엇에 의존하는지까지 문제가 되므로 위험이 더 크다.</p>
 <p>문제가 생겼을 때 원본에 곧바로 <code>--fix</code>를 실행하지 않는다. 다음 순서가 우선이다.</p>
 <ul>
@@ -157,15 +163,271 @@ redis-server &quot;$LAB/redis.conf&quot;
 <li>복구 책임자의 승인 아래 복사본에 수정 작업을 하고, 격리 서버에서 복구 검증한다.</li>
 </ul>
 <p><code>redis-check-aof --fix</code>는 사라진 업무 정보를 추측해서 되살리는 마법이 아니다. 유효하지 않은 지점 뒤를 버리는 방식이라면 파일 앞부분의 손상 하나로 상당한 기록이 제거될 수 있다. 다중 파일 형식에서는 단일 <code>.aof</code>만 골라 고치는 오래된 절차를 그대로 적용하지 말고 manifest 및 버전별 도구 입력 형식을 확인한다. 바이너리 base를 일반 텍스트 편집기로 고치려는 행동도 피한다.</p>
-<h2 id="section-12">11. 운영 장애 시나리오와 지표 해석</h2>
+<h2 id="section-13">11. 운영 장애 시나리오와 지표 해석</h2>
 <p><strong>디스크가 가득 찼다.</strong> <code>aof_last_write_status</code>, 서버 로그, 파일시스템 여유와 inode를 함께 확인한다. 단순히 AOF를 꺼서 쓰기를 재개하면 내구성 정책을 바꾸는 큰 결정이 된다. 복구 경로를 보존하면서 공간을 확보하고, 어떤 요청이 성공했는지 애플리케이션 기록과 맞춘다. 클라이언트가 시간 초과를 받았다고 쓰기가 반드시 실행되지 않은 것은 아니므로 재시도는 멱등성을 고려해야 한다.</p>
 <p><strong>rewrite가 계속 실패한다.</strong> 실패 원인은 디스크 공간, 권한, fork 실패, 메모리 압력, 저장장치 오류 등으로 나뉜다. 최근 상태 하나만 보고 반복 요청하지 않는다. 실패 후에도 AOF가 계속 증가할 수 있으므로 성장률과 남은 용량으로 대응 시간을 추정한다. 쓰기량이 초당 20 MiB이고 남은 공간이 10 GiB라면 단순 나눗셈은 약 512초지만, 새 base 생성과 다른 파일 증가를 고려하면 실제 안전 시간은 더 짧다. 이 숫자는 계산 예시이지 운영 예측값이 아니다.</p>
 <p><strong>평균 응답은 괜찮은데 가끔 수백 ms가 튄다.</strong> p99 지연, 디스크 동기화 지연, rewrite 실행 시각, fork 시간, COW 메모리, 호스트의 I/O 경합을 같은 시간축에 놓는다. 평균값만 보면 드문 동기화 지연이 숨겨질 수 있다. fsync 정책을 약하게 바꾸기 전에 내구성 요구와 저장장치 병목을 함께 검토한다.</p>
 <p><strong>애플리케이션에서 WAIT를 사용하므로 디스크는 안전하다고 믿는다.</strong> WAIT는 복제본의 확인을 기다리는 명령이지 일반적으로 로컬 AOF 동기화 완료와 같은 보장이 아니다. Redis 7.2에 도입된 <code>WAITAOF</code>는 해당 연결의 선행 쓰기에 대한 AOF 동기화를 기다리는 별도 기능이다. 지원 버전과 AOF 설정을 확인해야 하며, 반환값과 시간 초과를 해석해야 한다. 이것도 외부 DB와의 분산 트랜잭션이나 모든 failover 시나리오의 무손실을 자동으로 제공하지 않는다. <a href="https://redis.io/docs/latest/commands/waitaof/">WAITAOF 공식 명세</a></p>
-<h2 id="section-13">12. 애플리케이션의 책임: 응답을 못 받았을 때</h2>
+<h2 id="section-14">12. 애플리케이션의 책임: 응답을 못 받았을 때</h2>
 <p>AOF를 잘 구성해도 클라이언트의 시간 초과 문제는 남는다. 서버가 명령을 실행하고 기록한 뒤 응답이 네트워크에서 사라질 수 있다. 클라이언트는 성공을 보지 못했지만 서버에는 반영되었다. 이때 <code>INCR</code>를 무조건 다시 보내면 두 번 증가한다. 이를 “불확실한 결과”라고 부르면 좋다. 실패와 미실행은 같은 말이 아니다.</p>
 <p>업무 작업에 요청 ID를 붙이고 이미 처리한 ID인지 검사하는 설계, 원본 DB의 유일 제약, 멱등한 상태 전이 등을 검토한다. Redis 안에서 여러 명령을 원자적으로 묶는 것과 외부 시스템까지 정확히 한 번 처리하는 것도 구별한다. AOF는 Redis 상태의 내구성 수단이지 결제 API와 데이터베이스 사이의 모든 불확실성을 해결하는 수단이 아니다.</p>
-<h2 id="section-14">면접 질문과 상세 답변</h2>
+<h2 id="section-15">바이트 여행 1. SET 한 번을 사건 카드로 나누기</h2>
+<p>상품 이름을 바꾸는 SET을 보냈다고 가정하자. 다음 표는 이해를 위한 사건 분해다. 실제 내부 호출 위치와 배치 방식은 Redis 버전과 설정에 따라 확인해야 하며, 모든 정책이 아래 행을 응답보다 먼저 끝낸다는 뜻은 아니다. 표의 목적은 서로 다른 사건을 같은 “저장”이라는 단어로 묶지 않는 데 있다.</p>
+<table>
+<thead>
+<tr>
+<th>사건 카드</th>
+<th>무엇이 달라지는가</th>
+<th>이 카드만으로 말할 수 없는 것</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>요청 도착</td>
+<td>서버가 명령을 처리할 수 있는 입력을 받음</td>
+<td>명령이 성공했는지</td>
+</tr>
+<tr>
+<td>명령 실행</td>
+<td>Redis의 논리 데이터 상태가 바뀜</td>
+<td>복구 파일에 안전하게 남았는지</td>
+</tr>
+<tr>
+<td>AOF 기록 준비</td>
+<td>복원에 필요한 표현을 준비함</td>
+<td>장치가 기록을 보존하는지</td>
+</tr>
+<tr>
+<td>파일 쓰기</td>
+<td>OS가 파일 변경을 받아들임</td>
+<td>전원 손실 뒤에도 남는지</td>
+</tr>
+<tr>
+<td>동기화 완료</td>
+<td>설정과 환경이 정한 내구성 경계에 도달</td>
+<td>디스크 자체의 소실을 견디는지</td>
+</tr>
+<tr>
+<td>응답 수신</td>
+<td>클라이언트가 결과를 알게 됨</td>
+<td>응답 전에 어느 내구성 단계가 끝났는지</td>
+</tr>
+</tbody></table>
+<p><code>appendfsync</code> 정책은 이런 사건들과 응답 경로의 관계를 이해하는 중요한 입력이다. everysec에서는 클라이언트가 성공 응답을 받았더라도 최근 동기화 이후의 변경이 위험 구간에 있을 수 있다. always에서는 로컬 동기화 비용이 응답 경로에 반영되므로 저장 장치의 지연이 사용자 응답에 영향을 줄 수 있다. no는 Redis가 동기화 시점을 명시적으로 관리하지 않는 선택이므로 OS 정책의 의미가 커진다.</p>
+<p>여기서 시간의 평균만 보지 말자. 디스크 동기화가 평균 1ms인데 가끔 200ms가 걸린다면, 그 드문 순간이 요청 타임아웃과 재시도를 만들 수 있다. 저장소의 평균 처리량이 충분해 보여도 긴 지연 구간은 서비스에 영향을 준다. 내구성 정책은 성능과 정확성을 함께 보는 선택이지, 설정 한 줄의 좋고 나쁨을 평가하는 문제가 아니다.</p>
+<p>또한 SET 성공 응답과 AOF 기록에 대한 오류 상황은 버전별 처리 정책과 연결된다. 일반적인 성공 경로의 그림을 모든 오류 상황의 실행 순서로 사용하지 않는다. 운영에서는 <code>aof_last_write_status</code>, 지연된 fsync, 서버 로그처럼 그 경로의 상태를 나타내는 증거를 함께 확인한다. 그림은 질문을 만드는 도구이고 실제 상태는 관측으로 확인한다.</p>
+<h2 id="section-16">바이트 여행 2. 같은 쓰기라도 장애 종류에 따라 결과가 다른 이유</h2>
+<p>세 가지 장애를 나누어 보자. 첫째는 Redis 프로세스만 갑자기 종료되는 경우다. OS가 계속 살아 있다면 이미 OS에 전달된 파일 변경이 남아 있을 수 있다. 둘째는 OS와 호스트가 함께 상실되는 경우다. 이때 휘발성 상태가 함께 사라지는 모델을 고려해야 한다. 셋째는 저장 장치 자체를 잃는 경우다. 로컬 동기화가 끝났더라도 그 장치가 더 이상 없다면 별도 사본이 필요하다.</p>
+<p>다음은 내구성의 범위를 생각하는 표이며 실제 장애 실험 결과가 아니다.</p>
+<table>
+<thead>
+<tr>
+<th>변경이 도달한 위치</th>
+<th>프로세스만 상실</th>
+<th>호스트 휘발성 상태 상실</th>
+<th>해당 디스크 소실</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Redis 내부 메모리만</td>
+<td>복구 근거가 부족함</td>
+<td>복구 근거가 부족함</td>
+<td>로컬 기록 자체가 없음</td>
+</tr>
+<tr>
+<td>OS 파일 캐시에 전달</td>
+<td>OS가 살아 있으면 남을 가능성</td>
+<td>휘발성 구간은 위험</td>
+<td>별도 사본 필요</td>
+</tr>
+<tr>
+<td>로컬 내구성 경계 도달</td>
+<td>해당 파일을 통한 복구 경로</td>
+<td>장치·파일 시스템 계약에 의존</td>
+<td>별도 사본 필요</td>
+</tr>
+<tr>
+<td>독립 위치의 검증 사본</td>
+<td>별도 복구 경로 존재</td>
+<td>장애 범위가 분리됐다면 활용 가능</td>
+<td>사본의 최신성과 접근성 확인</td>
+</tr>
+</tbody></table>
+<p>표의 “가능성”을 “항상 보장”으로 바꿔 읽지 않는다. 실제 환경의 파일 시스템과 장치, 가상화 계층이 약속한 의미를 확인해야 한다. 한 번의 실험에서 파일이 남았다는 결과는 그 실험 조건의 관찰이다. 모든 실패 시점과 장치 장애를 검증한 결과가 아니다.</p>
+<p>이 구별은 사후 분석에도 쓰인다. 강제 종료 시험을 100번 했는데 유실이 없었다면, OS 캐시에 전달된 기록이 유지되는 경로를 반복해서 관찰했을 수 있다. 그것은 유용한 결과지만 전원 장애의 경계를 검증한 것과 다르다. 실험 이름을 “장애 테스트”로만 남기지 말고 <strong>무엇을 중단했고 무엇은 계속 살아 있었는지</strong>를 적는다.</p>
+<h2 id="section-17">내부 원리 보충 1. fsync를 자주 하면 왜 느려질 수 있는가</h2>
+<p>프로그램은 CPU에서 다음 명령을 빠르게 실행할 수 있어도 저장 장치가 데이터를 안전하게 보관하는 속도는 별도 한계다. 동기화를 기다리는 경로에서는 느린 장치의 완료가 다음 응답의 조건이 될 수 있다. 빠른 계산대 직원이 있어도 결제 승인을 기다려야 영수증을 줄 수 있는 상황과 비슷하다.</p>
+<p>여러 쓰기를 묶으면 동기화 한 번의 비용을 나눌 수 있다. 다만 묶음 크기가 커질 때 모든 요청의 지연이 같은 방식으로 좋아지는 것은 아니다. 묶음을 기다리는 시간, 서버의 처리 순서, 클라이언트 도착 패턴이 영향을 준다. 처리량이 높아지는 것과 개별 사용자의 지연이 줄어드는 것은 같은 결과가 아니다. 벤치마크에서는 둘을 나누어 기록해야 한다.</p>
+<p>예를 들어 동기화 한 번이 2ms라는 가정을 두자. 쓰기를 매번 독립적인 동기화로 처리하는 단순 모델과 여러 쓰기가 묶이는 모델의 처리량은 다를 수 있다. 그러나 이 숫자로 곧바로 “초당 정확히 500건”이라고 Redis 성능을 계산하면 안 된다. 실제로는 group commit, 네트워크, 이벤트 루프, CPU, 장치의 병렬성과 큐가 함께 작용한다. 계산 예시는 비용의 방향을 이해하는 데만 쓴다.</p>
+<p>everysec도 디스크 비용을 없애지 않는다. 사용자 요청의 기다림과 백그라운드 작업을 다르게 배치하는 선택에 가깝다. 백그라운드 동기화가 계속 늦어지면 관련 지연과 버퍼, 파일 쓰기 상태가 문제로 나타날 수 있다. “백그라운드니까 서비스와 독립”이라는 가정은 02편의 fork 비용과 마찬가지로 여기서도 성립하지 않는다.</p>
+<p>정책을 바꾸기 전에 업무의 손실 허용 조건과 요청 지연 목표를 함께 적는다. 정책을 강하게 했더니 타임아웃이 늘어 클라이언트가 비멱등 쓰기를 여러 번 재시도한다면, 로컬 기록은 더 강해졌어도 업무 중복이 늘 수 있다. 내구성과 재시도 설계를 같은 문서에서 검토해야 하는 이유다.</p>
+<h2 id="section-18">내부 원리 보충 2. rewrite는 과거의 이야기를 현재 상태로 바꾼다</h2>
+<p>카운터를 0에서 100으로 만드는 과정에는 여러 이야기가 가능하다. 1씩 100번 증가했을 수도 있고 50씩 두 번 증가했을 수도 있다. 현재 상태 복구의 목적만 보면 결과가 100이라는 사실이 중요할 수 있다. AOF rewrite는 이런 현재 상태를 재구성할 수 있는 새 기반을 만드는 작업이다. 원래 사용자 요청의 역사 전체를 그대로 보관하는 기능은 아니다.</p>
+<p>따라서 감사 요구가 있는 업무에서는 AOF만 믿지 않는다. 누가 어떤 요청 ID로 왜 변경했는지, 외부 시스템의 상태가 무엇이었는지는 별도 업무 이력에 필요할 수 있다. 파일에 명령이 보인다는 이유로 그 파일을 영구 감사 시스템으로 사용하는 것은 역할을 혼동한 것이다. rewrite는 정상적인 기능인데 감사 관점에서는 과거 세부가 없어질 수 있다.</p>
+<p>다중 파일 방식에서 새 base가 현재 상태의 출발점이고 incremental은 그 이후의 변화를 이어 준다. 책의 새 판을 만드는 동안 새로 나온 정정 사항을 별도 목록에 적어 두는 상황을 생각해 보자. 새 판만 읽고 정정 목록을 빼면 최신 상태가 아니다. 정정 목록만 읽고 원래 본문을 빼도 전체 내용을 알 수 없다. manifest는 어느 본문과 어느 목록이 한 세트인지 알려 주는 안내에 가깝다.</p>
+<p>여기서 세대는 새 파일 이름의 장식이 아니다. 복구에 필요한 집합을 식별하는 관계다. 파일이 여러 개 있다고 중복이라고 단정해 지우면 안 된다. 반대로 디렉터리에 남은 파일이 모두 현재 복구에 필요하다고 단정할 수도 없다. 현재 manifest와 서버의 상태, 버전별 관리 규칙에 따라 역할을 판단한다. 파일 정리는 원본 보존과 복구 가능성을 확인한 절차로 수행한다.</p>
+<h2 id="section-19">내부 원리 보충 3. 전환 중 장애를 생각하면 필요한 순서가 보인다</h2>
+<p>새 base를 만들기 시작했다고 기존 복구 경로를 바로 지운다고 가정해 보자. 자식이 절반만 쓴 상태에서 실패하면 예전 파일도 없고 새 파일도 불완전한 상태가 된다. 이런 순서는 복구 가능한 세대 전환이 아니다. 새 기반이 준비되고 필요한 변경 파일과의 관계가 정해질 때까지 기존 경로를 유지해야 하는 이유다.</p>
+<p>반대로 새 base가 완성되었는데 manifest가 여전히 이전 세트를 가리킨다면, 디렉터리에 새 파일이 존재해도 그것이 현재의 공식 복구 경로라는 뜻은 아니다. <strong>파일 존재와 유효한 세대 선택은 다르다.</strong> 이 구별은 RDB의 “이번 저장 결과인지 확인하기”와 연결된다.</p>
+<p>백업 도구가 세대 전환 중 파일 목록을 한 번 읽고, 잠시 뒤 내용들을 따로 복사하면 그 사이 파일 집합이 바뀔 수 있다. 그래서 백업 절차는 단순히 각 파일이 잘 복사됐다는 것 외에 한 세트의 일관성까지 다뤄야 한다. 파일 시스템 스냅샷이나 해당 버전이 지원하는 백업 절차를 검토할 때도 어떤 경계에서 집합을 고정하는지 질문해야 한다.</p>
+<table>
+<thead>
+<tr>
+<th>가정한 실패 시점</th>
+<th>조사할 핵심 질문</th>
+<th>피해야 할 추측</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>새 base 작성 도중</td>
+<td>기존 세트가 보존됐는가?</td>
+<td>가장 큰 새 파일이 정답이다</td>
+</tr>
+<tr>
+<td>새 base 완료 후</td>
+<td>어느 manifest가 유효한가?</td>
+<td>파일 생성 시각이 최신이면 사용한다</td>
+</tr>
+<tr>
+<td>manifest 전환 이후</td>
+<td>참조한 incremental이 모두 있는가?</td>
+<td>base만 있으면 충분하다</td>
+</tr>
+<tr>
+<td>이전 세대 정리 중</td>
+<td>현재 복구 세트와 보관 사본은 무엇인가?</td>
+<td>오래된 이름은 모두 지워도 된다</td>
+</tr>
+</tbody></table>
+<p>이 표는 수동으로 파일을 조작하라는 절차가 아니다. 정상 구현이 해결해야 할 문제와 운영자가 확인해야 할 증거를 나누는 사고 실험이다. 손상이 의심되면 원본을 보존하고 복사본에서 버전별 도구와 절차로 조사한다.</p>
+<h2 id="section-20">Java 사고 실험. 기록 단계별로 복구 결과가 달라지는 작은 모델</h2>
+<p>아래 코드는 파일 시스템이나 Redis AOF를 구현하지 않는다. Redis 내부 버퍼, OS 캐시, 내구성 기록이라는 세 단계를 이름 붙인 목록으로 표현해 실패 모델을 비교한다. Java 21에서 독립 실행할 수 있다. 이 모델의 단계 이동은 교육용이며 실제 Redis의 내부 호출 순서를 그대로 재현하지 않는다.</p>
+<pre><code class="language-java">import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public final class AofDurabilityLesson {
+    record Change(String key, String value) {}
+
+    static final class Model {
+        private final List&lt;Change&gt; redisBuffer = new ArrayList&lt;&gt;();
+        private final List&lt;Change&gt; osCache = new ArrayList&lt;&gt;();
+        private final List&lt;Change&gt; durableFile = new ArrayList&lt;&gt;();
+
+        void append(String key, String value) {
+            redisBuffer.add(new Change(key, value));
+        }
+
+        void writeToOs() {
+            osCache.addAll(redisBuffer);
+            redisBuffer.clear();
+        }
+
+        void syncToDurableBoundary() {
+            durableFile.addAll(osCache);
+            osCache.clear();
+        }
+
+        Map&lt;String, String&gt; recoverAfterProcessLoss() {
+            // Model assumption: OS remains alive and preserves its accepted writes.
+            List&lt;Change&gt; surviving = new ArrayList&lt;&gt;(durableFile);
+            surviving.addAll(osCache);
+            return replay(surviving);
+        }
+
+        Map&lt;String, String&gt; recoverAfterHostVolatileLoss() {
+            // Model assumption: all volatile memory disappears, durable storage remains.
+            return replay(durableFile);
+        }
+    }
+
+    static Map&lt;String, String&gt; replay(List&lt;Change&gt; changes) {
+        Map&lt;String, String&gt; result = new HashMap&lt;&gt;();
+        for (Change change : changes) result.put(change.key(), change.value());
+        return Map.copyOf(result);
+    }
+
+    public static void main(String[] args) {
+        Model model = new Model();
+        model.append(&quot;goods:123:name&quot;, &quot;배추&quot;);
+        model.writeToOs();
+        model.syncToDurableBoundary();
+        model.append(&quot;goods:123:name&quot;, &quot;알배기배추&quot;);
+        model.writeToOs();
+        model.append(&quot;goods:124:name&quot;, &quot;당근&quot;);
+
+        Map&lt;String, String&gt; process = model.recoverAfterProcessLoss();
+        Map&lt;String, String&gt; host = model.recoverAfterHostVolatileLoss();
+        if (!&quot;알배기배추&quot;.equals(process.get(&quot;goods:123:name&quot;))) {
+            throw new AssertionError(&quot;OS-accepted write should survive in this model&quot;);
+        }
+        if (!&quot;배추&quot;.equals(host.get(&quot;goods:123:name&quot;))) {
+            throw new AssertionError(&quot;only synced write survives volatile host loss&quot;);
+        }
+        if (process.containsKey(&quot;goods:124:name&quot;) || host.containsKey(&quot;goods:124:name&quot;)) {
+            throw new AssertionError(&quot;Redis-only buffer should not survive&quot;);
+        }
+        System.out.println(&quot;process loss: &quot; + process);
+        System.out.println(&quot;host volatile loss: &quot; + host);
+    }
+}
+</code></pre>
+<p>첫 번째 이름은 OS로 전달하고 동기화 경계까지 이동한다. 두 번째 이름은 OS에만 전달한다. 세 번째 상품은 Redis 버퍼에만 남긴다. 모델에서 프로세스만 사라지면 두 번째 이름까지 볼 수 있고, 호스트의 휘발성 상태가 사라지면 첫 번째 이름만 남는다. 어떤 값이 “저장됐다”는 표현을 쓸 때 어느 단계를 말하는지 적어야 하는 이유가 코드로 드러난다.</p>
+<p>이 모델은 명령 오류, 파일의 부분 쓰기, 장치 캐시, 파일 시스템 메타데이터, 실제 응답 시점과 비동기 실행을 생략한다. 따라서 클래스 실행 성공이 Redis 내구성의 실험 증거가 되지는 않는다. 확인한 것은 <strong>가정한 단계와 장애 모델에 따라 남는 상태가 달라지는 논리</strong>다. 실제 검증은 별도 인스턴스와 저장 장치, 승인 기록을 갖춘 시험이 필요하다.</p>
+<h2 id="section-21">Java 사고 실험. rewrite가 지우는 것은 현재 값이 아니라 불필요한 재생 단계다</h2>
+<p>이어서 작은 모델로 명령 이력과 현재 상태의 차이를 보자. 아래 코드는 앞의 클래스와 독립적이다. 실제 AOF 파일 형식과 다중 파일 전환을 구현하지 않으며, 현재 상태를 재표현한다는 관계만 검사한다.</p>
+<pre><code class="language-java">import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public final class AofRewriteLesson {
+    record Put(String key, String value) {}
+
+    static Map&lt;String, String&gt; replay(List&lt;Put&gt; log) {
+        Map&lt;String, String&gt; state = new HashMap&lt;&gt;();
+        for (Put put : log) state.put(put.key(), put.value());
+        return state;
+    }
+
+    static List&lt;Put&gt; rewriteState(Map&lt;String, String&gt; state) {
+        return state.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -&gt; new Put(entry.getKey(), entry.getValue()))
+                .toList();
+    }
+
+    public static void main(String[] args) {
+        List&lt;Put&gt; history = new ArrayList&lt;&gt;();
+        for (int i = 1; i &lt;= 100; i++) {
+            history.add(new Put(&quot;counter&quot;, Integer.toString(i)));
+        }
+        history.add(new Put(&quot;status&quot;, &quot;waiting&quot;));
+        history.add(new Put(&quot;status&quot;, &quot;completed&quot;));
+        Map&lt;String, String&gt; before = replay(history);
+        List&lt;Put&gt; rewritten = rewriteState(before);
+        Map&lt;String, String&gt; after = replay(rewritten);
+        if (!before.equals(after)) throw new AssertionError(&quot;state changed&quot;);
+        if (rewritten.size() != 2) throw new AssertionError(&quot;one record per live key&quot;);
+        if (history.size() != 102) throw new AssertionError(&quot;original history lost&quot;);
+        System.out.println(&quot;records &quot; + history.size() + &quot; -&gt; &quot; + rewritten.size());
+        System.out.println(&quot;same state=&quot; + before.equals(after));
+    }
+}
+</code></pre>
+<p>새 기록이 두 개여도 현재 상태는 같다. 반면 counter가 37이던 시점이나 status가 waiting이던 구체적 변경 순서는 새 기록에서 알 수 없다. 현재 상태의 동등성과 역사 보존의 동등성은 다른 요구다. 이 예제는 문자열 덮어쓰기만 다루므로 실제 Redis의 자료형별 재작성과 만료 표현까지 일반화하지 않는다.</p>
+<p><code>sorted</code>는 예제 출력의 순서를 안정적으로 만들기 위한 선택이다. Redis AOF가 모든 키를 이 정렬로 기록한다는 뜻은 아니다. 학습 모델의 편의와 제품 구현의 보장을 구분한다. 작은 예제일수록 이런 한계를 명시하면 잘못된 직관이 커지는 일을 막을 수 있다.</p>
+<h2 id="section-22">응용 보충. Spring의 트랜잭션과 AOF 동기화는 서로 다른 경계다</h2>
+<p>Spring의 <code>@Transactional</code>을 메서드에 붙였다고 Redis의 AOF 정책이 바뀌지 않는다. 어떤 transaction manager가 어떤 자원을 제어하는지 먼저 확인해야 한다. MySQL 트랜잭션의 커밋과 Redis의 로컬 파일 동기화는 독립적인 사건일 수 있다. 애플리케이션 어노테이션의 이름에 “트랜잭션”이 있다는 이유로 두 저장소의 실패 경계가 하나가 되지 않는다.</p>
+<p>예를 들어 DB에 입고 확정을 저장한 뒤 Redis의 조회 캐시를 갱신한다. Redis 갱신이 실패하면 DB의 확정 결과를 되돌려야 할까? 캐시가 재생성 가능한 보조 데이터라면 실패를 관측하고 무효화·재시도·TTL 정책으로 다루는 선택이 가능하다. 반대로 Redis를 업무 확정의 유일한 근거로 사용한다면 필요한 내구성과 멱등성 요구가 훨씬 엄격해진다. 같은 SET이라도 역할이 다르다.</p>
+<p>애플리케이션에서 WAITAOF를 검토할 때는 명령 지원 버전, AOF 활성화 상태, 실제 연결의 일관성, 반환값의 의미를 확인한다. 이전 쓰기와 무관한 새 연결에서 호출하면 의도한 확인 범위와 어긋날 수 있다. 프레임워크가 연결을 어떻게 재사용하는지 모른 채 명령 문자열만 추가하는 것은 충분하지 않다. 실패 반환은 앞선 쓰기의 취소가 아니므로 업무의 재시도 정책도 함께 설계한다.</p>
+<p>이 글에서는 모든 Spring 버전에 통하는 WAITAOF 래퍼를 제시하지 않는다. 사용하는 Spring Data Redis와 하위 드라이버 버전에 따라 명령 지원과 연결 API가 다를 수 있기 때문이다. 명령이 있다는 사실과 프레임워크에서 원하는 연결 경계를 유지하며 사용할 수 있다는 사실을 분리해 확인해야 한다. 핵심은 임의의 코드 한 줄보다 보호하려는 쓰기와 확인 명령 사이의 관계다.</p>
+<h2 id="section-23">실습 노트 보충. 파일 크기, 작업 완료, 복원 성공을 따로 기록하기</h2>
+<p>앞의 카운터 실습은 매번 별도 redis-cli를 실행한다. 이 방식은 느리지만 초보자가 각 명령의 결과를 이해하기 쉽다. 여기서 측정한 전체 시간을 Redis의 INCR 처리량이라고 보고하면 안 된다. 프로세스 시작과 연결 비용이 대부분을 차지할 수 있다. 관찰 실습과 성능 벤치마크는 목적이 다르다.</p>
+<p>rewrite 전후의 파일 크기를 비교할 때는 어떤 범위의 크기인지 적는다. 현재 유효 파일만의 합인지, 아직 정리되지 않은 이전 파일까지 포함한 디렉터리 총량인지 다를 수 있다. 작업 중 최고점과 작업 후 안정 상태도 다르다. “파일이 줄었다”는 하나의 수치로 디스크 여유 계획 전체를 대신할 수 없다.</p>
+<p>복원 시험에서는 카운터의 값뿐 아니라 업무를 대표하는 자료형과 TTL도 포함한다. 값이 같은 키가 하나 보인다는 사실은 시작점이다. 모든 데이터의 정확성을 증명하지는 않는다. 반대로 짧은 TTL 키가 없어졌다고 바로 손상이라고 결론 내리지 않는다. 저장과 복원 사이에도 시간이 흘렀다는 04편의 원리를 적용한다.</p>
+<p>결과 기록에는 실행한 버전, 사용한 디렉터리, 설정, 작업 전후 값, 상태 지표, 파일 집합, 제외한 장애 조건을 남긴다. 설명용 예상값과 실행해서 얻은 값을 다른 칸에 적자. 이 습관은 나중에 “정상 재시작은 확인했지만 전원 장애는 확인하지 않았다”라는 정확한 문장을 쓸 수 있게 한다.</p>
+<h2 id="section-24">면접 질문과 상세 답변</h2>
 <details class="question"><summary>1. AOF를 켜면 SET의 OK 응답은 디스크 저장 완료를 뜻하나요?</summary><div class="answer">
 
 <p>fsync 정책을 보지 않고는 단정할 수 없다. 메모리 변경, 운영체제 페이지 캐시에 대한 write, 내구성 동기화는 서로 다른 단계다. <code>everysec</code>는 최근 동기화 이후의 쓰기가 응답되었어도 장애 시 사라질 수 있다. <code>always</code>는 동기화를 응답 경로에 반영하지만 저장장치 자체 손실이나 외부 시스템과의 일관성까지 해결하지 않는다. 좋은 답변은 “AOF 유무”보다 “어떤 장애 모델에서 어떤 경계까지 확인했는가”를 말한다.</p>
@@ -211,7 +473,35 @@ redis-server &quot;$LAB/redis.conf&quot;
 <p>아니다. rewrite는 현재 상태를 효율적으로 복원하게 하는 작업이며 과거 정상 시점 보존이 아니다. 잘못된 삭제나 덮어쓰기도 현재 상태가 되어 재작성에 반영될 수 있다. 같은 디스크의 AOF는 디스크 손실에 취약하다. 별도 장애 영역에 보관한 여러 시점의 백업과 복원 훈련이 필요하다. 다음 장에서 이 차이를 복구 시간과 복구 시점 목표로 확장한다.</p>
 </div></details>
 
-<h2 id="section-15">정리와 공식 자료</h2>
+<h2 id="section-25">기록 해석 보충. 응답 시각과 파일 시각을 바로 빼지 않기</h2>
+<p>운영 기록에서 애플리케이션의 응답 시각과 파일의 수정 시각을 비교할 때는 두 시계가 같은 기준인지 확인한다. 서로 다른 호스트의 시계가 어긋났거나 파일 시스템의 시각 해상도가 거칠면 작은 시간 차이를 정확한 동기화 지연처럼 계산할 수 없다. 파일 수정 시각도 마지막 파일 변경을 나타내는 단서이지 모든 쓰기의 내구성 완료 시각 목록은 아니다.</p>
+<p>따라서 장애 시험에서는 외부에 남긴 요청 ID의 순서와 성공 응답, 복구된 값의 관계를 함께 기록한다. 단순 카운터의 마지막 값만으로는 중간 요청의 중복과 누락을 모두 구별하지 못할 수 있다. 필요한 정확성에 맞는 검증 데이터를 설계해야 한다. 시간 그래프는 설명을 돕지만 식별 가능한 업무 기록을 대신하지 않는다.</p>
+<h2 id="section-26">추가 면접 문답: 내구성의 범위를 조건으로 말하기</h2>
+<details class="question"><summary>10. Redis 프로세스를 강제 종료했는데 데이터가 남았습니다. everysec도 무손실 아닌가요?</summary><div class="answer">
+
+<p>그 시험에서는 OS와 저장 장치가 계속 살아 있었을 수 있다. 이미 OS에 전달된 변경이 페이지 캐시에 남아 파일로 반영되는 경로를 관찰했을 가능성이 있다. Redis 프로세스만의 종료는 호스트의 휘발성 상태 상실과 같은 장애가 아니다.</p>
+<p>답변에서는 무엇을 중단했고 무엇은 유지했는지부터 밝힌다. 반복 시험 횟수가 많아도 장애 모델이 같으면 검증 범위는 그 모델에 머문다. everysec의 위험 구간을 평가하려면 응답을 받은 쓰기의 식별자와 복구 후 상태, 동기화 정책 및 장애 범위를 함께 비교해야 한다.</p>
+</div></details>
+
+<details class="question"><summary>11. AOF가 모든 쓰기를 기록한다면 감사 로그로 써도 되나요?</summary><div class="answer">
+
+<p>영구 감사 요구의 유일한 근거로 삼기에는 목적이 다르다. AOF는 상태 복구를 위한 기록이고 rewrite는 현재 상태를 만드는 더 짧은 표현으로 바꿀 수 있다. 원래 요청의 사용자, 이유, 업무 ID와 과거의 모든 변화가 영원히 보존된다는 계약이 아니다.</p>
+<p>업무 감사에는 필요한 항목과 보존 기간, 변경 불가성, 접근 통제, 외부 시스템과의 관계를 별도로 설계한다. AOF에서 명령이 읽힌다는 사실과 감사 시스템으로 적합하다는 판단을 구별해야 한다.</p>
+</div></details>
+
+<details class="question"><summary>12. rewrite가 파일을 줄이는데 왜 디스크가 부족할 때 더 실패하나요?</summary><div class="answer">
+
+<p>기존 복구 경로를 유지하면서 새 기반과 이후 변경 파일을 만들어야 하는 전환 구간이 있기 때문이다. 최종 결과가 작아질 수 있다는 사실과 작업 중 필요한 최고 공간은 다르다. 새 파일을 완성할 여유가 없으면 줄이는 작업 자체를 끝내지 못할 수 있다.</p>
+<p>기존 AOF를 임의 삭제해서 공간을 만드는 것은 복구 수단을 없앨 수 있다. 필요한 파일 집합을 보존하고 비관련 파일의 승인된 정리나 용량 확장처럼 복구 가능성을 유지하는 방법을 검토한다. RAM의 COW 여유와 작업 시간도 함께 확인한다.</p>
+</div></details>
+
+<details class="question"><summary>13. WAITAOF가 제한 시간 안에 원하는 수를 반환하지 않으면 앞의 SET은 실패한 건가요?</summary><div class="answer">
+
+<p>확인 목표가 충족되지 않았다는 결과와 앞선 쓰기의 실행 여부는 다르다. 앞선 SET은 이미 실행됐을 수 있으며 확인 명령이 그것을 자동으로 롤백하지 않는다. 요청 전체를 무조건 재시도하면 비멱등 변경이 중복될 수 있다.</p>
+<p>업무 처리 ID와 결과 조회, 중복 방지의 저장 경계를 설계해야 한다. 또한 WAITAOF는 해당 명령의 로컬·복제본 AOF 확인 범위에 관한 기능이지 외부 DB까지 포함한 분산 커밋이 아니다. 어떤 연결의 어떤 쓰기를 확인하는지도 함께 설명한다.</p>
+</div></details>
+
+<h2 id="section-27">정리와 공식 자료</h2>
 <p>AOF의 핵심은 “로그를 쓴다”가 아니라 <strong>어느 경계까지 기록했는지, 어느 파일 집합이 현재 복구 경로인지, 실패했을 때 무엇을 보존해야 하는지</strong>다. 정책·파일 구조·운영 절차를 함께 이해해야 내구성을 설명할 수 있다.</p>
 <ul>
 <li><a href="https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/">Redis persistence</a>: fsync, 다중 파일 구조, 재작성, 전환 및 복구 절차.</li>

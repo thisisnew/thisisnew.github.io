@@ -1,29 +1,121 @@
 {
-  "checkedAt": "2026-10-22T14:50:32.045417+00:00",
+  "checkedAt": "2026-10-22T15:18:26.839057+00:00",
   "runtime": "openjdk version \"21.0.12.1\" 2026-08-18 LTS\nOpenJDK Runtime Environment Corretto-21.0.12.12.1 (build 21.0.12.1+12-LTS)\nOpenJDK 64-Bit Server VM Corretto-21.0.12.12.1 (build 21.0.12.1+12-LTS, mixed mode, sharing)",
-  "compilation": "10 complete classes compiled with --release 21; Spring examples against Spring Data Redis 3.2.0 and Spring Framework 6.1.1",
-  "sourceHashes": {
-    "IdempotentStockLesson.java": "3b8acab8f901e28e12c11b6d9c41d5607cc1c2a5b7dc57dcbc35b67c2530cbc9",
-    "RedisConfigContract.java": "e6072d1120885e0a8e5b9ab8fe7ac09b70fcc38077117b1a3931f5c4617238c4",
-    "RedisBucketAddress.java": "ee0edb0564a93dc4027d47326455198bbd8f346a18d946ed12658f4dfea74ee8",
-    "GoodsHashCache.java": "34e475f8ca61786fca2bc4aa32767fa2531ca725515e690443ef69e78f9dc18a",
-    "LocalKeyValueLesson.java": "49d768625e7df2500cd76ad88e9fd430226c939c49105aa3c918e3a03bd875fb",
-    "GoodsNameCache.java": "2461e90b31738c93874149b56c1bd1e8a1e6461baed8c12259eed63cfeb88ea0",
-    "GoodsLookupPolicy.java": "9fc97bbd6eb9778d881e04c49d43d8da91741f6d052182b1dda887a9f4ac293f",
-    "RedisMemoryBudget.java": "cf49e64399a691c6747d7fbf17c353b748083c69adea7b4cc2bea8dab53f2fbb",
-    "RedisTextBytes.java": "012cf5bf2e27e430d5c508aa8f372e32e6c2b5af00fbc46ef28f72b3bb89eb3f",
-    "RedisSnapshotLesson.java": "46e8d429552333f026de8472d486eefb5d70c91fafc0059fa8b00bbb0d3d9d3c"
-  },
+  "compiledClasses": 16,
+  "executedClasses": 13,
+  "compilation": "All complete classes compiled with --release 21; Spring examples against Spring Data Redis 3.2.0 and Spring Framework 6.1.1",
+  "sources": [
+    {
+      "file": "AofDurabilityLesson.java",
+      "lesson": "05-aof.md",
+      "sha256": "b62ed350b8899c191aeb6f33794e333eef644eb1ca2ff4085a4a4f73773bab7a"
+    },
+    {
+      "file": "AofRewriteLesson.java",
+      "lesson": "05-aof.md",
+      "sha256": "e0562a36b4eef3ecc14fcdbe4e2f7d07fd3b6bb10676d872472b8b77cfc11694"
+    },
+    {
+      "file": "BackupChecksumLesson.java",
+      "lesson": "06-backup-dr.md",
+      "sha256": "aa92a75841b1142aa28aae51fe5b829a4ae04b12b7242317c95cebf0d64941df"
+    },
+    {
+      "file": "GoodsHashCache.java",
+      "lesson": "03-memory-encoding.md",
+      "sha256": "34e475f8ca61786fca2bc4aa32767fa2531ca725515e690443ef69e78f9dc18a"
+    },
+    {
+      "file": "GoodsLookupPolicy.java",
+      "lesson": "02-os-memory.md",
+      "sha256": "9fc97bbd6eb9778d881e04c49d43d8da91741f6d052182b1dda887a9f4ac293f"
+    },
+    {
+      "file": "GoodsNameCache.java",
+      "lesson": "01-configuration.md",
+      "sha256": "2461e90b31738c93874149b56c1bd1e8a1e6461baed8c12259eed63cfeb88ea0"
+    },
+    {
+      "file": "IdempotentStockLesson.java",
+      "lesson": "00-roadmap.md",
+      "sha256": "3b8acab8f901e28e12c11b6d9c41d5607cc1c2a5b7dc57dcbc35b67c2530cbc9"
+    },
+    {
+      "file": "LocalKeyValueLesson.java",
+      "lesson": "00-roadmap.md",
+      "sha256": "49d768625e7df2500cd76ad88e9fd430226c939c49105aa3c918e3a03bd875fb"
+    },
+    {
+      "file": "RedisBucketAddress.java",
+      "lesson": "03-memory-encoding.md",
+      "sha256": "ee0edb0564a93dc4027d47326455198bbd8f346a18d946ed12658f4dfea74ee8"
+    },
+    {
+      "file": "RedisConfigContract.java",
+      "lesson": "01-configuration.md",
+      "sha256": "e6072d1120885e0a8e5b9ab8fe7ac09b70fcc38077117b1a3931f5c4617238c4"
+    },
+    {
+      "file": "RedisMemoryBudget.java",
+      "lesson": "02-os-memory.md",
+      "sha256": "cf49e64399a691c6747d7fbf17c353b748083c69adea7b4cc2bea8dab53f2fbb"
+    },
+    {
+      "file": "RedisSnapshotLesson.java",
+      "lesson": "04-rdb-persistence.md",
+      "sha256": "46e8d429552333f026de8472d486eefb5d70c91fafc0059fa8b00bbb0d3d9d3c"
+    },
+    {
+      "file": "RedisTextBytes.java",
+      "lesson": "03-memory-encoding.md",
+      "sha256": "012cf5bf2e27e430d5c508aa8f372e32e6c2b5af00fbc46ef28f72b3bb89eb3f"
+    },
+    {
+      "file": "ReplicationBacklogPlan.java",
+      "lesson": "07-replication-sync.md",
+      "sha256": "a6e75797b8bc9b474ce5c1eb3c3b539ffafb5e40fb424eabdb58d893ea6333f4"
+    },
+    {
+      "file": "ReplicationWindowLesson.java",
+      "lesson": "07-replication-sync.md",
+      "sha256": "7829fa407ad9f204f0192879eabbcde1ff7479bfb6632f3f162c9037c462a287"
+    },
+    {
+      "file": "RestoreBusinessLesson.java",
+      "lesson": "06-backup-dr.md",
+      "sha256": "e437b5a664137134e474102a29f19d9b4c7e322c62099156cd4a89ee31ab9941"
+    }
+  ],
   "executed": [
+    {
+      "class": "AofDurabilityLesson",
+      "status": "passed",
+      "stdout": "process loss: {goods:123:name=알배기배추}\nhost volatile loss: {goods:123:name=배추}"
+    },
+    {
+      "class": "AofRewriteLesson",
+      "status": "passed",
+      "stdout": "records 102 -> 2\nsame state=true"
+    },
+    {
+      "class": "BackupChecksumLesson",
+      "status": "passed",
+      "stdout": "unchanged copy: passed\nchanged bytes: detected"
+    },
+    {
+      "class": "IdempotentStockLesson",
+      "status": "passed",
+      "stdout": "first=Result[accepted=true, remaining=7]\nretry=Result[accepted=true, remaining=7]\nsecond=Result[accepted=true, remaining=5]"
+    },
     {
       "class": "LocalKeyValueLesson",
       "status": "passed",
       "stdout": "알배기배추"
     },
     {
-      "class": "IdempotentStockLesson",
+      "class": "RedisBucketAddress",
       "status": "passed",
-      "stdout": "first=Result[accepted=true, remaining=7]\nretry=Result[accepted=true, remaining=7]\nsecond=Result[accepted=true, remaining=5]"
+      "stdout": "Address[key=goods:bucket:v1:12, field=34]\nAddress[key=goods:bucket:v1:13, field=0]"
     },
     {
       "class": "RedisConfigContract",
@@ -36,25 +128,37 @@
       "stdout": "normal remaining MiB=392\nslow remaining MiB=-408"
     },
     {
+      "class": "RedisSnapshotLesson",
+      "status": "passed",
+      "stdout": "live=90\nrestored=100\npoint age seconds=30"
+    },
+    {
       "class": "RedisTextBytes",
       "status": "passed",
       "stdout": "A | units=1 | points=1 | bytes=1\n서울 | units=2 | points=2 | bytes=6\n😀 | units=2 | points=1 | bytes=4\nname=서울 | units=7 | points=7 | bytes=11"
     },
     {
-      "class": "RedisBucketAddress",
+      "class": "ReplicationBacklogPlan",
       "status": "passed",
-      "stdout": "Address[key=goods:bucket:v1:12, field=34]\nAddress[key=goods:bucket:v1:13, field=0]"
+      "stdout": "2 MiB/s scenario: 90 MiB\n6 MiB/s scenario: 270 MiB"
     },
     {
-      "class": "RedisSnapshotLesson",
+      "class": "ReplicationWindowLesson",
       "status": "passed",
-      "stdout": "live=90\nrestored=100\npoint age seconds=30"
+      "stdout": "6 retained-window boundary cases passed"
+    },
+    {
+      "class": "RestoreBusinessLesson",
+      "status": "passed",
+      "stdout": "same count, different content: detected\ninvalid completion and quantity: detected"
     }
   ],
   "limits": [
-    "Pure Java teaching models only; not Redis integration tests",
-    "GoodsNameCache and GoodsHashCache compiled but not executed against Redis",
+    "Independent teaching models and checksum example only; not Redis integration tests",
+    "Spring GoodsNameCache and GoodsHashCache compiled but not executed against Redis",
     "GoodsLookupPolicy compiled only",
+    "AOF models do not simulate real filesystem, fsync or Redis implementation",
+    "Replication models cover one compatible history and planning arithmetic, not full PSYNC",
     "Existing redis-lab and cluster reports refer to separate unchanged labs"
   ]
 }

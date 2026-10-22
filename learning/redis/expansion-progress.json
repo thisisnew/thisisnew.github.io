@@ -1,10 +1,10 @@
 {
-  "checkedAt": "2026-10-22T14:50:32.593181+00:00",
+  "checkedAt": "2026-10-22T15:17:31.120641+00:00",
   "baselineCommit": "94e8975d49101d16d68b445a030944b3f846ad87",
   "measurement": "Unicode code points in Markdown body, excluding JSON metadata",
   "goal": "Each of the 31 lessons individually at least twice its baseline body length; length alone does not prove teaching quality",
   "complete": false,
-  "expandedCount": 5,
+  "expandedCount": 8,
   "totalCount": 31,
   "lessons": [
     {
@@ -62,30 +62,30 @@
       "baselineCharacters": 14692,
       "minimumCharacters": 29384,
       "baselineSha256": "a20f4114673e8f474668bb3dc0b0171da8567706ed4e83c11d668a1441a5970f",
-      "currentCharacters": 14692,
-      "currentSha256": "a20f4114673e8f474668bb3dc0b0171da8567706ed4e83c11d668a1441a5970f",
-      "ratio": 1.0,
-      "expanded": false
+      "currentCharacters": 29466,
+      "currentSha256": "0b85dc665e81805a6668cc89ab63d0b76dc03dbc1346f80f74a73e27c25fe5eb",
+      "ratio": 2.006,
+      "expanded": true
     },
     {
       "file": "06-backup-dr.md",
       "baselineCharacters": 15871,
       "minimumCharacters": 31742,
       "baselineSha256": "29f082aeabdccd6b58d2f4f882dde388ef22c4ae44287770e9ade01b676123f4",
-      "currentCharacters": 15871,
-      "currentSha256": "29f082aeabdccd6b58d2f4f882dde388ef22c4ae44287770e9ade01b676123f4",
-      "ratio": 1.0,
-      "expanded": false
+      "currentCharacters": 31793,
+      "currentSha256": "f31092fa5d5c100191ff378eb02be90f53c285ea9c3fb7b93a78ca840fbde443",
+      "ratio": 2.003,
+      "expanded": true
     },
     {
       "file": "07-replication-sync.md",
       "baselineCharacters": 14924,
       "minimumCharacters": 29848,
       "baselineSha256": "81ba02eef51e6ba3f3db8c753841a52bc012c85ff46ac75ead53c48310643e2a",
-      "currentCharacters": 14924,
-      "currentSha256": "81ba02eef51e6ba3f3db8c753841a52bc012c85ff46ac75ead53c48310643e2a",
-      "ratio": 1.0,
-      "expanded": false
+      "currentCharacters": 29865,
+      "currentSha256": "ca5a385bf045615febf74cbf85b3f3c80d86e891d4cf0a044355536c70b338f8",
+      "ratio": 2.001,
+      "expanded": true
     },
     {
       "file": "08-replication-operations.md",
