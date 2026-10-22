@@ -3,10 +3,10 @@
     "n": 0,
     "title": "Redis 학습 지도와 기초 다지기: 명령어에서 장애 설계까지",
     "source": "00-roadmap.md",
-    "sourceSha256": "7f9ed12ed3bdb5d94911eb3dd81fd9d3dd93779aec3dfc24828c154d9177c281",
-    "characters": 16198,
-    "sections": 14,
-    "questions": 10,
+    "sourceSha256": "ca110d9d9ba5b846a455a1ac634d10124fb4c44c8d058cd2c93a878dce65968a",
+    "characters": 34273,
+    "sections": 27,
+    "questions": 15,
     "officialLinks": [
       "https://github.com/thisisnew/thisisnew.github.io/tree/main/examples/redis-lab",
       "https://redis.io/docs/latest/develop/data-types/",
@@ -23,26 +23,27 @@
     "n": 1,
     "title": "설정 파일과 실행 구성 — Redis가 실제로 읽는 설정을 추적하기",
     "source": "01-configuration.md",
-    "sourceSha256": "c2a91330133afb1c634d5f7a1480a256d6aeaea647e66446e79f46e71469332e",
-    "characters": 11989,
-    "sections": 13,
-    "questions": 8,
+    "sourceSha256": "1e00b0d96722e4a774f860e87eee82e33820ab3457ada9bb43bf359be9f4ebf1",
+    "characters": 28536,
+    "sections": 21,
+    "questions": 13,
     "officialLinks": [
       "https://redis.io/docs/latest/operate/oss_and_stack/management/config/",
       "https://redis.io/docs/latest/commands/config-get/",
       "https://redis.io/docs/latest/commands/config-set/",
       "https://redis.io/docs/latest/commands/config-rewrite/",
-      "https://redis.io/docs/latest/develop/reference/eviction/"
+      "https://redis.io/docs/latest/develop/reference/eviction/",
+      "https://docs.spring.io/spring-boot/docs/3.2.0/reference/html/application-properties.html"
     ]
   },
   {
     "n": 2,
     "title": "운영 환경과 메모리 여유 — maxmemory 밖에서 벌어지는 일",
     "source": "02-os-memory.md",
-    "sourceSha256": "eeaf5390a2fc30f60fb05dc9ea5dab515e2d77d533cb7999ea89966730d39ad3",
-    "characters": 13309,
-    "sections": 13,
-    "questions": 8,
+    "sourceSha256": "ff5b0909d2fd5e85e73ba6ba8ecdcfb3dffd5f391cc3de29252884c925d9fe52",
+    "characters": 27741,
+    "sections": 22,
+    "questions": 13,
     "officialLinks": [
       "https://redis.io/docs/latest/operate/oss_and_stack/management/admin/",
       "https://redis.io/docs/latest/commands/info/",
@@ -54,17 +55,18 @@
     "n": 3,
     "title": "메모리 인코딩과 자료 모델링 — 같은 데이터도 담는 방법에 따라 다르다",
     "source": "03-memory-encoding.md",
-    "sourceSha256": "b8a1de5015cfd55a139ba98165784f4895c409315a2af167f28e60566255994a",
-    "characters": 13394,
-    "sections": 14,
-    "questions": 8,
+    "sourceSha256": "9f39a6d5a9298ce2d8a9038fecb7d88afd5089ff3a2855b880dd166eeed35f9e",
+    "characters": 30329,
+    "sections": 25,
+    "questions": 13,
     "officialLinks": [
       "https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/memory-optimization/",
       "https://redis.io/docs/latest/commands/hexpire/",
       "https://redis.io/docs/latest/commands/redis-7-4-commands/",
       "https://redis.io/docs/latest/commands/object-encoding/",
       "https://redis.io/docs/latest/commands/memory-usage/",
-      "https://redis.io/docs/latest/commands/setbit/"
+      "https://redis.io/docs/latest/commands/setbit/",
+      "https://docs.spring.io/spring-data/redis/reference/redis/template.html"
     ]
   },
   {

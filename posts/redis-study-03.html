@@ -1,16 +1,90 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="논리 자료형과 물리 인코딩을 구분하고 작은 Hash, listpack, bitmap의 이익과 운영 비용을 실험한다."><title>Redis 03 · 메모리 인코딩과 자료 모델링 — 같은 데이터도 담는 방법에 따라 다르다 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/redis-study-03.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/redis-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="redis"><main><a href="/">← 전체 글</a> · <a href="/posts/redis-study-00.html">Redis 학습 지도</a><header><p class="meta">REDIS QUEST · 03 / 30 · DEEP STUDY</p><h1>메모리 인코딩과 자료 모델링 — 같은 데이터도 담는 방법에 따라 다르다</h1><p class="subtitle">논리 자료형과 물리 인코딩을 구분하고 작은 Hash, listpack, bitmap의 이익과 운영 비용을 실험한다.</p><p class="note">첨부 Redis 학습 자료의 주제를 쉬운 설명과 공식 문서 근거로 재구성했습니다. 명령·설정의 버전 조건은 본문을 확인하세요. 장애 시나리오와 수치는 별도 표시가 없으면 학습용 가정이며, 코드가 실려 있다는 사실만으로 실행 검증을 의미하지 않습니다. <a href="/learning/redis/verification.html">검증 범위와 남은 한계</a></p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">시작 질문: String 다섯 개와 Hash 하나는 같은가</a></li><li><a href="#section-2">1. 논리 자료형과 물리 인코딩</a></li><li><a href="#section-3">2. 작은 자료구조에서 선형 탐색이 유리할 수 있는 이유</a></li><li><a href="#section-4">3. 임계값과 인코딩 전환</a></li><li><a href="#section-5">4. 모델 A: 속성별 String</a></li><li><a href="#section-6">5. 모델 B: 사용자별 Hash</a></li><li><a href="#section-7">6. 모델 C: 작은 객체 여러 개를 버킷 Hash에 묶기</a></li><li><a href="#section-8">7. bitmap: 참/거짓을 한 비트로 표현하기</a></li><li><a href="#section-9">8. Java 직렬화가 메모리 최적화를 무효화하는 경우</a></li><li><a href="#section-10">9. 격리 실습 A: 작은 Hash의 인코딩 경계를 직접 보기</a></li><li><a href="#section-11">10. 격리 실습 B: 표현의 비용과 기능을 함께 비교</a></li><li><a href="#section-12">11. 운영 사고: 어느 날 특정 사용자만 느려졌다</a></li><li><a href="#section-13">면접 질문과 상세 답변</a></li><li><a href="#section-14">공식 자료와 한 문장 정리</a></li></ol></aside><article><h2 id="section-1">시작 질문: String 다섯 개와 Hash 하나는 같은가</h2>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="논리 자료형과 물리 인코딩을 구분하고 작은 Hash, listpack, bitmap의 이익과 운영 비용을 실험한다."><title>Redis 03 · 메모리 인코딩과 자료 모델링 — 같은 데이터도 담는 방법에 따라 다르다 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/redis-study-03.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/redis-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="redis"><main><a href="/">← 전체 글</a> · <a href="/posts/redis-study-00.html">Redis 학습 지도</a><header><p class="meta">REDIS QUEST · 03 / 30 · DEEP STUDY</p><h1>메모리 인코딩과 자료 모델링 — 같은 데이터도 담는 방법에 따라 다르다</h1><p class="subtitle">논리 자료형과 물리 인코딩을 구분하고 작은 Hash, listpack, bitmap의 이익과 운영 비용을 실험한다.</p><p class="note">첨부 Redis 학습 자료의 주제를 쉬운 설명과 공식 문서 근거로 재구성했습니다. 명령·설정의 버전 조건은 본문을 확인하세요. 장애 시나리오와 수치는 별도 표시가 없으면 학습용 가정이며, 코드가 실려 있다는 사실만으로 실행 검증을 의미하지 않습니다. <a href="/learning/redis/verification.html">검증 범위와 남은 한계</a></p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">시작 질문: String 다섯 개와 Hash 하나는 같은가</a></li><li><a href="#section-2">기초 보충 A. 자료형과 인코딩은 메뉴와 조리법처럼 다르다</a></li><li><a href="#section-3">1. 논리 자료형과 물리 인코딩</a></li><li><a href="#section-4">기초 보충 B. 바이트, 글자 수, Java String.length()는 왜 다른가</a></li><li><a href="#section-5">2. 작은 자료구조에서 선형 탐색이 유리할 수 있는 이유</a></li><li><a href="#section-6">내부 원리 보충 A. 조밀하게 붙여 담으면 무엇이 줄어드는가</a></li><li><a href="#section-7">3. 임계값과 인코딩 전환</a></li><li><a href="#section-8">내부 원리 보충 B. 임계값 전환은 왜 계단처럼 보이는가</a></li><li><a href="#section-9">4. 모델 A: 속성별 String</a></li><li><a href="#section-10">5. 모델 B: 사용자별 Hash</a></li><li><a href="#section-11">모델링 보충 A. 상품 정보 한 건을 세 가지 방식으로 표현하기</a></li><li><a href="#section-12">6. 모델 C: 작은 객체 여러 개를 버킷 Hash에 묶기</a></li><li><a href="#section-13">모델링 보충 B. 큰 Hash에 묶으면 Cluster가 알아서 나누어 주는가</a></li><li><a href="#section-14">7. bitmap: 참/거짓을 한 비트로 표현하기</a></li><li><a href="#section-15">모델링 보충 C. bitmap을 직접 계산해 보기</a></li><li><a href="#section-16">8. Java 직렬화가 메모리 최적화를 무효화하는 경우</a></li><li><a href="#section-17">Spring 보충. Hash serializer는 네 군데 설정 중 두 군데다</a></li><li><a href="#section-18">9. 격리 실습 A: 작은 Hash의 인코딩 경계를 직접 보기</a></li><li><a href="#section-19">10. 격리 실습 B: 표현의 비용과 기능을 함께 비교</a></li><li><a href="#section-20">실습 보충. 결과를 읽는 법까지 포함한 비교 노트</a></li><li><a href="#section-21">11. 운영 사고: 어느 날 특정 사용자만 느려졌다</a></li><li><a href="#section-22">이관 보충. 메모리를 줄이려고 형식을 바꿀 때 지켜야 할 순서</a></li><li><a href="#section-23">면접 질문과 상세 답변</a></li><li><a href="#section-24">추가 면접 문답: 자료구조 선택의 이유 설명하기</a></li><li><a href="#section-25">공식 자료와 한 문장 정리</a></li></ol></aside><article><h2 id="section-1">시작 질문: String 다섯 개와 Hash 하나는 같은가</h2>
 <p>사용자 42의 이름, 지역, 등급을 Redis에 저장한다고 하자. <code>user:42:name</code>, <code>user:42:region</code>, <code>user:42:tier</code> 세 키로 나눌 수도 있고, <code>user:42</code>라는 Hash 하나의 세 필드로 묶을 수도 있다. 애플리케이션에서 보이는 정보는 비슷하지만 Redis 내부에서 필요한 사전 항목, 키 이름, 객체, 메모리 할당 횟수는 같지 않다. 이 차이를 이해하면 메모리를 줄일 수 있다. 그러나 너무 크게 묶으면 읽기 지연, 만료 단위, 샤딩, 장애 영향이 나빠질 수 있다.</p>
 <p>이 장은 제공된 03장의 원리를 현대적인 확인 절차와 연결한다. 원문에는 과거 zipmap/ziplist 설정명과 “Hash 필드에는 만료를 걸 수 없다”는 역사적 설명이 있다. 이를 현재의 절대 명제로 외우면 안 된다. Redis 7.0 계열 이후의 Hash 압축 인코딩 설명에서는 listpack이 등장하며, 필드 만료는 Redis 7.4부터 HEXPIRE 등 별도 명령으로 제공된다. 구체적 지원 여부는 실행 서버의 <code>COMMAND INFO HEXPIRE</code>, 해당 버전 문서, 클라이언트 API로 확인한다. <a href="https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/memory-optimization/">공식 메모리 최적화</a>, <a href="https://redis.io/docs/latest/commands/hexpire/">HEXPIRE</a>, <a href="https://redis.io/docs/latest/commands/redis-7-4-commands/">Redis 7.4 명령 기준</a></p>
-<h2 id="section-2">1. 논리 자료형과 물리 인코딩</h2>
+<h2 id="section-2">기초 보충 A. 자료형과 인코딩은 메뉴와 조리법처럼 다르다</h2>
+<p>Redis 자료형은 사용자가 어떤 작업을 할 수 있는지 정하는 약속이다. String에는 값을 넣고 읽거나 숫자 증가와 비트 연산을 할 수 있고, Hash에는 이름 붙은 필드와 값을 넣을 수 있다. 인코딩은 그 약속을 서버 메모리 안에서 어떻게 구현하는지에 관한 선택이다. 같은 메뉴의 음식을 여러 조리법으로 만들 수 있지만 주문한 메뉴의 의미는 유지되는 것처럼 생각하면 쉽다.</p>
+<p>이 비유에서 중요한 것은 사용자가 조리법의 모든 세부를 몰라도 메뉴를 주문할 수 있다는 점이다. Java 애플리케이션은 HGET으로 필드를 읽는다. 내부가 listpack에서 다른 표현으로 바뀌었다고 갑자기 GET 명령으로 바꾸지 않는다. 반면 성능을 조사하는 운영자는 내부 표현이 달라졌는지 확인할 수 있다. <strong>기능을 사용하는 관점과 비용을 설명하는 관점이 다르다.</strong></p>
+<p>자료형과 인코딩을 혼동하면 두 종류의 오류가 생긴다. 첫째는 “Hash라는 이름이니 무조건 해시 테이블이다”라고 생각하는 것이다. 둘째는 “인코딩이 바뀌었으니 애플리케이션 데이터가 손상됐다”라고 생각하는 것이다. Redis는 같은 논리 자료형의 기능을 유지하면서 크기와 내용에 따라 다른 내부 표현을 사용할 수 있다. 변화 자체가 오류는 아니다.</p>
+<p>확인 명령도 질문에 맞춰 사용한다. <code>TYPE key</code>는 사용자가 바라보는 자료형을 묻는다. <code>OBJECT ENCODING key</code>는 내부 표현을 묻는다. <code>MEMORY USAGE key</code>는 그 키의 메모리 비용을 추정한다. 세 결과를 한 번에 읽으면 “Hash인데 왜 메모리가 갑자기 늘었지?”를 더 구체적으로 설명할 수 있다. 어떤 명령도 혼자서 데이터 모델이 좋은지 나쁜지 판정해 주지는 않는다.</p>
+<table>
+<thead>
+<tr>
+<th>관점</th>
+<th>질문</th>
+<th>예시</th>
+<th>애플리케이션에 주는 의미</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>업무 의미</td>
+<td>이 데이터는 무엇인가?</td>
+<td>상품 기본 정보</td>
+<td>수명과 정합성 요구 결정</td>
+</tr>
+<tr>
+<td>논리 자료형</td>
+<td>어떤 연산이 필요한가?</td>
+<td>Hash의 필드 조회·변경</td>
+<td>사용할 명령과 갱신 단위 결정</td>
+</tr>
+<tr>
+<td>내부 인코딩</td>
+<td>메모리에 어떻게 담는가?</td>
+<td>작은 Hash의 listpack</td>
+<td>저장 비용과 처리 비용에 영향</td>
+</tr>
+<tr>
+<td>물리 자원</td>
+<td>얼마나 쓰고 얼마나 걸리는가?</td>
+<td>바이트 수·지연 분포</td>
+<td>용량과 성능 검증의 입력</td>
+</tr>
+</tbody></table>
+<p>위 표의 순서도 중요하다. 먼저 인코딩이 가장 작아 보이는 구조를 고른 뒤 업무를 억지로 맞추지 않는다. 재고 정합성에 필요한 갱신 경계, 조회 방식, 삭제와 보존 기간을 정하고 그 안에서 표현을 최적화한다. 메모리 절약 때문에 서로 수명이 다른 데이터를 한 키에 묶으면 관리가 어려워질 수 있다.</p>
+<h2 id="section-3">1. 논리 자료형과 물리 인코딩</h2>
 <p><strong>논리 자료형</strong>은 사용자가 명령을 통해 보는 규칙이다. String은 바이트 문자열, Hash는 필드와 값의 집합, Set은 중복 없는 원소 집합, Sorted Set은 점수에 따라 정렬되는 원소 집합이다. <strong>물리 인코딩</strong>은 그 규칙을 메모리에서 구현하는 실제 표현이다. 같은 Hash라도 작은 경우에는 조밀한 표현, 커지면 해시 테이블 기반 표현을 사용할 수 있다.</p>
 <p>이를 도서관에 비유해 보자. “책을 제목으로 찾을 수 있다”는 것은 제공 기능이다. 책이 다섯 권이면 한 줄로 놓고 훑어도 빠르다. 수백만 권이면 색인이 필요하다. 기능은 같아도 내부 보관 방식은 달라진다. 비유의 한계는 Redis가 임의의 취향으로 서가를 고르지 않는다는 점이다. 자료형, 원소 수, 길이, 값의 형태, 설정, 버전이 정한 조건에 따라 인코딩이 결정된다.</p>
 <p><code>TYPE key</code>는 논리 자료형을 알려 준다. <code>OBJECT ENCODING key</code>는 현재 내부 표현을 알려 준다. <code>MEMORY USAGE key</code>는 해당 키의 메모리 비용을 관찰하는 도구다. 내부 인코딩 이름은 애플리케이션의 영구 계약이 아니다. 코드가 “반드시 listpack이어야 한다”는 전제로 동작하면 서버 업그레이드나 데이터 성장에 취약해진다. 애플리케이션의 정합성은 논리 명령의 의미에 기대고, 인코딩은 성능 진단에 사용한다. <a href="https://redis.io/docs/latest/commands/object-encoding/">OBJECT ENCODING</a></p>
-<h2 id="section-3">2. 작은 자료구조에서 선형 탐색이 유리할 수 있는 이유</h2>
+<h2 id="section-4">기초 보충 B. 바이트, 글자 수, Java String.length()는 왜 다른가</h2>
+<p>컴퓨터가 저장하고 전송하는 것은 바이트다. 사람은 화면의 글자를 센다. Java의 <code>String.length()</code>는 UTF-16 코드 단위 수를 반환한다. 이 세 개가 우연히 같은 경우도 있지만 언제나 같은 것은 아니다. ASCII 문자 <code>A</code>는 이런 차이를 잘 드러내지 못한다. 한글과 이모지를 넣어 보면 서로 다른 기준임을 쉽게 확인할 수 있다.</p>
+<p>예를 들어 문자열 <code>서울</code>은 화면상 한글 두 글자다. Java length는 이 예에서 2이고 UTF-8로 인코딩한 바이트 길이는 6이다. 웃는 얼굴 이모지 하나는 Java에서 두 개의 UTF-16 코드 단위를 사용할 수 있고 UTF-8에서는 4바이트가 된다. 더 복잡한 조합 문자는 화면상 한 글자처럼 보이더라도 여러 코드 포인트로 이루어질 수 있다. 따라서 코드 포인트 수조차 사람이 인식하는 글자 수와 항상 같지는 않다.</p>
+<p>이 구별이 Redis 인코딩과 무슨 관련이 있을까? 내부 표현의 크기 조건은 애플리케이션에서 사람이 센 글자 수와 다를 수 있기 때문이다. 한글 설명을 “20자 이하”로 제한했다고 저장 바이트가 20 이하가 되지는 않는다. 값 길이에 민감한 경계를 실험할 때는 실제 serializer가 만든 바이트를 확인해야 한다. Java 문자열을 바로 UTF-8로 보내는지, JSON으로 감싸는지, 다른 형식을 쓰는지에 따라 결과가 달라진다.</p>
+<p>아래는 Java 21에서 독립 실행할 수 있는 작은 관찰 코드다. Redis 연결은 필요 없다.</p>
+<pre><code class="language-java">import java.nio.charset.StandardCharsets;
+import java.util.List;
+
+public final class RedisTextBytes {
+    public static void main(String[] args) {
+        for (String value : List.of(&quot;A&quot;, &quot;서울&quot;, &quot;😀&quot;, &quot;name=서울&quot;)) {
+            int utf16Units = value.length();
+            int codePoints = value.codePointCount(0, value.length());
+            int utf8Bytes = value.getBytes(StandardCharsets.UTF_8).length;
+            System.out.printf(&quot;%s | units=%d | points=%d | bytes=%d%n&quot;,
+                    value, utf16Units, codePoints, utf8Bytes);
+        }
+        if (&quot;서울&quot;.getBytes(StandardCharsets.UTF_8).length != 6) {
+            throw new AssertionError(&quot;unexpected UTF-8 size&quot;);
+        }
+        if (&quot;😀&quot;.length() != 2) {
+            throw new AssertionError(&quot;unexpected UTF-16 length&quot;);
+        }
+    }
+}
+</code></pre>
+<p><code>StandardCharsets.UTF_8</code>을 명시한 이유는 실행 환경의 기본 문자셋에 기대지 않기 위해서다. 학습 코드의 목적이 UTF-8 바이트 수 비교라면 어떤 환경에서 실행해도 그 의도가 분명해야 한다. 실행 명령은 <code>javac --release 21 RedisTextBytes.java</code>와 <code>java RedisTextBytes</code>다.</p>
+<p>이 코드는 JSON 직렬화 비용은 측정하지 않는다. 예를 들어 <code>{&quot;name&quot;:&quot;서울&quot;}</code>을 저장하면 필드 이름, 따옴표, 중괄호와 콜론도 바이트를 차지한다. serializer가 이스케이프를 어떻게 하는지에 따라 표현이 달라질 수도 있다. 실제 저장 비용을 비교할 때는 같은 Java 객체에 실제 운영 serializer를 적용한 결과를 먼저 측정하고 Redis의 키별 비용 및 전체 증가량과 이어서 비교한다.</p>
+<h2 id="section-5">2. 작은 자료구조에서 선형 탐색이 유리할 수 있는 이유</h2>
 <p>해시 테이블은 평균적으로 빠른 조회를 제공하지만 무료가 아니다. 버킷 배열, 엔트리, 포인터, 키와 값의 분리된 할당 등에 비용이 든다. 작은 필드 다섯 개를 저장하는데 이런 관리 구조를 넉넉히 만드는 것이 아까울 수 있다. 조밀한 인코딩은 필드와 값을 가까이 붙여 저장해 부가 비용을 줄인다.</p>
 <p>CPU는 메모리를 한 바이트씩 무작위로 가져오는 단순 기계가 아니다. 캐시 라인 단위로 가까운 데이터를 함께 가져온다. 서로 가까이 있는 짧은 데이터들을 순서대로 읽으면, 포인터를 따라 여러 위치를 방문하는 것보다 실제 시간이 짧을 수 있다. 이것을 <strong>캐시 지역성</strong>의 이익이라고 이해하면 된다.</p>
 <p>여기서 빅오 표기만으로 결론을 내리면 곤란하다. O(N)은 원소 수가 증가할 때 비용이 어떻게 커지는지 설명한다. N이 항상 아주 작도록 제한되면 선형 탐색의 실제 비용도 작을 수 있다. 반대로 임계값을 크게 늘려 N이 수만이 되면 “작은 자료구조 최적화”라는 전제가 깨진다. 연속 메모리에 중간 삽입이나 확장이 필요하면 데이터를 이동하거나 다시 할당하는 비용도 생길 수 있다.</p>
 <p>따라서 “listpack이 해시 테이블보다 무조건 빠르다”도, “O(N)이니까 반드시 느리다”도 아니다. 자료 크기와 접근 패턴에 따라 CPU와 메모리를 교환하는 설계다. 이 원리는 Redis 외에도 작은 배열 기반 맵, 인라인 저장, 구조체 압축에서 반복된다.</p>
-<h2 id="section-4">3. 임계값과 인코딩 전환</h2>
+<h2 id="section-6">내부 원리 보충 A. 조밀하게 붙여 담으면 무엇이 줄어드는가</h2>
+<p>작은 Hash를 종이 카드 몇 장으로 상상해 보자. 카드마다 별도의 서랍을 배정하고 위치표를 만드는 방식은 찾기 편하지만 서랍과 위치표의 비용이 든다. 카드가 세 장뿐이라면 한 봉투에 차례로 넣는 편이 공간을 덜 쓸 수 있다. 조밀한 표현은 이런 식으로 작은 항목들을 가까이 담아 개별 포인터와 할당의 비용을 줄이는 방향으로 이해할 수 있다.</p>
+<p>하지만 봉투 속 세 번째 카드를 찾으려면 앞의 카드들을 살펴봐야 할 수 있다. 중간에 카드를 넣거나 내용을 크게 바꾸면 뒤쪽의 배치를 옮겨야 할 수 있다. 공간을 적게 쓰는 것과 모든 작업이 더 빠른 것은 별개다. 작은 규모에서는 비교 횟수가 적고 메모리 지역성이 좋아 실용적일 수 있지만, 크기가 커지면 탐색과 이동 비용이 드러난다.</p>
+<p><strong>메모리 지역성</strong>은 가까운 주소의 데이터를 이어서 사용하면 하드웨어 캐시를 활용하기 유리할 수 있다는 뜻이다. CPU가 RAM의 바이트를 매번 완전히 독립적으로 가져오는 것이 아니라 일정한 덩어리와 계층을 이용하기 때문이다. 포인터를 여러 번 따라가며 멀리 떨어진 위치를 읽는 것과 연속된 작은 영역을 읽는 것은 실제 비용이 다를 수 있다. 그래서 시간 복잡도만으로 작은 데이터의 승자를 단정할 수 없다.</p>
+<p>시간 복잡도 O(N)은 입력 크기 N이 커질 때 비용이 어떤 방향으로 증가하는지 설명한다. N이 3인 상황과 N이 백만인 상황을 같은 체감 속도로 취급하라는 뜻이 아니다. 평균 O(1)의 자료구조에도 해시 계산, 충돌 처리, 메모리 접근의 상수 비용이 있다. 여기서 “선형 탐색이 늘 더 빠르다”는 반대 극단으로 가면 안 된다. 크기가 작다는 조건과 실제 데이터 분포가 핵심이다.</p>
+<p>조밀한 구조를 사용하는 임계값은 이런 균형의 일부다. 임계값을 올리면 더 많은 데이터를 조밀한 표현에 남길 수 있지만, 어떤 명령의 처리량과 지연이 달라질 수 있다. 설정을 변경할 때는 메모리 절감률만 보지 말고 읽기·쓰기 패턴과 큰 값의 비율, 최대 키 크기를 함께 시험한다. 전체 서비스의 p99가 악화되면 평균 메모리가 줄어도 목표를 달성하지 못한 것일 수 있다.</p>
+<h2 id="section-7">3. 임계값과 인코딩 전환</h2>
 <p>공식 문서는 Hash, Sorted Set, Set 등의 작은 자료구조에 대해 원소 수와 값 길이를 기준으로 특수 인코딩을 선택하는 설정을 설명한다. 예를 들어 설치 버전이 지원한다면 <code>hash-max-listpack-entries</code>, <code>hash-max-listpack-value</code>를 조회할 수 있다. 과거 <code>ziplist</code> 이름이 남은 문서를 그대로 복사하지 말고 실행 중인 서버의 값을 읽는다.</p>
 <pre><code class="language-redis">CONFIG GET hash-max-listpack-entries
 CONFIG GET hash-max-listpack-value
@@ -18,14 +92,54 @@ CONFIG GET hash-max-listpack-value
 <p>중요한 점은 <strong>원소 개수만 세면 안 된다는 것</strong>이다. 필드가 두 개뿐이어도 하나의 길이가 임계값을 넘으면 다른 표현으로 바뀔 수 있다. 길이는 사용자에게 보이는 글자 수가 아니라 인코딩된 바이트 수와 관련된다. 한글 세 글자와 ASCII 세 글자는 UTF-8에서 같은 바이트 크기가 아니다. Java의 <code>String.length()</code>도 UTF-8 바이트 길이와 같지 않다.</p>
 <p>한 번 임계값을 넘어 전환된 키를 다시 줄였을 때 원래 인코딩으로 즉시 돌아올 것이라고 가정해서도 안 된다. 전환 방향과 재압축 여부는 자료형·버전·작업 경로에 따라 다를 수 있다. 중요한 것은 프로그램이 자동 복귀를 기대하지 않고 실제 <code>OBJECT ENCODING</code>으로 확인하는 것이다.</p>
 <p>전환은 서비스 요청 경로의 비용이 될 수 있다. 평소에는 짧은 필드를 저장하다가 특정 사용자에게 매우 긴 소개 글을 넣는 순간 자료구조가 커질 수 있다. 메모리 그래프가 계단처럼 증가하면 “누수”만 의심하지 말고 데이터 분포와 인코딩 경계를 조사한다. 임계값을 올려 전환을 피하는 것은 다른 요청의 탐색과 이동 비용을 키우는 선택이므로, p95/p99와 최대 객체 크기를 함께 시험한다.</p>
-<h2 id="section-5">4. 모델 A: 속성별 String</h2>
+<h2 id="section-8">내부 원리 보충 B. 임계값 전환은 왜 계단처럼 보이는가</h2>
+<p>가상의 Hash가 작은 필드 네 개를 가지고 있다고 하자. 실습을 위해 작은 인코딩의 필드 수 임계값을 4로 낮췄다. 다섯 번째 필드를 추가하면 서버가 다른 표현으로 바꿀 수 있다. 늘어난 업무 데이터는 필드 하나인데 내부 표현은 기존 필드들을 포함해 전환되므로 메모리 증가가 필드 하나의 바이트만큼에 그치지 않을 수 있다.</p>
+<p>이때 사용자 입장에서 HSET 명령은 여전히 한 번이다. 하지만 내부에서는 새 표현을 마련하고 기존 내용을 옮기는 작업이 발생할 수 있다. 그래서 어떤 명령은 같은 종류의 다른 요청보다 오래 걸릴 수 있다. 이것은 모든 HSET이 느리다는 뜻이 아니라 <strong>데이터의 상태에 따라 같은 명령의 실제 일이 달라질 수 있다</strong>는 뜻이다.</p>
+<p>필드 수가 적어도 긴 필드 이름이나 값이 경계를 넘을 수 있다. “사용자 Hash에는 필드가 다섯 개뿐이니 항상 작은 인코딩”이라고 생각하면 긴 소개글이나 외부 시스템 코드가 들어온 순간 예상이 깨질 수 있다. 임계값 실험에서 개수와 바이트 길이를 따로 바꾸는 이유가 여기에 있다. 한 번에 둘을 바꾸면 어느 조건이 전환을 일으켰는지 분리하기 어렵다.</p>
+<p>전환 이후 원소를 지웠다고 즉시 원래 표현으로 되돌아간다고 가정하지 않는다. 계속 경계 주변을 오갈 때 양방향 전환을 매번 수행하면 그 자체가 비용이 될 수 있다. 실제 전환 정책은 자료형과 버전, 명령 경로에 따라 확인해야 한다. 프로그램의 기능은 인코딩에 의존하지 않게 만들고, 운영 분석에서는 관측한 결과를 버전과 함께 기록한다.</p>
+<table>
+<thead>
+<tr>
+<th>실험</th>
+<th>고정하는 조건</th>
+<th>바꾸는 조건</th>
+<th>관찰 목적</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>개수 경계</td>
+<td>필드·값의 짧은 바이트 길이</td>
+<td>필드 수</td>
+<td>원소 개수의 영향 분리</td>
+</tr>
+<tr>
+<td>길이 경계</td>
+<td>적은 필드 수</td>
+<td>한 값의 바이트 길이</td>
+<td>값 크기의 영향 분리</td>
+</tr>
+<tr>
+<td>축소 후 관찰</td>
+<td>동일 키와 버전</td>
+<td>필드 삭제·값 축소</td>
+<td>자동 복귀 가정 검증</td>
+</tr>
+<tr>
+<td>부하 비교</td>
+<td>데이터 분포와 호출 비율</td>
+<td>인코딩 관련 설정</td>
+<td>메모리와 지연의 교환 확인</td>
+</tr>
+</tbody></table>
+<p>벤치마크에서 첫 실행만 느렸다면 인코딩 전환 외에도 연결 생성, JIT, 캐시 상태 등 다른 요인을 고려해야 한다. 전환을 설명하려면 같은 시점의 OBJECT ENCODING과 데이터 상태를 증거로 남긴다. 한 번의 느린 측정값만으로 내부 원인을 확정하지 않는 태도가 중요하다.</p>
+<h2 id="section-9">4. 모델 A: 속성별 String</h2>
 <pre><code class="language-redis">SET user:42:name &quot;Mina&quot;
 SET user:42:region &quot;Seoul&quot;
 SET user:42:tier &quot;silver&quot;
 </code></pre>
 <p>이 모델은 각 속성에 독립된 TTL, 접근 제어 패턴, 개별 삭제와 교체 단위를 적용하기 쉽다. 필요한 항목만 직관적으로 읽고 쓸 수 있다. 그러나 사용자 ID와 접두사가 여러 키에 반복되고, 각 키마다 최상위 사전과 관리 비용이 생긴다. 원격 호출을 세 번 하면 네트워크 왕복도 세 번 발생할 수 있다. 파이프라이닝이나 적절한 다중 키 명령으로 왕복을 줄일 수 있지만, 메모리 표현 자체가 자동으로 합쳐지지는 않는다.</p>
 <p>운영에서는 키 패턴을 기준으로 관측하기 쉬운 장점도 있다. 다만 속성이 매우 많으면 키 수가 급격히 늘고 SCAN 기반 관리 작업의 총 비용도 커진다. 이 모델이 나쁘다는 뜻이 아니라, 독립 수명과 관리 단위라는 기능에 비용을 지불하는 것이다.</p>
-<h2 id="section-6">5. 모델 B: 사용자별 Hash</h2>
+<h2 id="section-10">5. 모델 B: 사용자별 Hash</h2>
 <pre><code class="language-redis">HSET user:42 name &quot;Mina&quot; region &quot;Seoul&quot; tier &quot;silver&quot;
 HGET user:42 name
 HMGET user:42 name tier
@@ -33,7 +147,60 @@ HMGET user:42 name tier
 <p>사용자라는 객체의 속성들을 한 키 아래에 묶는다. 작은 Hash가 조밀한 인코딩을 유지하면 관리 비용을 줄일 수 있다. 일부 속성만 바꿀 때 JSON 전체를 읽고 수정하고 다시 저장할 필요도 없다. 한 명의 사용자라는 자연스러운 경계가 있으므로 무한히 커지는 전역 Hash보다 크기를 예측하기 쉽다.</p>
 <p>단점도 분명하다. 키 단위 TTL은 사용자 객체 전체에 적용된다. 지원 버전에서 필드별 만료를 사용할 수 있어도 클라이언트 지원, 만료 메타데이터 비용, 명령 의미를 따로 확인해야 한다. 키 단위 eviction, Cluster에서의 키 배치, 큰 Hash 응답 비용은 여전히 남는다. 필드 TTL이 생겼다고 Hash가 독립 키의 모든 기능과 운영 경계를 그대로 대체하는 것은 아니다.</p>
 <p>또한 <code>HGETALL</code>은 모든 필드와 값을 반환한다. 지금은 다섯 필드라 괜찮아도 미래에 수만 필드가 되면 응답 크기가 커진다. 필요한 필드가 정해져 있으면 <code>HMGET</code>을 고려하고, 전체 순회가 필요하면 데이터 규모와 일관성 요구에 맞는 순회 전략을 택한다. “Hash를 썼으니 최적화가 끝났다”가 아니라 요청당 처리량까지 계산한다.</p>
-<h2 id="section-7">6. 모델 C: 작은 객체 여러 개를 버킷 Hash에 묶기</h2>
+<h2 id="section-11">모델링 보충 A. 상품 정보 한 건을 세 가지 방식으로 표현하기</h2>
+<p>입고 화면에서 상품 번호, 이름, 센터 코드, 상태를 읽는 상황을 생각해 보자. 세 가지 후보가 있다. 속성마다 String 키를 만들거나, 상품별 Hash를 만들거나, 상품 전체 JSON을 String에 넣는 방식이다. 같은 정보를 담아도 읽기와 갱신, TTL, 직렬화의 경계가 달라진다.</p>
+<p>속성별 String은 각 값의 수명을 독립적으로 정하기 쉽다. 이름은 오래 보관하고 상태는 짧게 보관해야 한다면 자연스러울 수 있다. 그러나 키 접두사와 상품 번호가 반복되고, 여러 속성을 한 화면에서 읽을 때 다중 키 조회나 파이프라인을 고려해야 한다. Cluster에서는 여러 키의 배치와 다중 키 명령의 슬롯 조건도 확인해야 한다.</p>
+<p>상품별 Hash는 같은 상품의 속성을 한 키에 묶는다. 필요한 필드만 읽고 개별 필드를 바꾸기 쉽다. 하지만 “상품 정보”라는 이름 아래 변화가 무한한 활동 이력을 계속 추가하면 처음의 작고 예측 가능한 경계가 사라진다. 기본 정보와 이력은 수명과 증가 방식이 다르므로 한 Hash로 묶는 것이 자연스러운지 다시 질문해야 한다.</p>
+<p>전체 JSON String은 애플리케이션 객체를 한 번에 저장하고 읽기 쉽다. 한 키를 교체하므로 여러 필드가 함께 바뀌는 스냅샷 표현에도 편리할 수 있다. 다만 일부 필드만 바꾸려고 전체 JSON을 읽고 수정해 다시 쓰면 동시 갱신에서 덮어쓰기 경쟁이 생길 수 있다. JSON을 쓴다는 사실 자체가 동시성 제어를 제공하지는 않는다.</p>
+<table>
+<thead>
+<tr>
+<th>기준</th>
+<th>속성별 String</th>
+<th>상품별 Hash</th>
+<th>전체 JSON String</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>기본 읽기 단위</td>
+<td>속성별 키</td>
+<td>지정 필드 또는 전체 Hash</td>
+<td>값 전체</td>
+</tr>
+<tr>
+<td>갱신 단위</td>
+<td>속성 키</td>
+<td>필드</td>
+<td>값 전체 교체</td>
+</tr>
+<tr>
+<td>키 이름 반복</td>
+<td>많아질 수 있음</td>
+<td>상품당 하나</td>
+<td>상품당 하나</td>
+</tr>
+<tr>
+<td>수명 설계</td>
+<td>각 키별</td>
+<td>키 단위 및 지원 버전의 필드 기능 검토</td>
+<td>값 전체</td>
+</tr>
+<tr>
+<td>동시 수정 주의점</td>
+<td>여러 키의 일관성</td>
+<td>필드 간 불변식</td>
+<td>읽고 수정 후 덮어쓰기</td>
+</tr>
+<tr>
+<td>크기 증가 주의점</td>
+<td>키 수 증가</td>
+<td>필드 수·큰 Hash</td>
+<td>큰 JSON·전송량</td>
+</tr>
+</tbody></table>
+<p>여기서 “필드 간 불변식”이란 여러 값이 함께 만족해야 하는 업무 규칙이다. 예를 들어 상태가 완료이면 완료 시각도 있어야 한다는 규칙이 있다면, 두 필드를 어떤 명령 경계로 바꿀지 정해야 한다. Hash에 넣었다고 여러 번의 HSET이 자동으로 하나의 원자적 작업이 되지는 않는다. 한 명령으로 묶을 수 있는 경우와 조건 확인까지 필요한 경우를 구분한다.</p>
+<p>읽기 패턴도 판단을 바꾼다. 매번 전체 정보를 읽는데 속성 키를 수십 개로 나누면 호출과 관리가 복잡해질 수 있다. 반대로 매번 상태 하나만 읽는데 수백 KiB JSON 전체를 가져오면 불필요한 전송이 많다. 모델 선택은 자료형의 이름보다 <strong>한 요청이 어떤 데이터에 접근하는지</strong>에서 출발해야 한다.</p>
+<h2 id="section-12">6. 모델 C: 작은 객체 여러 개를 버킷 Hash에 묶기</h2>
 <p>원문은 숫자 ID를 접두사와 끝자리로 나누어 여러 객체를 한 Hash에 담는 아이디어를 소개한다. 예를 들어 ID 1234를 버킷 <code>object:12</code>, 필드 <code>34</code>로 표현한다. 균등한 숫자 ID와 작은 값이라면 최상위 키 수를 줄일 수 있다. 다만 이는 단순한 저장 형식 변경이 아니라 <strong>애플리케이션의 주소 지정 규칙 변경</strong>이다.</p>
 <pre><code class="language-text">원래 주소: object:1234
 새 주소:   key=object:12, field=34
@@ -41,12 +208,91 @@ HMGET user:42 name tier
 <p>주소 변환은 모든 읽기와 쓰기에서 같은 규칙을 써야 한다. 음수, 앞자리 0, 문자열 ID, ID 범위 변경도 정의해야 한다. “끝 두 글자를 자른다”는 구현이 숫자 나눗셈과 항상 같은 의미는 아니다. 여러 언어 서비스가 공유한다면 테스트 벡터를 만들어 동일 입력이 동일 키와 필드로 변환되는지 검증한다.</p>
 <p>버킷을 너무 크게 만들면 hot key가 된다. 특정 버킷에 요청이 집중되면 Cluster의 여러 노드가 있어도 그 키의 작업은 하나의 배치 경계에 집중된다. 독립 객체들이 eviction이나 키 삭제의 운명을 공유할 수도 있다. 관측과 이관도 복잡해진다. 따라서 수십만 독립 키를 하나의 거대한 Hash로 바꾸는 것은 메모리 절약보다 큰 운영 비용을 만들 수 있다.</p>
 <p>원문의 과거 측정값을 “우리 서비스도 몇 배 절약된다”는 약속으로 쓰지 않는다. Redis 버전, 값 길이, allocator, 실제 분포가 다르면 비율은 달라진다. 자연스러운 객체 경계의 Hash부터 검토하고, 인위적인 버킷화는 비용 절약이 실제로 필요한 경우에만 비교 실험으로 선택한다.</p>
-<h2 id="section-8">7. bitmap: 참/거짓을 한 비트로 표현하기</h2>
+<h2 id="section-13">모델링 보충 B. 큰 Hash에 묶으면 Cluster가 알아서 나누어 주는가</h2>
+<p>그렇지 않다. Cluster는 키의 배치를 기준으로 동작하며 Hash의 필드들을 자동으로 여러 primary에 분산하는 모델이 아니다. 상품 100만 개를 전역 Hash 하나의 필드로 넣으면 그 키의 접근이 하나의 배치 단위에 집중된다. 서버를 늘렸는데 그 요청이 같은 곳으로 계속 모이는 이유가 여기에 있다.</p>
+<p>이 문제는 고속도로와 계산대의 차이로 비유할 수 있다. 건물로 들어오는 길을 여러 개 만들었어도 모든 손님이 하나의 계산대로 가야 한다면 계산대의 병목은 남는다. Cluster에 노드를 추가하는 일과 큰 키 하나의 일을 나누는 일은 같은 작업이 아니다. 데이터 모델이 병렬 처리 경계를 결정한다.</p>
+<p>버킷 Hash는 전체를 하나로 묶는 대신 일정한 범위의 객체를 묶는 타협이다. 예를 들어 ID를 100개씩 나누는 규칙을 만들 수 있다. 하지만 100은 정답이 아니다. ID의 분포, 각 객체의 크기, 접근 쏠림, 삭제와 보존 정책에 따라 버킷의 실제 크기와 부하가 달라진다. 숫자상 객체 수가 같아도 특정 상품의 조회가 압도적으로 많으면 버킷 부하는 균등하지 않다.</p>
+<p>따라서 버킷 모델에는 주소 변환의 안정성이 중요하다. 같은 ID가 어떤 key와 field로 가는지 모든 서비스가 동일하게 계산해야 한다. Java에서는 정수 나눗셈으로 구현했는데 다른 언어 서비스는 문자열 마지막 두 자리를 잘라 구현했다면 음수나 앞자리 0, 문자열 ID에서 의미가 달라질 수 있다. 지원 입력 범위를 명확히 제한하고 공통 테스트 벡터를 둔다.</p>
+<p>아래는 양의 정수 ID만 받는 학습용 주소 변환이다. Redis에 연결하지 않고 규칙 자체를 검사한다.</p>
+<pre><code class="language-java">public final class RedisBucketAddress {
+    private static final long BUCKET_SIZE = 100;
+
+    record Address(String key, String field) {}
+
+    static Address forId(long id) {
+        if (id &lt;= 0) throw new IllegalArgumentException(&quot;ID must be positive&quot;);
+        long bucket = id / BUCKET_SIZE;
+        long field = id % BUCKET_SIZE;
+        return new Address(&quot;goods:bucket:v1:&quot; + bucket, Long.toString(field));
+    }
+
+    public static void main(String[] args) {
+        Address a = forId(1234);
+        Address b = forId(1299);
+        Address c = forId(1300);
+        if (!a.key().equals(b.key())) throw new AssertionError(&quot;same bucket&quot;);
+        if (a.field().equals(b.field())) throw new AssertionError(&quot;distinct fields&quot;);
+        if (a.key().equals(c.key())) throw new AssertionError(&quot;next bucket&quot;);
+        if (!a.field().equals(&quot;34&quot;)) throw new AssertionError(&quot;wrong field&quot;);
+        System.out.println(a);
+        System.out.println(c);
+    }
+}
+</code></pre>
+<p><code>1234 / 100</code>은 정수 나눗셈이라 12이고 나머지는 34다. ID 1299는 같은 12번 버킷의 99번 필드로 간다. ID 1300은 13번 버킷의 0번 필드로 간다. 0이라는 필드 이름이 오류는 아니다. 원본 ID는 양수지만 나머지는 0일 수 있다. ID 1부터 99까지는 0번 버킷에 속한다는 점도 규칙의 일부다.</p>
+<p>이 함수가 주소 충돌을 피한다고 모델 전체의 정합성이 보장되는 것은 아니다. 필드를 어떤 값으로 저장하는지, 동일 ID의 동시 갱신을 어떻게 처리하는지, 오래된 데이터를 언제 지우는지는 별도다. 또한 버킷 크기를 바꾸면 같은 ID의 주소가 바뀌므로 단순 설정 변경이 아니라 데이터 이관이 필요하다. 접두사의 v1은 이런 규칙 세대를 구분하는 예시다.</p>
+<h2 id="section-14">7. bitmap: 참/거짓을 한 비트로 표현하기</h2>
 <p>사용자별 출석 여부를 문자열 <code>true</code>로 저장하는 대신 비트 하나로 나타낼 수 있다. bitmap은 별도 논리 자료형이라기보다 String의 비트를 다루는 방식이다. <code>SETBIT attendance:day:2026-10-21 42 1</code>은 해당 비트 위치를 1로 만든다. <code>GETBIT</code>은 그 위치의 값을 읽고, <code>BITCOUNT</code>는 설정된 비트 수를 셀 수 있다.</p>
 <p>밀집된 ID 0부터 9,999,999까지 천만 명을 나타내면 순수 비트 수는 천만 비트이고, 8로 나누면 약 125만 바이트다. 여기에 키와 문자열 관리 비용이 더해진다. 이 계산은 저장 구조를 선택하기 전 가능한 절감 폭을 감 잡는 데 도움이 된다.</p>
 <p>하지만 희소한 ID에는 주의한다. 사용자 한 명의 ID가 10억이라고 그 위치를 바로 설정하면 그 위치까지 표현할 문자열 공간이 필요해질 수 있다. 실제 사용자가 두 명뿐이어도 최대 offset이 크면 메모리가 커진다. 큰 offset을 처음 확장하는 명령은 할당과 초기화 비용도 유발할 수 있다. 반드시 ID 범위와 밀도를 검토하고, 날짜나 범위별로 나누는 전략과 최대 크기를 정한다.</p>
 <p>bitmap은 사용자의 이름이나 여러 속성을 저장하지 않는다. 무엇이 1인지의 의미와 ID 매핑은 애플리케이션이 유지해야 한다. 사용자 ID를 재사용하면 옛 비트가 다른 사용자의 기록처럼 보일 수 있다. 압축은 의미를 없애는 마법이 아니라 표현 규칙을 더 엄격하게 만드는 선택이다.</p>
-<h2 id="section-9">8. Java 직렬화가 메모리 최적화를 무효화하는 경우</h2>
+<h2 id="section-15">모델링 보충 C. bitmap을 직접 계산해 보기</h2>
+<p>비트는 0 또는 1을 나타내는 최소 단위이고 8비트가 1바이트다. bitmap에서 offset은 비트의 위치를 나타낸다. 위치가 0부터 시작한다는 점이 중요하다. offset 0부터 7까지는 첫 번째 바이트에 들어가고 offset 8을 사용하려면 두 번째 바이트가 필요하다. 따라서 가장 큰 offset이 8이면 “8비트니까 1바이트”가 아니라 최소 2바이트의 내용 공간이 필요하다.</p>
+<p>일반적으로 가장 큰 offset이 k라면 필요한 내용 바이트를 <code>k / 8 + 1</code>로 계산할 수 있다. 정수 나눗셈을 사용한다. 이 계산은 실제 Redis 객체의 총 메모리 비용이 아니라 비트열을 담는 내용 길이를 이해하기 위한 것이다. 키와 객체 관리비, 할당 여유는 별도다.</p>
+<table>
+<thead>
+<tr>
+<th align="right">가장 큰 offset</th>
+<th align="right">위치의 개수</th>
+<th align="right">최소 내용 바이트</th>
+<th>해석</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td>첫 비트도 바이트 공간 필요</td>
+</tr>
+<tr>
+<td align="right">7</td>
+<td align="right">8</td>
+<td align="right">1</td>
+<td>첫 바이트의 마지막 비트</td>
+</tr>
+<tr>
+<td align="right">8</td>
+<td align="right">9</td>
+<td align="right">2</td>
+<td>두 번째 바이트 시작</td>
+</tr>
+<tr>
+<td align="right">100</td>
+<td align="right">101</td>
+<td align="right">13</td>
+<td>101비트를 담을 최소 길이</td>
+</tr>
+<tr>
+<td align="right">9999</td>
+<td align="right">10000</td>
+<td align="right">1250</td>
+<td>밀집된 1만 위치의 내용 크기</td>
+</tr>
+</tbody></table>
+<p>여기서 함정은 켜진 비트의 개수와 최대 위치를 혼동하는 것이다. offset 1과 9999만 켜도 가장 큰 위치까지 표현할 공간이 필요하다. 사용자가 두 명이라는 사실만으로 2비트만 쓰는 것은 아니다. ID가 매우 희소하면 Set에 두 ID를 저장하는 방식이 더 자연스러울 수 있다. 어떤 모델이 작은지는 ID 범위와 밀도를 함께 비교해야 한다.</p>
+<p>날짜별 출석 기록이라면 날짜를 키에 포함해 보존 기간을 나누는 방법을 생각할 수 있다. 이때 날짜 기준의 시간대도 계약이다. 서버마다 날짜를 다른 시간대로 계산하면 같은 출석 이벤트가 서로 다른 키에 들어갈 수 있다. 데이터 구조 최적화가 업무 의미를 대신 정해 주지 않는다.</p>
+<p>날짜 키를 나누었다고 사용자 ID의 큰 offset 문제가 사라지는 것은 아니다. ID 범위별 버킷까지 나누거나 별도 연속 번호 매핑을 둘 수 있지만, 그러면 매핑의 안정성과 조회 비용이 추가된다. 번호를 재사용했을 때 이전 기록이 새 사용자에게 연결되지 않도록 해야 한다. 비트를 아끼기 위해 도입한 매핑이 새로운 정합성 책임을 만든다는 점을 이해해야 한다.</p>
+<h2 id="section-16">8. Java 직렬화가 메모리 최적화를 무효화하는 경우</h2>
 <p>Redis가 작은 값에 최적화되어 있어도 클라이언트가 메타데이터가 많은 직렬화 형식으로 저장하면 바이트가 커진다. 같은 <code>42</code>를 UTF-8 문자열로 저장하는 것과 클래스 정보를 포함한 직렬화 결과로 저장하는 것은 다르다. 읽는 쪽의 serializer가 쓰는 쪽과 다르면 <code>redis-cli</code>에서 보이는 키와 애플리케이션이 찾는 키가 달라 보일 수도 있다.</p>
 <pre><code class="language-java">String text = &quot;서울&quot;;
 int codeUnits = text.length();
@@ -62,7 +308,44 @@ redisTemplate.opsForHash().putAll(&quot;lab:user:42&quot;, fields);
 </code></pre>
 <p>이 코드는 문자열 기반 템플릿 구성을 전제로 한 개념 예시다. 실제 Spring Data Redis 설정에서는 키, 값, Hash 필드, Hash 값의 직렬화기를 구별한다. 프레임워크 기본값을 추측하지 말고 구성과 저장된 바이트를 확인한다. 운영 중 serializer를 바꾸면 과거 데이터와 새 데이터가 섞일 수 있으므로 새 접두사, 읽기 호환, 백필, 전환 기간을 포함한 마이그레이션 계획이 필요하다.</p>
 <p>JSON은 디버깅과 언어 간 호환에 유리할 수 있지만 필드 이름과 문법 바이트가 반복된다. 압축은 크기를 줄여도 CPU와 작은 부분 갱신을 어렵게 한다. 직렬화 선택은 메모리 숫자뿐 아니라 호환성, 관측성, 배포 순서까지 함께 비교해야 한다.</p>
-<h2 id="section-10">9. 격리 실습 A: 작은 Hash의 인코딩 경계를 직접 보기</h2>
+<h2 id="section-17">Spring 보충. Hash serializer는 네 군데 설정 중 두 군데다</h2>
+<p>Spring Data Redis에서 키와 값을 직렬화한다고 말할 때 일반 key/value와 Hash의 field/value를 구분해야 한다. 바깥 키는 <code>goods:123</code>, Hash 필드는 <code>name</code>, Hash 값은 <code>배추</code>처럼 서로 다른 위치의 바이트다. 설정한 serializer가 어디에 적용되는지 모르고 기본값만 가정하면 CLI에서 보는 값과 Java에서 읽는 값이 어긋날 수 있다.</p>
+<p>문자열로만 된 예제에서는 StringRedisTemplate을 사용하면 의도가 읽기 쉽다. 다음 코드는 상품의 두 속성을 저장하고 필요한 필드만 읽는 형태다. Spring 연결 구성과 의존성이 있는 프로젝트에서 사용하는 예제이며 독립 Java 실행 예제와 구분한다.</p>
+<pre><code class="language-java">import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import org.springframework.data.redis.core.StringRedisTemplate;
+
+public final class GoodsHashCache {
+    private final StringRedisTemplate redis;
+
+    public GoodsHashCache(StringRedisTemplate redis) {
+        this.redis = Objects.requireNonNull(redis);
+    }
+
+    public void put(long goodsId, String name, String center) {
+        if (goodsId &lt;= 0) throw new IllegalArgumentException(&quot;invalid ID&quot;);
+        Map&lt;String, String&gt; fields = Map.of(
+                &quot;name&quot;, Objects.requireNonNull(name),
+                &quot;center&quot;, Objects.requireNonNull(center));
+        redis.&lt;String, String&gt;opsForHash().putAll(key(goodsId), fields);
+    }
+
+    public List&lt;String&gt; namesAndCenters(long goodsId) {
+        if (goodsId &lt;= 0) throw new IllegalArgumentException(&quot;invalid ID&quot;);
+        return redis.&lt;String, String&gt;opsForHash().multiGet(
+                key(goodsId), List.of(&quot;name&quot;, &quot;center&quot;));
+    }
+
+    private String key(long goodsId) {
+        return &quot;goods:profile:v1:&quot; + goodsId;
+    }
+}
+</code></pre>
+<p><code>multiGet</code>의 결과는 요청한 필드 순서와 함께 해석해야 한다. 해당 필드가 없으면 null 항목이 있을 수 있다. <code>name</code>과 <code>center</code>를 모두 얻었다고 가정하고 바로 문자열 연산을 하면 데이터 누락을 예외로 만날 수 있다. 서비스에서 완전한 캐시 객체로 취급할지, 일부 필드 누락을 miss로 취급할지 정해야 한다.</p>
+<p>이 예제는 Hash 저장과 읽기의 의미를 분리해서 보여 주기 위해 TTL 설정을 넣지 않았다. 실제 캐시에서는 보존 정책이 필요하다. HSET 뒤 별도 EXPIRE를 보내는 방식은 둘 사이의 실패 구간이 있으므로 그 조건을 받아들일지, 지원되는 원자적 묶음이나 스크립트를 사용할지 설계해야 한다. String SET의 TTL 옵션처럼 모든 자료형의 쓰기 명령에 같은 옵션이 있다고 생각하면 안 된다.</p>
+<p>또한 putAll은 지정한 필드를 쓰는 것이지 기존 Hash의 모든 다른 필드를 자동으로 없애는 “객체 전체 교체”가 아니다. 이전 버전이 <code>legacyStatus</code> 필드를 썼다면 새 코드가 name과 center만 쓴다고 그 필드가 사라지지 않는다. 직렬화와 스키마를 바꿀 때는 추가뿐 아니라 삭제와 오래된 필드의 해석도 계획해야 한다.</p>
+<h2 id="section-18">9. 격리 실습 A: 작은 Hash의 인코딩 경계를 직접 보기</h2>
 <p>포트 16381의 일회용 인스턴스를 만든다. 운영 서버의 임계값을 바꾸지 않는다. 아래 설정명은 listpack 지원 버전을 전제로 하므로 먼저 버전을 확인한다. 해당 설정이 없으면 자신의 버전 문서를 따라 실습을 조정하고, 모르는 설정을 억지로 적용하지 않는다.</p>
 <pre><code class="language-bash">LAB=$(mktemp -d /tmp/redis-encoding-lab.XXXXXX)
 redis-server --bind 127.0.0.1 --port 16381 --protected-mode yes \
@@ -91,7 +374,7 @@ redis-cli -h 127.0.0.1 -p 16381 HSET lab:long b 12345678901234567
 redis-cli -h 127.0.0.1 -p 16381 OBJECT ENCODING lab:long
 </code></pre>
 <p>왜 17자 ASCII를 사용했는가? 이 실습에서 길이 임계값을 16으로 설정했으므로 경계 넘김을 명확히 하려는 것이다. 원소 수와 길이 중 어느 조건이 원인인지 분리했다. 이런 식으로 한 변수씩 바꾸어야 관찰 결과를 설명할 수 있다.</p>
-<h2 id="section-11">10. 격리 실습 B: 표현의 비용과 기능을 함께 비교</h2>
+<h2 id="section-19">10. 격리 실습 B: 표현의 비용과 기능을 함께 비교</h2>
 <p>같은 전용 인스턴스에서 다음 데이터를 만든다. 앞 실습의 작은 임계값이 남아 있으므로 비교 전에 원래 조회해 둔 값으로 복원하거나 새 인스턴스를 사용한다. 다른 설정이 섞이면 공정한 비교가 아니다.</p>
 <pre><code class="language-redis">SET lab:string:user:1:name Mina
 SET lab:string:user:1:region Seoul
@@ -109,11 +392,57 @@ STRLEN lab:attendance
 <p>위 Redis 명령은 반드시 <code>redis-cli -h 127.0.0.1 -p 16381</code>로 접속한 실습 세션에 입력한다. String 세 개의 비용 합과 Hash 하나를 비교하되, 이 작은 표본만으로 서비스 전체 절감률을 확정하지 않는다. 전체 사용량에는 사전 용량 확장과 고정 비용이 있고, <code>MEMORY USAGE</code>의 중첩 자료구조 추정은 샘플링 설정의 영향을 받을 수 있다.</p>
 <p>bitmap 예시는 아주 작은 offset만 사용해 안전하게 구조를 관찰한다. <code>BITCOUNT</code>는 두 비트가 켜진 상황에서 2를 기대하고, <code>STRLEN</code>은 가장 큰 offset까지 담는 바이트 길이를 보여 준다. 실제 사용자 ID를 무작위로 거대한 offset에 대입하는 실험은 하지 않는다.</p>
 <p>비교표에는 메모리 외에도 호출 수, 읽는 바이트, TTL 단위, 최대 객체 크기, Cluster 배치 단위, 장애 시 영향 범위를 적는다. 메모리 20%를 아끼지만 한 키가 수백 MiB가 되어 전송과 이관이 어려워진다면 성공이라고 부르기 어렵다. 실습 종료는 자신이 만든 인스턴스에만 <code>SHUTDOWN NOSAVE</code>를 보낸다.</p>
-<h2 id="section-12">11. 운영 사고: 어느 날 특정 사용자만 느려졌다</h2>
+<h2 id="section-20">실습 보충. 결과를 읽는 법까지 포함한 비교 노트</h2>
+<p>앞의 인코딩 실습에서 MEMORY USAGE 숫자를 얻었다면 바로 “Hash가 몇 배 좋다”라고 결론 내리지 않는다. 먼저 같은 논리 정보를 비교했는지 확인한다. String 모델에는 긴 접두사를 쓰고 Hash 모델에는 짧은 키를 썼다면 절감의 일부는 키 이름 차이일 수 있다. 그 차이도 실제 설계의 이익일 수 있지만, 무엇 때문에 줄었는지 분리해 설명해야 한다.</p>
+<p>다음으로 TTL 조건이 같은지 확인한다. 한쪽만 만료를 관리하거나 한쪽만 오래된 키가 남아 있으면 공정한 비교가 아니다. 두 모델이 동일한 기능을 제공하지 않는다면 메모리 수치만으로 우열을 정할 수 없다. 속성별 독립 TTL이 필요한 서비스를 한 키로 묶은 모델과 비교할 때 특히 그렇다.</p>
+<p>세 번째로 임계값과 실행 버전을 기록한다. 앞의 실험에서 작은 임계값을 설정했다면 그 상태로 이어서 “기본 설정의 Hash 효율”을 주장하지 않는다. 설정을 복구하거나 새 인스턴스를 사용하고 현재값을 다시 읽는다. 실험자가 의도한 설정과 실제 설정을 나누어 확인하는 01편의 습관이 여기서 다시 필요하다.</p>
+<p>네 번째로 호출 패턴을 맞춘다. String 세 개를 각각 요청하는 경우와 한 번의 다중 키 명령을 사용하는 경우는 왕복 비용이 다르다. Hash 전체를 읽는 경우와 필요한 두 필드만 읽는 경우도 다르다. 저장 공간 실험과 API 응답 시간 실험은 관련되지만 같은 실험은 아니다. 비교표에 호출 수와 응답 바이트를 별도로 적으면 해석이 명확해진다.</p>
+<p>마지막으로 반복 가능한 입력을 보관한다. 무작위 데이터를 만들었다면 시드와 분포를 기록하고, 실제 데이터를 사용했다면 민감정보를 제거한 대표 형태를 만든다. 평균 길이만 맞추는 것보다 짧은 값과 긴 값의 비율, 필드 수의 분포가 중요할 수 있다. 인코딩 전환은 평균이 아니라 개별 객체의 경계에서 일어나기 때문이다.</p>
+<h2 id="section-21">11. 운영 사고: 어느 날 특정 사용자만 느려졌다</h2>
 <p>대부분의 사용자 Hash는 필드 10개와 짧은 값으로 이루어져 있었다. 그런데 일부 사용자에게 “최근 활동 전체”를 필드로 계속 추가했다. 사용자별 크기 상한이 없어서 몇 개의 Hash만 거대해졌다고 하자. 이 경우 평균 키 크기와 평균 요청 지연은 괜찮아도 특정 사용자 요청에서 큰 응답과 긴 처리 시간이 생길 수 있다.</p>
 <p>진단 순서는 느린 명령과 키 유형, 필드 수, 반환 크기, 인코딩, 메모리 비용을 함께 보는 것이다. 운영에서 모든 키에 비싼 전체 조회를 반복하면 진단이 새로운 부하가 된다. 승인된 샘플링과 낮은 빈도의 관측으로 접근한다. 사용자 개인정보를 그대로 로그에 출력하지 않고 키 식별자와 크기 메타데이터만으로 조사할 수 있는지도 검토한다.</p>
 <p>해결은 listpack 임계값을 올리는 것이 아니라 데이터 경계를 다시 잡는 것일 수 있다. 사용자 기본 프로필과 활동 이력을 나누고, 이력에 개수와 기간 상한을 두며, 페이지 단위 읽기를 설계한다. 자료형 최적화는 업무 모델을 대신하지 않는다. “항상 추가만 하는 필드”가 등장했다면 이미 무한 성장 구조인지 질문해야 한다.</p>
-<h2 id="section-13">면접 질문과 상세 답변</h2>
+<h2 id="section-22">이관 보충. 메모리를 줄이려고 형식을 바꿀 때 지켜야 할 순서</h2>
+<p>기존 String JSON을 Hash로 바꾸는 일을 단순 리팩터링으로 생각하면 위험하다. 이미 Redis에 저장된 바이트와 실행 중인 이전 버전 애플리케이션이 있기 때문이다. 같은 키에 다른 자료형을 쓰면 기존 읽기 코드가 WRONGTYPE 오류를 받을 수 있다. 새 코드만 맞다고 배포 전체가 맞는 것은 아니다.</p>
+<p>가장 이해하기 쉬운 출발점은 새 접두사로 새 표현을 구분하는 것이다. 예를 들어 기존 <code>goods:json:v1:123</code>과 새 <code>goods:hash:v2:123</code>을 구별한다. 이 방식은 충돌을 줄이지만 이관 기간에 두 표현이 함께 존재해 메모리가 일시적으로 증가한다. 메모리를 아끼려는 변경이 배포 중에는 더 많은 메모리를 요구할 수 있다는 역설을 미리 계산해야 한다.</p>
+<p>읽기 전환도 정책이 필요하다. 새 키가 없으면 기존 키를 읽고 새 형태로 채울 수 있다. 하지만 그 사이 상품이 수정되면 오래된 값으로 새 키를 덮을 위험이 있다. 버전 비교나 변경 이벤트 처리, 재생성 기준을 정해야 한다. 데이터 모델 변경은 00편의 캐시 정합성과 연결된다. 표현만 바꾸었다고 동시 갱신의 문제가 사라지지 않는다.</p>
+<p>쓰기를 두 군데로 보내는 이중 쓰기는 단순해 보여도 부분 성공을 만든다. 첫 쓰기는 성공하고 두 번째가 실패하면 두 표현이 달라진다. 순서를 반대로 해도 같은 종류의 문제가 남는다. 업무상 재생성 가능한 캐시라면 원본 DB에서 새 캐시를 만드는 전략이 자연스러울 수 있고, Redis가 원본 상태를 보유한다면 훨씬 엄격한 이관 절차가 필요하다.</p>
+<p>전환 완료 여부는 “새 코드가 배포됐다”만으로 판단하지 않는다. 이전 코드가 모두 종료됐는지, 새 키의 채움 비율과 오류율이 어떤지, 기존 키를 참조하는 배치가 남아 있지 않은지 확인한다. 기존 표현을 제거하는 시점은 롤백 가능 기간과 연결된다. 롤백한 코드가 필요한 데이터를 이미 지웠다면 코드만 되돌려도 서비스가 복구되지 않을 수 있다.</p>
+<table>
+<thead>
+<tr>
+<th>단계</th>
+<th>확인할 질문</th>
+<th>남겨야 할 증거</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>새 표현 준비</td>
+<td>이전 코드와 키·자료형이 충돌하지 않는가?</td>
+<td>접두사와 serializer 계약</td>
+</tr>
+<tr>
+<td>시험 적재</td>
+<td>실제 데이터 분포에서 크기·지연이 어떤가?</td>
+<td>표본·버전·측정 조건</td>
+</tr>
+<tr>
+<td>읽기 전환</td>
+<td>새 값이 없거나 오래됐을 때 어떻게 하는가?</td>
+<td>fallback·버전 정책</td>
+</tr>
+<tr>
+<td>쓰기 전환</td>
+<td>두 표현이 달라질 수 있는 구간은?</td>
+<td>부분 실패·재처리 설계</td>
+</tr>
+<tr>
+<td>이전 표현 정리</td>
+<td>롤백과 남은 reader를 확인했는가?</td>
+<td>종료 확인·보존 기간</td>
+</tr>
+</tbody></table>
+<h2 id="section-23">면접 질문과 상세 답변</h2>
 <details class="question"><summary>1. Redis Hash와 해시 테이블은 같은 말인가요?</summary><div class="answer">
 
 <p>아니다. Redis Hash는 필드와 값을 제공하는 논리 자료형이고, 해시 테이블은 가능한 내부 구현 중 하나다. 작은 Hash는 조밀한 인코딩을 사용할 수 있다. 사용자는 HGET/HSET 의미를 기준으로 코드를 작성하고, 성능 분석에서 OBJECT ENCODING을 확인한다. 논리 인터페이스와 내부 표현을 분리하면 인코딩 변경이 왜 애플리케이션 기능을 바꾸지 않으면서 메모리와 지연을 바꿀 수 있는지 설명할 수 있다.</p>
@@ -154,7 +483,38 @@ STRLEN lab:attendance
 <p>정확하지 않다. Java String 길이, UTF-8 전송 바이트, serializer가 추가한 메타데이터, Redis 내부 관리 비용이 서로 다르다. 실제 serializer를 사용한 바이트 크기와 MEMORY USAGE, 전체 INFO memory를 함께 측정한다. 직렬화 변경은 기존 데이터 호환성 문제를 만들 수 있으므로 새 접두사나 단계적 읽기 전환 같은 마이그레이션 전략이 필요하다.</p>
 </div></details>
 
-<h2 id="section-14">공식 자료와 한 문장 정리</h2>
+<h2 id="section-24">추가 면접 문답: 자료구조 선택의 이유 설명하기</h2>
+<details class="question"><summary>9. Hash가 메모리를 덜 쓴다면 JSON String은 왜 사용하나요?</summary><div class="answer">
+
+<p>메모리만이 선택 기준이 아니기 때문이다. 애플리케이션이 객체 전체를 한 번에 읽고 교체하는 경우 JSON String은 모델이 단순하고 다른 언어에서 읽기 쉬울 수 있다. 반면 일부 필드를 자주 변경하고 읽는다면 Hash가 자연스러울 수 있다. 실제 메모리 차이도 객체 크기와 인코딩에 따라 측정해야 한다.</p>
+<p>면접에서는 “Hash가 더 좋다”보다 조회·갱신·수명·호환성의 요구를 먼저 말한다. 전체 JSON을 읽고 수정 후 저장하는 경쟁 상황, Hash의 필드 간 일관성, 이관 비용을 비교한다. 기능 경계를 유지하면서 측정된 비용이 낮은 선택을 한다는 설명이 더 정확하다.</p>
+</div></details>
+
+<details class="question"><summary>10. OBJECT ENCODING을 읽어서 애플리케이션의 명령을 바꿔도 되나요?</summary><div class="answer">
+
+<p>일반적인 업무 코드가 내부 인코딩에 의존하도록 만드는 것은 피하는 편이 좋다. 인코딩은 데이터 크기와 버전에 따라 바뀔 수 있고, 확인한 직후 다른 요청 때문에 변할 수도 있다. 논리 자료형의 계약에 맞는 명령을 사용하면 내부 전환과 무관하게 기능을 유지할 수 있다.</p>
+<p>OBJECT ENCODING은 원인 분석이나 실험에 유용하다. 다만 관찰 도구와 업무 제어 흐름을 구별한다. 성능이 나쁘다는 이유로 매 요청마다 인코딩을 확인하면 조회 왕복과 운영 복잡성만 늘 수 있다. 관측된 분포를 바탕으로 모델과 상한을 개선하는 것이 더 안정적인 접근이다.</p>
+</div></details>
+
+<details class="question"><summary>11. 사용자 ID가 10억이면 bitmap이 반드시 나쁜가요?</summary><div class="answer">
+
+<p>ID가 크다는 사실 하나만으로 무조건 나쁘다고 할 수는 없다. 최대 범위가 예측 가능하고 그 범위가 충분히 밀집되어 있으며 필요한 연산과 보존 기간에 맞으면 선택지가 될 수 있다. 문제는 사용자 수가 적은데 큰 ID를 그대로 offset으로 사용해 대부분 비어 있는 범위를 표현하는 경우다.</p>
+<p>먼저 최대 offset으로 필요한 내용 길이를 계산하고, 실제 사용자 수 대비 밀도를 본다. 범위별 키 분할이나 별도 매핑이 필요하면 그 관리 비용과 정합성 책임까지 비교한다. bitmap의 장점은 비트 하나만 보고 판단하는 것이 아니라 전체 주소 범위와 연산 패턴에서 평가해야 한다.</p>
+</div></details>
+
+<details class="question"><summary>12. 메모리 최적화 배포에서 왜 일시적으로 메모리가 더 필요하죠?</summary><div class="answer">
+
+<p>이전 표현과 새 표현을 동시에 유지하는 전환 기간이 생길 수 있기 때문이다. 새 키를 채우는 동안 이전 버전의 애플리케이션이나 롤백 경로가 기존 키를 필요로 할 수 있다. 새 표현이 개별 객체당 작아도 두 세대가 겹치면 총량은 늘 수 있다.</p>
+<p>따라서 최종 상태의 절감률과 전환 중 최고점을 따로 계산한다. 일부 범위부터 채우거나 자연 만료를 활용하는 방법을 검토하되, 업무상 허용되는 miss와 원본 DB 부하도 함께 본다. 메모리 최적화는 저장 형태뿐 아니라 배포 순서의 문제다.</p>
+</div></details>
+
+<details class="question"><summary>13. 작은 표본에서 40% 줄었으면 전체도 40% 절감된다고 보고해도 되나요?</summary><div class="answer">
+
+<p>그대로 확정하면 안 된다. 표본의 키 길이, 값 길이, 필드 수와 인코딩 분포가 전체를 대표하는지 확인해야 한다. 전체 사전의 용량 증가, 고정 비용, 장기적인 삭제와 재삽입도 작은 키 몇 개의 합에 그대로 반영되지 않는다.</p>
+<p>보고할 때는 “이 버전·설정·표본에서 관찰한 키별 비용이 이만큼 줄었다”고 범위를 명시한다. 다음 단계로 대표 분포를 가진 더 큰 데이터셋과 실제 호출 패턴을 시험한다. 성능과 크기 개선을 증거보다 넓게 일반화하지 않는 것이 시니어 개발자의 설명 방식이다.</p>
+</div></details>
+
+<h2 id="section-25">공식 자료와 한 문장 정리</h2>
 <ul>
 <li><a href="https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/memory-optimization/">Memory optimization</a>: 작은 자료구조 최적화의 원리와 버전별 설정.</li>
 <li><a href="https://redis.io/docs/latest/commands/object-encoding/">OBJECT ENCODING</a>: 내부 표현 관찰.</li>
@@ -163,4 +523,7 @@ STRLEN lab:attendance
 <li><a href="https://redis.io/docs/latest/commands/setbit/">SETBIT</a>: bitmap의 offset과 할당 비용.</li>
 </ul>
 <p>좋은 모델은 가장 적은 바이트만 쓰는 모델이 아니라, <strong>수명·조회·증가 상한·분산 경계를 유지하면서 필요한 만큼만 쓰는 모델</strong>이다.</p>
+<ul>
+<li><a href="https://docs.spring.io/spring-data/redis/reference/redis/template.html">Spring Data RedisTemplate과 직렬화</a>: 템플릿과 자료형별 접근 경계.</li>
+</ul>
 </article><nav aria-label="연재 이동"><a href="/posts/redis-study-02.html">← 운영 환경과 메모리 여유 — maxmemory 밖에서 벌어지는 일</a><a href="/posts/redis-study-04.html">영속성 선택과 RDB — 스냅샷이 지키는 시점과 잃을 수 있는 시간 →</a></nav><footer>Redis 학습 연재 · <a href="/learning/redis/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

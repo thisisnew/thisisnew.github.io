@@ -1,0 +1,54 @@
+{
+  "checkedAt": "2026-10-22T14:39:22.428665+00:00",
+  "runtime": "openjdk version \"21.0.12.1\" 2026-08-18 LTS\nOpenJDK Runtime Environment Corretto-21.0.12.12.1 (build 21.0.12.1+12-LTS)\nOpenJDK 64-Bit Server VM Corretto-21.0.12.12.1 (build 21.0.12.1+12-LTS, mixed mode, sharing)",
+  "compilation": "9 complete classes compiled with --release 21; Spring examples against Spring Data Redis 3.2.0 and Spring Framework 6.1.1",
+  "sourceHashes": {
+    "IdempotentStockLesson.java": "3b8acab8f901e28e12c11b6d9c41d5607cc1c2a5b7dc57dcbc35b67c2530cbc9",
+    "RedisConfigContract.java": "e6072d1120885e0a8e5b9ab8fe7ac09b70fcc38077117b1a3931f5c4617238c4",
+    "RedisBucketAddress.java": "ee0edb0564a93dc4027d47326455198bbd8f346a18d946ed12658f4dfea74ee8",
+    "GoodsHashCache.java": "34e475f8ca61786fca2bc4aa32767fa2531ca725515e690443ef69e78f9dc18a",
+    "LocalKeyValueLesson.java": "49d768625e7df2500cd76ad88e9fd430226c939c49105aa3c918e3a03bd875fb",
+    "GoodsNameCache.java": "2461e90b31738c93874149b56c1bd1e8a1e6461baed8c12259eed63cfeb88ea0",
+    "GoodsLookupPolicy.java": "9fc97bbd6eb9778d881e04c49d43d8da91741f6d052182b1dda887a9f4ac293f",
+    "RedisMemoryBudget.java": "cf49e64399a691c6747d7fbf17c353b748083c69adea7b4cc2bea8dab53f2fbb",
+    "RedisTextBytes.java": "012cf5bf2e27e430d5c508aa8f372e32e6c2b5af00fbc46ef28f72b3bb89eb3f"
+  },
+  "executed": [
+    {
+      "class": "LocalKeyValueLesson",
+      "status": "passed",
+      "stdout": "알배기배추"
+    },
+    {
+      "class": "IdempotentStockLesson",
+      "status": "passed",
+      "stdout": "first=Result[accepted=true, remaining=7]\nretry=Result[accepted=true, remaining=7]\nsecond=Result[accepted=true, remaining=5]"
+    },
+    {
+      "class": "RedisConfigContract",
+      "status": "passed",
+      "stdout": "maxmemory expected=134217728 observed=100663296"
+    },
+    {
+      "class": "RedisMemoryBudget",
+      "status": "passed",
+      "stdout": "normal remaining MiB=392\nslow remaining MiB=-408"
+    },
+    {
+      "class": "RedisTextBytes",
+      "status": "passed",
+      "stdout": "A | units=1 | points=1 | bytes=1\n서울 | units=2 | points=2 | bytes=6\n😀 | units=2 | points=1 | bytes=4\nname=서울 | units=7 | points=7 | bytes=11"
+    },
+    {
+      "class": "RedisBucketAddress",
+      "status": "passed",
+      "stdout": "Address[key=goods:bucket:v1:12, field=34]\nAddress[key=goods:bucket:v1:13, field=0]"
+    }
+  ],
+  "limits": [
+    "Pure Java teaching models only; not Redis integration tests",
+    "GoodsNameCache and GoodsHashCache compiled but not executed against Redis",
+    "GoodsLookupPolicy compiled only",
+    "Existing redis-lab and cluster reports refer to separate unchanged labs"
+  ]
+}

@@ -1,7 +1,47 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="redis.conf, 실행 인자, CONFIG의 관계를 이해하고 재시작에도 유지되는 안전한 구성을 만든다."><title>Redis 01 · 설정 파일과 실행 구성 — Redis가 실제로 읽는 설정을 추적하기 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/redis-study-01.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/redis-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="redis"><main><a href="/">← 전체 글</a> · <a href="/posts/redis-study-00.html">Redis 학습 지도</a><header><p class="meta">REDIS QUEST · 01 / 30 · DEEP STUDY</p><h1>설정 파일과 실행 구성 — Redis가 실제로 읽는 설정을 추적하기</h1><p class="subtitle">redis.conf, 실행 인자, CONFIG의 관계를 이해하고 재시작에도 유지되는 안전한 구성을 만든다.</p><p class="note">첨부 Redis 학습 자료의 주제를 쉬운 설명과 공식 문서 근거로 재구성했습니다. 명령·설정의 버전 조건은 본문을 확인하세요. 장애 시나리오와 수치는 별도 표시가 없으면 학습용 가정이며, 코드가 실려 있다는 사실만으로 실행 검증을 의미하지 않습니다. <a href="/learning/redis/verification.html">검증 범위와 남은 한계</a></p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">이 장을 읽고 나면</a></li><li><a href="#section-2">1. 프로세스, 설정 파일, 데이터 파일은 서로 다르다</a></li><li><a href="#section-3">2. redis.conf의 문법을 읽는 법</a></li><li><a href="#section-4">3. 파일과 명령행 인자는 어떻게 만나는가</a></li><li><a href="#section-5">4. CONFIG GET, SET, REWRITE의 역할</a></li><li><a href="#section-6">5. 캐시 정책: TTL과 eviction을 섞어 생각하지 않기</a></li><li><a href="#section-7">6. 격리 실습: 재시작 전후의 설정 차이</a></li><li><a href="#section-8">7. Spring 애플리케이션 설정과 서버 설정의 경계</a></li><li><a href="#section-9">8. 운영 사고를 설정 경로로 역추적하기</a></li><li><a href="#section-10">9. 변경 검토표와 스스로 설명할 문제</a></li><li><a href="#section-11">10. 재시작 검증을 자동화할 때의 합격 기준</a></li><li><a href="#section-12">면접 질문과 상세 답변</a></li><li><a href="#section-13">정리와 공식 자료</a></li></ol></aside><article><h2 id="section-1">이 장을 읽고 나면</h2>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="redis.conf, 실행 인자, CONFIG의 관계를 이해하고 재시작에도 유지되는 안전한 구성을 만든다."><title>Redis 01 · 설정 파일과 실행 구성 — Redis가 실제로 읽는 설정을 추적하기 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/redis-study-01.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/redis-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="redis"><main><a href="/">← 전체 글</a> · <a href="/posts/redis-study-00.html">Redis 학습 지도</a><header><p class="meta">REDIS QUEST · 01 / 30 · DEEP STUDY</p><h1>설정 파일과 실행 구성 — Redis가 실제로 읽는 설정을 추적하기</h1><p class="subtitle">redis.conf, 실행 인자, CONFIG의 관계를 이해하고 재시작에도 유지되는 안전한 구성을 만든다.</p><p class="note">첨부 Redis 학습 자료의 주제를 쉬운 설명과 공식 문서 근거로 재구성했습니다. 명령·설정의 버전 조건은 본문을 확인하세요. 장애 시나리오와 수치는 별도 표시가 없으면 학습용 가정이며, 코드가 실려 있다는 사실만으로 실행 검증을 의미하지 않습니다. <a href="/learning/redis/verification.html">검증 범위와 남은 한계</a></p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">이 장을 읽고 나면</a></li><li><a href="#section-2">기초 보충 A. 설정을 읽기 전에 네트워크 주소부터 이해하기</a></li><li><a href="#section-3">1. 프로세스, 설정 파일, 데이터 파일은 서로 다르다</a></li><li><a href="#section-4">기초 보충 B. 파일의 숫자가 메모리의 설정이 되기까지</a></li><li><a href="#section-5">2. redis.conf의 문법을 읽는 법</a></li><li><a href="#section-6">3. 파일과 명령행 인자는 어떻게 만나는가</a></li><li><a href="#section-7">4. CONFIG GET, SET, REWRITE의 역할</a></li><li><a href="#section-8">기초 보충 C. 세 가지 시간으로 설정 변경을 추적하기</a></li><li><a href="#section-9">5. 캐시 정책: TTL과 eviction을 섞어 생각하지 않기</a></li><li><a href="#section-10">6. 격리 실습: 재시작 전후의 설정 차이</a></li><li><a href="#section-11">따라 하기 A. 설정 실습의 명령 한 줄씩 해설하기</a></li><li><a href="#section-12">따라 하기 B. Java로 설정 차이를 판정하는 작은 모델 만들기</a></li><li><a href="#section-13">7. Spring 애플리케이션 설정과 서버 설정의 경계</a></li><li><a href="#section-14">Spring 보충. application.yml의 숫자는 누구의 행동을 바꾸는가</a></li><li><a href="#section-15">8. 운영 사고를 설정 경로로 역추적하기</a></li><li><a href="#section-16">운영 추론 연습. 관찰에서 결론으로 한 단계씩 이동하기</a></li><li><a href="#section-17">9. 변경 검토표와 스스로 설명할 문제</a></li><li><a href="#section-18">10. 재시작 검증을 자동화할 때의 합격 기준</a></li><li><a href="#section-19">면접 질문과 상세 답변</a></li><li><a href="#section-20">추가 면접 문답: 정답 뒤의 이유까지 설명하기</a></li><li><a href="#section-21">정리와 공식 자료</a></li></ol></aside><article><h2 id="section-1">이 장을 읽고 나면</h2>
 <p>Redis를 실행할 줄 아는 것과 Redis를 운영할 수 있는 것은 다르다. 전자는 서버에 <code>PING</code>을 보내 <code>PONG</code>을 받으면 달성된다. 후자는 <strong>오늘 적용한 설정이 내일 재시작한 뒤에도 같은 의미로 유지되는지</strong>, 잘못 바꿨을 때 어떻게 되돌리는지 설명할 수 있어야 한다. 이 장에서는 설정을 외우는 대신 설정이 들어오고, 적용되고, 보존되는 경로를 그린다.</p>
 <p>제공된 학습 자료의 01장과 Redis 공식 설정 문서를 출발점으로 삼았다. 제공 자료는 특정 시점의 문서 스냅샷이며, 그 안의 배포 파일 구성과 버전 예시는 지금 실행할 바이너리의 기능을 보장하지 않는다. 실습에서는 먼저 <code>redis-server --version</code>과 <code>INFO server</code>를 확인하고 <strong>설치한 버전에 동봉된 설정 예시</strong>를 기준으로 삼는다. 관리형 서비스는 <code>CONFIG</code>를 제한하고 별도의 파라미터 관리 화면을 제공할 수 있다. <a href="https://redis.io/docs/latest/operate/oss_and_stack/management/config/">공식 설정 문서</a></p>
-<h2 id="section-2">1. 프로세스, 설정 파일, 데이터 파일은 서로 다르다</h2>
+<h2 id="section-2">기초 보충 A. 설정을 읽기 전에 네트워크 주소부터 이해하기</h2>
+<p>처음 Redis를 공부하면 <code>127.0.0.1:16379</code>라는 표기부터 낯설 수 있다. 여기에는 두 정보가 들어 있다. 앞부분은 <strong>어느 컴퓨터의 네트워크 입구를 사용할지</strong>, 뒷부분은 <strong>그 입구에 도착한 요청을 어떤 프로그램에 전달할지</strong>를 나타낸다. 아파트 주소와 동·호수처럼 생각하면 편하다. 다만 IP 주소가 반드시 물리적 컴퓨터 한 대와 일대일로 대응하지는 않는다. 한 서버에 여러 주소가 있을 수도 있고, 가상 네트워크와 프록시를 거칠 수도 있다. 비유는 주소와 포트를 구별하기 위한 출발점이다.</p>
+<p><code>127.0.0.1</code>은 “Redis가 설치된 컴퓨터”라는 고유한 이름이 아니다. <strong>그 주소를 사용하는 프로세스가 속한 네트워크 환경에서 자기 자신</strong>을 가리킨다. 맥북에서 실행한 Java 프로그램이 접속할 때의 자기 자신과, 컨테이너 안에서 실행한 Java 프로그램이 접속할 때의 자기 자신은 다를 수 있다. 그래서 맥북 터미널의 <code>redis-cli</code>는 연결되는데 컨테이너의 Spring은 연결되지 않는 일이 생긴다. 두 프로그램이 같은 문자열을 사용해도 같은 곳을 바라본다고 단정할 수 없다.</p>
+<p>예를 들어 호스트의 16379번 포트를 Redis 컨테이너의 6379번 포트로 전달하도록 구성했다고 하자. 호스트에서 실행한 Java는 호스트의 16379로 접속한다. 같은 컨테이너 네트워크의 다른 애플리케이션은 Redis 서비스 이름과 컨테이너의 6379로 접속할 수 있다. 여기서 16379와 6379 중 어느 하나가 틀린 숫자인 것이 아니다. <strong>관찰 위치와 전달 경로가 다르다.</strong> 이 장의 실습은 그런 혼란을 줄이려고 컨테이너 없이 루프백 16379로 설명한다.</p>
+<p>서버의 <code>bind</code>와 클라이언트의 <code>host</code>도 반대편에서 같은 연결을 바라보는 설정이다. <code>bind</code>는 서버가 어느 로컬 주소에서 연결을 받을지 정한다. 클라이언트의 <code>host</code>는 어디로 연결을 시도할지 정한다. <code>bind</code>에 적힌 문자열을 무조건 <code>application.yml</code>의 <code>host</code>로 복사하는 방식은 올바른 접근이 아니다. 서버가 모든 인터페이스에서 수신하도록 쓰는 주소와 클라이언트가 실제 목적지로 사용할 주소는 용도가 다르다.</p>
+<table>
+<thead>
+<tr>
+<th>질문</th>
+<th>먼저 확인할 대상</th>
+<th>질문에 답하지 못하는 정보</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Redis가 실제로 실행 중인가?</td>
+<td>해당 서버의 프로세스·시작 로그</td>
+<td>다른 서버에서 받은 PONG</td>
+</tr>
+<tr>
+<td>어디에서 연결을 받는가?</td>
+<td>적용된 bind·port, 수신 소켓</td>
+<td>Spring의 host 값만 보기</td>
+</tr>
+<tr>
+<td>Java는 어디로 연결하는가?</td>
+<td>적용된 클라이언트 설정과 실행 위치</td>
+<td>Redis 설정 파일만 보기</td>
+</tr>
+<tr>
+<td>중간 경로가 허용되는가?</td>
+<td>라우팅·방화벽·컨테이너 포트 전달</td>
+<td>비밀번호가 맞는지 여부</td>
+</tr>
+<tr>
+<td>도착한 뒤 권한이 있는가?</td>
+<td>인증 결과와 ACL</td>
+<td>TCP 연결 성공 여부</td>
+</tr>
+</tbody></table>
+<p>이 순서를 이해하면 장애 메시지도 구별하기 쉬워진다. 연결 거절은 목적지에서 연결을 받지 않거나 경로가 거절했을 가능성을 살펴보게 한다. 연결 시간 초과는 주소·라우팅·방화벽·응답 지연 등 여러 후보를 남긴다. 인증 오류는 적어도 인증 응답을 보낸 서비스까지 통신했다는 다른 종류의 증거다. 오류 문구 하나로 원인을 확정하지는 않지만, 모든 오류를 “Redis가 죽었다”라고 묶는 것보다 조사 범위를 크게 줄일 수 있다.</p>
+<h2 id="section-3">1. 프로세스, 설정 파일, 데이터 파일은 서로 다르다</h2>
 <p>프로세스는 실행 중인 프로그램이다. Redis 서버 프로세스는 네트워크 요청을 받아 메모리의 데이터를 읽고 바꾼다. <code>redis.conf</code>는 그 프로세스를 어떤 주소와 포트로 열고, 메모리를 얼마나 쓰며, 영속성을 어떻게 유지할지 적은 설명서다. <code>dump.rdb</code>와 AOF 파일은 실제 데이터 복원에 쓰이는 파일이다. <strong>설정 파일을 백업했다고 데이터가 백업되는 것도 아니고, 데이터 파일을 복구했다고 보안 설정까지 복구되는 것도 아니다.</strong></p>
 <p>식당에 비유하면 프로세스는 영업 중인 주방, 데이터는 식재료와 주문 상태, 설정은 영업 매뉴얼이다. 매니저가 현장에서 “오늘부터 주문 마감은 9시”라고 말했다고 인쇄된 매뉴얼이 자동으로 고쳐지지 않는다. 다음 교대조가 옛 매뉴얼을 보면 다시 10시에 마감한다. 런타임 설정과 파일 설정의 차이가 이와 같다. 비유의 한계도 있다. Redis는 사람이 눈치껏 두 지시를 조정하지 않는다. 지원되는 설정을 파싱하고 정해진 순서로 적용할 뿐이며, 잘못된 설정은 시작 실패나 명령 오류를 일으킬 수 있다.</p>
 <p>운영할 때는 최소 네 가지 상태를 구별한다.</p>
@@ -35,7 +75,14 @@
 </tr>
 </tbody></table>
 <p>이 네 줄을 하나로 생각하면 “파일은 바꿨는데 왜 적용되지 않았지?”라는 장애가 반복된다. 파일 수정은 이미 실행 중인 서버에 자동으로 전달되지 않는다. 반대로 <code>CONFIG SET</code>은 실행 중인 서버에 적용되지만 파일까지 고치는 명령은 아니다.</p>
-<h2 id="section-3">2. redis.conf의 문법을 읽는 법</h2>
+<h2 id="section-4">기초 보충 B. 파일의 숫자가 메모리의 설정이 되기까지</h2>
+<p>설정은 종이에 적힌 문장처럼 존재하는 것이 아니라 서버가 읽고 해석해야 동작에 영향을 준다. 단순화하면 <strong>입력 읽기 → 문법 해석 → 값 검사 → 내부 상태에 반영 → 관련 기능이 그 상태를 사용</strong>하는 과정이다. <code>maxmemory 128mb</code>라는 문자열은 그 자체로 메모리를 128 MiB 예약하는 명령이 아니다. 서버가 단위를 해석해 한도에 사용할 숫자를 저장하고, 이후 메모리 정책을 판단할 때 그 숫자를 참조한다.</p>
+<p>이 차이는 집의 온도조절기를 떠올리면 이해하기 쉽다. 목표 온도를 22도로 설정하는 일과 집 전체의 현재 온도가 즉시 22도가 되는 일은 다르다. 목표를 바꾸면 제어 규칙이 달라지지만 실제 상태는 현재 조건과 장치의 동작에 따라 변한다. 마찬가지로 메모리 한도를 낮췄다고 OS가 프로세스의 모든 메모리를 즉시 그 숫자에 맞춰 잘라 주지 않는다. 어떤 정책이 적용되는지, 키를 내보낼 수 있는지, 메모리 중 어느 부분이 정책 계산에 포함되는지에 따라 결과가 달라진다.</p>
+<p>설정값에는 단순한 숫자도 있지만 여러 인자를 가진 규칙도 있다. <code>save</code>처럼 조건을 여러 개 지정하는 항목을 단일 숫자 설정과 똑같이 취급하면 안 된다. “뒤에 나온 것이 항상 전부를 덮어쓴다”라는 한 문장으로 모든 지시문을 설명하기보다, 특정 지시문의 문법과 의미를 확인해야 한다. 이 장의 덮어쓰기 실습에서는 의미가 명확한 <code>maxmemory</code>와 <code>port</code>를 사용한다.</p>
+<p>설정 파일의 주석은 사람에게 설명하는 부분이다. 주석에 “최대 2GB”라고 적혀 있어도 실제 지시문이 다른 값이면 주석이 서버를 제어하지 않는다. 오래된 주석, 변경되지 않은 운영 문서, 실제 런타임 값이 서로 달라질 수 있다. 따라서 검토자는 설명의 의도를 읽는 동시에 실행될 값을 별도로 확인해야 한다. 코드 리뷰에서 주석과 코드가 일치하는지 보는 것과 같은 태도다.</p>
+<p>기본값도 입력의 일부다. 설정 파일에 적지 않은 항목이 “설정되지 않은 채 비어 있다”는 의미는 아니다. 서버의 기본값이 적용될 수 있다. 버전을 바꾸면서 기본값이나 지원 범위가 달라지면, 파일의 텍스트가 동일해도 결과는 달라질 수 있다. 이 때문에 설정 파일의 Git 변경 여부만 보는 배포 검증으로는 부족하다. 바이너리 버전과 최종 적용값도 배포 계약에 포함해야 한다.</p>
+<p>설정을 읽는 좋은 습관은 다음처럼 질문을 순서대로 바꾸는 것이다. 처음에는 “이 옵션이 무엇인가?”를 묻는다. 다음에는 “누가 읽는가?”를 묻는다. 그 다음에는 “언제 읽는가?”와 “어떤 작업에 영향을 주는가?”를 묻는다. 마지막으로 “바꾼 뒤 어떤 증거로 확인할까?”를 묻는다. 이 질문들이 연결되면 설정 문서는 외워야 할 옵션 목록에서 동작을 예측하는 도구가 된다.</p>
+<h2 id="section-5">2. redis.conf의 문법을 읽는 법</h2>
 <p>기본 문법은 <code>설정이름 인자1 인자2 ...</code>다. 설정값 중 공백이 필요한 경우 인용부호를 사용한다. 다음은 운영 권장값 묶음이 아니라 <strong>설정의 종류를 읽기 위한 예시</strong>다.</p>
 <pre><code class="language-conf">bind 127.0.0.1
 port 16379
@@ -49,7 +96,7 @@ save &quot;&quot;
 <p><code>bind</code>는 소켓을 열 로컬 네트워크 주소다. <code>port</code>는 그 주소에서 사용할 TCP 포트다. <code>127.0.0.1</code>은 같은 호스트 안에서만 접근하는 루프백 주소다. <code>protected-mode</code>는 안전장치이지 방화벽이나 ACL을 대신하는 완전한 보안 경계가 아니다. <code>daemonize no</code>는 서버가 스스로 백그라운드로 분리되지 않게 한다. 컨테이너나 서비스 관리자가 수명을 관리하면 일반적으로 이 방식이 관찰하기 쉽다.</p>
 <p><code>maxmemory</code>는 Redis가 축출 여부를 판단하는 메모리 한도이고, 프로세스 전체의 RSS나 컨테이너 한도와 같은 숫자가 아니다. <code>noeviction</code>은 메모리가 부족할 때 기존 키를 임의로 내보내지 않는 정책이다. 이때 메모리를 늘리는 쓰기가 오류를 받을 수 있다. <code>appendonly no</code>, <code>save &quot;&quot;</code>는 이 예시에서 지속 저장을 사용하지 않는다는 뜻이다. <strong>따라서 여기 적힌 구성을 업무 데이터에 복사해서는 안 된다.</strong> 실습을 빨리 초기화하기 위한 의도적 선택이다.</p>
 <p>설정 파일 안에는 <code>include</code>로 다른 파일을 포함할 수도 있다. 여기서 중요한 질문은 “설정이 어디에 적혀 있는가?”만이 아니다. “동일 항목을 다른 파일이나 명령행에서 다시 지정하는가?”도 물어야 한다. 환경별 파일을 겹치는 방식은 편하지만, 파일을 읽는 순서와 기동 인자를 함께 검토하지 않으면 눈에 보이는 값과 적용값이 달라진다. 비밀값은 저장소에 평문으로 커밋하지 않고, 승인된 비밀 관리 수단과 파일 권한 정책으로 전달한다.</p>
-<h2 id="section-4">3. 파일과 명령행 인자는 어떻게 만나는가</h2>
+<h2 id="section-6">3. 파일과 명령행 인자는 어떻게 만나는가</h2>
 <p>다음 두 명령은 서로 다른 의도를 드러낸다.</p>
 <pre><code class="language-bash">redis-server /tmp/example/redis.conf
 redis-server /tmp/example/redis.conf --port 16380
@@ -65,7 +112,7 @@ redis-server /tmp/example/redis.conf --port 16380
 <li>재시작 후 확인할 핵심 <code>CONFIG GET</code> 목록.</li>
 <li>이상 징후가 생겼을 때 사용할 이전 구성과 롤백 조건.</li>
 </ol>
-<h2 id="section-5">4. CONFIG GET, SET, REWRITE의 역할</h2>
+<h2 id="section-7">4. CONFIG GET, SET, REWRITE의 역할</h2>
 <p><code>CONFIG GET</code>은 현재 적용된 값을 읽는다. 예를 들어 <code>CONFIG GET maxmemory</code>는 “지금 메모리에 올라온 한도”를 확인한다. 파일의 숫자를 보여 주는 명령이 아니다. 반환되는 단위 표현이 입력과 다를 수 있다. 사람이 <code>128mb</code>라고 입력했어도 결과는 바이트 수로 보일 수 있으므로 숫자가 다르다는 이유만으로 오류라고 판단하지 않는다.</p>
 <p><code>CONFIG SET</code>은 동적 변경이 지원되는 항목을 바꾼다. 모든 설정을 동적으로 바꿀 수 있는 것은 아니다. 명령의 성공 응답은 그 설정 변경을 받아들였다는 뜻이지, 데이터 이동이나 파일 생성 같은 후속 작업까지 끝났다는 뜻은 아니다. 특히 AOF 활성화와 같이 백그라운드 작업이 수반될 수 있는 변경은 관련 <code>INFO</code> 상태를 별도로 확인한다.</p>
 <p><code>CONFIG REWRITE</code>는 현재 설정을 기동 설정 파일에 반영하는 기능이다. 하지만 “Git에 저장한다”, “모든 노드의 설정을 맞춘다”, “배포 시스템의 원본 템플릿도 수정한다”라는 뜻은 아니다. 설정 파일 없이 기동했거나 파일을 쓸 수 없는 환경에는 그대로 적용할 수 없다. 운영의 설정 소유자가 GitOps나 관리형 서비스라면 그 제어면을 통해 영속화하는 것이 맞다. 즉 <code>REWRITE</code>의 사용 가능 여부보다 <strong>누가 설정의 원본을 소유하는가</strong>가 먼저다.</p>
@@ -74,11 +121,56 @@ redis-server /tmp/example/redis.conf --port 16380
 → 현재값/서비스 상태 확인 → 원본 구성 반영 → 재기동 검증
 </code></pre>
 <p>이때 “되돌릴 값”은 추측한 기본값이 아니라 변경 직전에 읽은 실제 값이다. 기본값은 버전과 배포판마다 다를 수 있고, 원래 의도적으로 조정된 상태일 수도 있다.</p>
-<h2 id="section-6">5. 캐시 정책: TTL과 eviction을 섞어 생각하지 않기</h2>
+<h2 id="section-8">기초 보충 C. 세 가지 시간으로 설정 변경을 추적하기</h2>
+<p>운영 설정을 이해할 때는 시간을 나누어 보는 것이 특히 유용하다. <strong>기동 직전</strong>, <strong>기동 후 현재</strong>, <strong>다음 배포 이후</strong>는 서로 다른 상태일 수 있다. 아래 예시는 모든 값이 설명용이며 실제 권장 메모리 용량이 아니다.</p>
+<table>
+<thead>
+<tr>
+<th>시점</th>
+<th align="right">파일의 maxmemory</th>
+<th align="right">기동 인자</th>
+<th align="right">현재 프로세스</th>
+<th>운영자가 알 수 있는 사실</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>배포 준비</td>
+<td align="right">128 MiB</td>
+<td align="right">192 MiB</td>
+<td align="right">아직 없음</td>
+<td>기동 시 두 입력을 함께 해석할 예정</td>
+</tr>
+<tr>
+<td>기동 완료</td>
+<td align="right">128 MiB</td>
+<td align="right">192 MiB</td>
+<td align="right">192 MiB</td>
+<td>실행 인자가 단일값 설정에 반영됨</td>
+</tr>
+<tr>
+<td>긴급 변경</td>
+<td align="right">128 MiB</td>
+<td align="right">192 MiB</td>
+<td align="right">160 MiB</td>
+<td>CONFIG SET으로 현재값만 변경</td>
+</tr>
+<tr>
+<td>같은 구성으로 재시작</td>
+<td align="right">128 MiB</td>
+<td align="right">192 MiB</td>
+<td align="right">192 MiB</td>
+<td>런타임 변경이 기동 입력에 없었음</td>
+</tr>
+</tbody></table>
+<p>여기서 실수하기 쉬운 결론은 “파일을 160 MiB로 바꾸면 된다”이다. 기동 인자가 계속 192 MiB를 지정하면 파일만 바꿔도 다음 기동은 원하는 값이 아닐 수 있다. 반대로 기동 인자를 지웠는데 파일을 갱신하지 않았다면 128 MiB로 돌아갈 수 있다. <strong>구성의 여러 층 중 실제로 마지막 결정권을 가진 곳까지 추적</strong>해야 한다.</p>
+<p><code>CONFIG REWRITE</code>를 실행하면 모든 문제를 한 번에 해결할 수 있을 것 같지만, 이것은 실행 중인 Redis가 다루는 설정 파일에 관한 기능이다. 컨테이너를 생성하는 배포 템플릿이나 Git 저장소까지 역방향으로 찾아가 수정하지 않는다. 호텔 객실에 놓인 안내문을 고쳤다고 호텔 본사의 인쇄 원본이 바뀌지 않는 것과 같다. 다음 날 새 안내문을 배포하면 옛 내용이 다시 나타날 수 있다.</p>
+<p>설정의 원본을 하나로 정한다는 말은 모든 파일이 물리적으로 하나여야 한다는 뜻이 아니다. 환경별 파일과 비밀 저장소가 나뉘어 있어도 된다. 중요한 것은 <strong>어떤 경로로 변경을 승인하고, 어떤 입력으로 새 인스턴스를 재현할지 일관되게 정하는 것</strong>이다. 긴급한 런타임 조정이 필요할 수 있지만, 긴급 조정과 다음 배포의 원본을 연결하는 후속 작업이 있어야 한다.</p>
+<p>실무에서는 이 차이를 drift라고 부른다. 한국어로는 “의도한 구성과 실제 구성의 어긋남” 정도로 이해하면 된다. drift는 반드시 누군가의 잘못을 의미하지 않는다. 장애 대응 중 잠시 바꾼 값이거나, 배포가 일부 노드에만 적용된 상태일 수도 있다. 다만 원인과 유효기간이 기록되지 않으면 다음 담당자가 어떤 상태를 유지해야 하는지 알 수 없게 된다.</p>
+<h2 id="section-9">5. 캐시 정책: TTL과 eviction을 섞어 생각하지 않기</h2>
 <p>TTL은 Time To Live, 즉 키가 얼마나 오래 유효한지를 나타내는 수명이다. 만료는 시간이 지났기 때문에 데이터를 더 이상 유효하게 취급하지 않는 것이다. eviction은 메모리 압력 때문에 어떤 키를 내보낼지 결정하는 정책이다. <code>allkeys-lru</code>를 사용한다고 상품 가격이 10분 후 자동으로 갱신되는 것은 아니다. 메모리가 넉넉하고 키가 자주 쓰이면 오래 남을 수 있다.</p>
 <p>상품 가격 캐시가 5분 이내로 신선해야 한다면 TTL 또는 명시적 무효화 전략이 필요하다. 메모리 초과 때 오래 안 쓰인 키를 내보내고 싶다면 eviction 정책이 필요하다. 하나는 <strong>업무상 유효기간</strong>, 다른 하나는 <strong>자원 관리 규칙</strong>이다. 둘을 함께 사용해도 모순되지 않는다. 근사 LRU는 모든 접근의 완전한 순위를 유지하는 이상적 LRU와 동일한 구현도 아니다.</p>
 <p>반대로 로그인 세션, 재고 카운터, 중복 처리 방지 키를 일반 캐시와 같은 인스턴스에 넣고 <code>allkeys-lru</code>를 켜면 중요한 상태가 메모리 부족 때 사라질 수 있다. 애플리케이션에서 TTL을 길게 준다고 eviction으로부터 보호되는 것도 아니다. 데이터의 재생성 가능성과 유실 영향을 기준으로 인스턴스 또는 정책 경계를 설계한다.</p>
-<h2 id="section-7">6. 격리 실습: 재시작 전후의 설정 차이</h2>
+<h2 id="section-10">6. 격리 실습: 재시작 전후의 설정 차이</h2>
 <p>이 실습은 <strong>자신이 만든 일회용 로컬 인스턴스</strong>에만 적용한다. <code>redis-server</code>와 <code>redis-cli</code>가 설치되어 있어야 한다. 포트 16379가 사용 중이면 빈 포트로 바꾸고 명령 전체에 동일하게 반영한다. 아래 결과 설명은 실행 결과를 주장하는 것이 아니라 확인할 관찰 기준이다.</p>
 <pre><code class="language-bash">LAB=$(mktemp -d /tmp/redis-config-lab.XXXXXX)
 cat &gt; &quot;$LAB/redis.conf&quot; &lt;&lt;EOFCONF
@@ -109,7 +201,107 @@ redis-server &quot;$LAB/redis.conf&quot;
 </code></pre>
 <p>재기동 후 <code>CONFIG GET maxmemory</code>가 다시 128 MiB를 나타내면 의도한 차이를 관찰한 것이다. 이번에는 96 MiB로 바꾼 후 <code>CONFIG REWRITE</code>를 실행한다. 쓰기 가능한 파일로 시작했다면 파일과 다음 기동값이 함께 달라지는지 확인한다. 실패하면 오류 메시지, 파일 권한, 실제 기동 파일을 살펴본다. 실패를 숨기고 다음 단계로 넘어가지 않는다.</p>
 <p>이 실습은 데이터 내구성 실험이 아니다. 지속 저장을 껐으므로 종료 때 데이터가 사라지는 것은 설정의 결과다. 실습이 끝나면 자신이 만든 프로세스만 종료하고 임시 경로를 기록한다. 시스템의 다른 Redis를 중지하거나 데이터를 삭제하는 정리 명령은 필요하지 않다.</p>
-<h2 id="section-8">7. Spring 애플리케이션 설정과 서버 설정의 경계</h2>
+<h2 id="section-11">따라 하기 A. 설정 실습의 명령 한 줄씩 해설하기</h2>
+<p>앞의 실습에서 <code>mktemp -d</code>를 사용하는 목적은 기존 Redis 데이터와 섞이지 않는 새로운 디렉터리를 만드는 것이다. 경로 이름의 무작위 부분은 다른 실습과 충돌할 가능성을 줄인다. 디렉터리가 임시라는 사실만으로 파일이 자동 삭제되거나 서버가 자동 종료되는 것은 아니다. 실행한 프로세스와 생성한 경로를 직접 기록해야 한다.</p>
+<p><code>LAB=$(...)</code>는 명령의 출력 경로를 현재 셸 변수에 담는다. 새 터미널은 이 변수를 자동으로 공유하지 않는다. 두 번째 터미널에서 <code>$LAB</code>이 비어 있는데 같은 명령을 사용하면 전혀 다른 경로를 보거나 실패할 수 있다. 그래서 첫 터미널에서 <code>printf &#39;%s\n&#39; &quot;$LAB&quot;</code>로 경로를 확인해 두는 것이 좋다. 이 출력에는 이 실습에서 생성한 임시 경로만 들어 있으며 비밀번호는 없다.</p>
+<p>설정의 <code>dir</code>는 영속성 파일 등 서버가 다루는 관련 파일의 기준 디렉터리로 쓰인다. <code>dir</code>를 적었다고 데이터가 자동으로 영속화되지는 않는다. RDB 자동 저장과 AOF를 꺼 둔 예시라면 별도 저장 명령을 실행하지 않는 한 지속 저장을 기대할 수 없다. 디렉터리 위치와 영속성 활성화 여부는 두 개의 다른 설정 축이다.</p>
+<p><code>daemonize no</code> 때문에 서버 실행 명령이 끝나지 않는 것은 정상이다. 프로그램이 멈춘 것이 아니라 요청을 기다리는 중일 수 있다. 첫 터미널에서 서버 로그를 보고, 두 번째 터미널에서 클라이언트 명령을 보내면 서버와 클라이언트가 다른 프로세스라는 사실도 눈으로 확인할 수 있다. 서버를 백그라운드로 숨기지 않아 시작 실패와 포트 충돌을 발견하기 쉽다.</p>
+<p><code>redis-cli -h 127.0.0.1 -p 16379 PING</code>은 사용할 주소와 포트를 명시한다. 옵션을 생략하면 도구의 기본 목적지로 접속할 수 있으므로, 실습의 모든 명령에 같은 옵션을 붙인다. 중요한 것은 명령이 짧은지가 아니라 <strong>내가 만든 실습 인스턴스에만 요청하는지</strong>다. 기본 포트로 켜져 있는 다른 개발용 Redis에 설정 변경을 보내면 실습 결과도 믿을 수 없고 다른 작업에 영향을 줄 수 있다.</p>
+<p><code>CONFIG GET maxmemory</code>의 결과는 CLI의 출력 모드에 따라 번호가 붙은 배열처럼 보이거나 줄 단위로 보일 수 있다. 번호와 따옴표는 CLI 표현일 수 있으므로 설정값에 포함된다고 생각하지 않는다. RESP 버전과 클라이언트에 따라 응답을 표현하는 방식도 다를 수 있다. 검증 코드는 화면 문자열 전체를 그대로 비교하기보다 반환된 이름과 값을 해석한 뒤 비교해야 한다.</p>
+<p>Redis 설정의 <code>mb</code> 단위는 이 예시에서 1024의 거듭제곱으로 해석된다. 따라서 128 MiB는 <code>128 × 1024 × 1024 = 134217728</code>바이트다. 96 MiB는 <code>100663296</code>바이트다. UI의 “MB” 표기가 1000 기준인지 1024 기준인지 다른 시스템에서는 확인해야 한다. 단위를 명시하지 않은 숫자 두 개를 보고 사용량이 달라졌다고 단정하면 안 된다.</p>
+<p>재시작 실습의 핵심 결과는 다음처럼 기록하면 된다. 첫 번째 실행의 현재값, <code>CONFIG SET</code> 이후의 현재값, 변경 직후의 파일값, 두 번째 실행의 현재값을 한 표에 적는다. 이 네 칸이 있으면 “설정 변경은 성공했는데 왜 돌아갔는가?”를 감정이나 기억 대신 관찰로 설명할 수 있다. 예상과 다르다면 버그를 단정하기 전에 실제로 동일한 파일과 동일한 인자로 실행했는지부터 확인한다.</p>
+<table>
+<thead>
+<tr>
+<th>관찰 지점</th>
+<th align="right">REWRITE 없이 변경했을 때 예상</th>
+<th>왜 이 지점을 보는가</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>최초 CONFIG GET</td>
+<td align="right">134217728</td>
+<td>초기 입력을 적용했는지 확인</td>
+</tr>
+<tr>
+<td>SET 96mb 직후</td>
+<td align="right">100663296</td>
+<td>런타임 변경을 받아들였는지 확인</td>
+</tr>
+<tr>
+<td>파일의 지시문</td>
+<td align="right">maxmemory 128mb</td>
+<td>SET이 파일을 고치지 않음을 확인</td>
+</tr>
+<tr>
+<td>같은 파일로 재시작 후</td>
+<td align="right">134217728</td>
+<td>다음 기동이 파일을 다시 읽음을 확인</td>
+</tr>
+</tbody></table>
+<p>이 값은 앞의 루프백 실습을 명령행 덮어쓰기 없이 수행한다는 조건의 예상이다. 테스트 결과를 공유할 때는 예상표와 실제표를 구분한다. 실행하지 않은 표에 “검증 완료”라고 붙이지 않는다.</p>
+<h2 id="section-12">따라 하기 B. Java로 설정 차이를 판정하는 작은 모델 만들기</h2>
+<p>설정 운영을 코드로 이해하려면 네트워크부터 구현할 필요는 없다. 먼저 <strong>원하는 값과 관찰한 값을 비교하는 판단 로직</strong>을 작은 순수 Java 코드로 분리해 보자. 순수하다는 말은 이 코드가 Redis에 연결하거나 설정을 변경하지 않고, 입력받은 값만으로 결과를 만든다는 뜻이다. 아래 코드는 Java 21로 독립 실행할 수 있는 학습 모델이다.</p>
+<pre><code class="language-java">import java.util.ArrayList;
+import java.util.List;
+
+public final class RedisConfigContract {
+    record Expected(long maxmemoryBytes, String evictionPolicy) {
+        Expected {
+            if (maxmemoryBytes &lt;= 0) {
+                throw new IllegalArgumentException(&quot;expected limit must be positive&quot;);
+            }
+            if (evictionPolicy == null || evictionPolicy.isBlank()) {
+                throw new IllegalArgumentException(&quot;policy is required&quot;);
+            }
+        }
+    }
+
+    record Observed(String endpoint, long maxmemoryBytes,
+                    String evictionPolicy, String serverVersion) {}
+
+    static List&lt;String&gt; compare(Expected expected, Observed observed) {
+        List&lt;String&gt; differences = new ArrayList&lt;&gt;();
+        if (expected.maxmemoryBytes() != observed.maxmemoryBytes()) {
+            differences.add(&quot;maxmemory expected=&quot; + expected.maxmemoryBytes()
+                    + &quot; observed=&quot; + observed.maxmemoryBytes());
+        }
+        if (!expected.evictionPolicy().equals(observed.evictionPolicy())) {
+            differences.add(&quot;policy expected=&quot; + expected.evictionPolicy()
+                    + &quot; observed=&quot; + observed.evictionPolicy());
+        }
+        return List.copyOf(differences);
+    }
+
+    public static void main(String[] args) {
+        long mib = 1024L * 1024L;
+        Expected contract = new Expected(128L * mib, &quot;noeviction&quot;);
+        Observed before = new Observed(&quot;127.0.0.1:16379&quot;,
+                128L * mib, &quot;noeviction&quot;, &quot;example&quot;);
+        Observed changed = new Observed(&quot;127.0.0.1:16379&quot;,
+                96L * mib, &quot;noeviction&quot;, &quot;example&quot;);
+
+        if (!compare(contract, before).isEmpty()) {
+            throw new AssertionError(&quot;matching snapshot was rejected&quot;);
+        }
+        List&lt;String&gt; differences = compare(contract, changed);
+        if (differences.size() != 1) {
+            throw new AssertionError(&quot;one memory difference was expected&quot;);
+        }
+        System.out.println(differences.get(0));
+    }
+}
+</code></pre>
+<p>파일 이름은 공개 클래스 이름과 같은 <code>RedisConfigContract.java</code>로 저장한다. 실행 명령은 다음과 같다.</p>
+<pre><code class="language-bash">javac --release 21 RedisConfigContract.java
+java RedisConfigContract
+</code></pre>
+<p><code>record</code>는 관련 데이터를 묶어 전달할 때 사용하는 Java 문법이다. <code>Expected</code>는 배포 계약이고 <code>Observed</code>는 실제로 읽었다고 가정하는 관측 스냅샷이다. 모델에 endpoint와 serverVersion을 함께 넣은 이유는 숫자만 맞아도 다른 서버를 검사했을 수 있기 때문이다. 이 예시의 비교 함수는 메모리와 정책 두 항목만 검사한다. 실제 배포 검증에서는 대상 식별과 버전 허용 범위도 별도 검사해야 한다.</p>
+<p><code>1024L</code>의 <code>L</code>은 long 정수임을 나타낸다. 바이트 단위 숫자는 쉽게 커지므로 int 산술만으로 계산하지 않는 습관이 좋다. 지금 예시는 작은 수이지만, 같은 유틸리티가 수십 GiB를 다루도록 확장될 수 있다. 비교에 부동소수점 비율이나 화면용 반올림 문자열을 쓰지 않은 이유도 명확하다. 설정 계약은 정확한 바이트 수로 비교하고, 사람이 읽을 때만 MiB나 GiB로 바꾸면 된다.</p>
+<p><code>List.copyOf</code>는 결과 목록을 호출자가 바꾸지 못하게 복사해 반환한다. 이것이 Redis 안전성을 보장하는 장치는 아니다. 비교 결과를 이후 코드가 실수로 수정하지 않도록 Java 객체의 책임을 제한하는 선택이다. 분산 시스템의 문제와 애플리케이션 코드의 유지보수 문제는 연결되어 있지만 같은 수준의 보장은 아니다.</p>
+<p>이 모델은 <code>maxmemory=0</code>을 배포 계약에서 거절한다. Redis 자체가 0을 문법 오류로 취급한다는 뜻은 아니다. Redis에서 0은 별도 의미를 가질 수 있지만, 이 실습 계약은 명시적인 양의 한도가 있는 환경만 다루겠다는 뜻이다. <strong>제품이 허용하는 값과 우리 서비스가 허용하는 값은 다르다.</strong> 입력 검증을 작성할 때 어떤 규칙인지 구분해 주석과 예외 메시지를 남겨야 한다.</p>
+<p>이 코드를 실제 도구로 확장한다면 데이터 수집 어댑터와 비교 함수를 분리한다. 어댑터는 승인된 관리 연결로 필요한 항목만 읽고 <code>Observed</code>를 만든다. 비교 함수는 네트워크를 몰라도 테스트할 수 있다. 설정 변경을 수행하는 코드는 별도로 둔다. 검사 실패를 발견했다고 자동으로 <code>CONFIG SET</code>을 호출하면 진단 도구가 예고 없는 운영 변경 도구로 바뀌므로, 그런 자동 복구는 별도의 명시적 정책이 있을 때만 설계한다.</p>
+<h2 id="section-13">7. Spring 애플리케이션 설정과 서버 설정의 경계</h2>
 <p>Java 개발자는 <code>application.yml</code>에 Redis 호스트와 포트를 적으면 Redis 설정까지 끝났다고 느끼기 쉽다. 그러나 연결 설정은 <strong>클라이언트가 누구에게 어떻게 요청할지</strong>를 결정하고, <code>redis.conf</code>는 <strong>서버가 어떻게 동작할지</strong>를 결정한다. 클라이언트의 타임아웃을 길게 바꾸어도 서버의 <code>maxmemory</code>가 늘어나지 않는다. 커넥션 풀 크기를 늘려도 서버의 비싼 명령이 빨라지는 것은 아니다.</p>
 <pre><code class="language-java">// 개념 예시: StringRedisTemplate을 주입받은 서비스 메서드
 public void cacheDisplayName(String userId, String displayName) {
@@ -119,17 +311,72 @@ public void cacheDisplayName(String userId, String displayName) {
 </code></pre>
 <p>여기서 TTL을 명령과 함께 전달하는 이유는 값 저장과 수명 설정 사이에 프로세스가 죽어 “만료 없는 캐시”를 남기는 일을 피하기 위해서다. 코드의 <code>Duration</code>은 애플리케이션의 신선도 요구다. 서버의 eviction 정책은 별도로 결정한다. 코드 예시는 프레임워크 버전별 연결 구성 전체를 대신하지 않으며, 실제 의존성 버전의 API와 직렬화 설정을 확인해야 한다.</p>
 <p>애플리케이션 계정에 <code>CONFIG SET</code> 권한을 주는 방식으로 서버 정책을 자동 수정하게 만들지 않는다. 서비스가 배포될 때마다 서버 전체 정책이 바뀌면 여러 애플리케이션이 함께 사용하는 데이터에 영향을 줄 수 있다. 애플리케이션에는 필요한 데이터 명령만 허용하고, 운영 설정 변경은 별도 관리자 경로로 분리하는 것이 책임 경계를 선명하게 한다.</p>
-<h2 id="section-9">8. 운영 사고를 설정 경로로 역추적하기</h2>
+<h2 id="section-14">Spring 보충. application.yml의 숫자는 누구의 행동을 바꾸는가</h2>
+<p>다음은 Spring Boot 3 계열의 기본 standalone 연결을 이해하기 위한 형태다. 실제 프로젝트는 사용하는 Boot 버전과 프로파일, 환경변수 주입 규칙을 확인해야 한다. 여기서는 로컬 Redis의 위치와 두 종류의 타임아웃을 나누어 본다.</p>
+<pre><code class="language-yaml">spring:
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 16379
+      connect-timeout: 1s
+      timeout: 500ms
+</code></pre>
+<p><code>connect-timeout</code>은 연결을 만드는 단계의 대기 제한을 이해하는 출발점이다. <code>timeout</code>은 Redis 작업의 응답을 기다리는 클라이언트 설정과 관련된다. 정확히 어느 단계에 적용되는지는 선택한 클라이언트와 API, 연결 방식의 의미를 확인해야 한다. 이 예시의 1초와 500밀리초는 권장값이 아니라 <strong>서로 다른 제한을 별도로 생각하기 위한 숫자</strong>다.</p>
+<p>HTTP 요청에 800밀리초의 전체 예산이 있는데 Redis 응답만 2초 기다리고 그 뒤 DB까지 조회하면 요청 전체의 목표를 지킬 수 없다. 반대로 타임아웃을 지나치게 짧게 잡으면 평소의 작은 지연에도 실패가 늘어나고, 재시도가 부하를 키울 수 있다. 타임아웃 설정은 “짧을수록 좋다”가 아니라 전체 응답 시간, 의존 서비스의 분포, 실패 시 경로를 함께 정하는 문제다.</p>
+<p>여기서 서버의 <code>timeout</code>이라는 이름과 혼동하면 안 된다. 서로 다른 시스템이 같은 단어를 써도 같은 기능은 아니다. Redis 서버의 연결 유휴 시간 관련 설정과 Spring 클라이언트의 명령 응답 제한을 이름만 보고 동일시하면, 서버 설정을 바꾸고도 애플리케이션 오류가 그대로인 이유를 설명하지 못한다. 설정 문서를 볼 때는 항상 <strong>설정을 읽는 주체</strong>부터 적자.</p>
+<p>캐시 TTL 또한 별개다. 아래 코드는 값을 얼마나 오래 캐시에 남길지 명령에 포함한다. 연결 타임아웃이나 서버 메모리 한도를 바꾸지 않는다.</p>
+<pre><code class="language-java">import java.time.Duration;
+import java.util.Objects;
+import org.springframework.data.redis.core.StringRedisTemplate;
+
+public final class GoodsNameCache {
+    private final StringRedisTemplate redis;
+    private final Duration ttl;
+
+    public GoodsNameCache(StringRedisTemplate redis, Duration ttl) {
+        this.redis = Objects.requireNonNull(redis);
+        this.ttl = Objects.requireNonNull(ttl);
+        if (ttl.isNegative() || ttl.isZero() || ttl.toMillis() == 0) {
+            throw new IllegalArgumentException(&quot;TTL must be at least one millisecond&quot;);
+        }
+    }
+
+    public void put(long goodsId, String name) {
+        if (goodsId &lt;= 0) throw new IllegalArgumentException(&quot;invalid goodsId&quot;);
+        redis.opsForValue().set(key(goodsId), Objects.requireNonNull(name), ttl);
+    }
+
+    public String get(long goodsId) {
+        if (goodsId &lt;= 0) throw new IllegalArgumentException(&quot;invalid goodsId&quot;);
+        return redis.opsForValue().get(key(goodsId));
+    }
+
+    private String key(long goodsId) {
+        return &quot;goods:name:v1:&quot; + goodsId;
+    }
+}
+</code></pre>
+<p><code>v1</code>은 Redis 서버 버전이 아니라 애플리케이션이 정한 캐시 표현의 버전이다. 나중에 이름 문자열 대신 다른 형식의 값을 넣을 때 호환성 경계를 나누는 데 사용할 수 있다. 다만 버전을 바꾸면 기존 키가 즉시 삭제되는 것은 아니므로 두 세대의 키가 잠시 함께 남는 메모리 비용을 고려해야 한다.</p>
+<p>생성자에서 TTL을 받는 이유는 정책을 코드 중간의 숨은 숫자로 두지 않기 위해서다. 하지만 TTL을 외부 설정으로 뺀다고 좋은 값이 자동으로 선택되지는 않는다. 상품명 변경 후 얼마 동안 옛 이름을 보여 줘도 되는지, 가격이나 재고와 같은 정책을 써도 되는지 업무 요구를 먼저 정해야 한다. 코드의 유연성과 정책의 정확성은 다른 문제다.</p>
+<p><code>get</code>은 키가 없으면 null을 받을 수 있으며, 통신 오류는 예외 경로가 될 수 있다. 이 두 가지를 같은 “캐시 없음”으로 취급할지 결정하는 것은 상위 서비스의 책임이다. 코드에서 모든 예외를 잡아 null로 바꾸지 않은 이유는 장애와 정상적인 miss를 몰래 섞지 않기 위해서다. 캐시 장애 때 DB로 우회하려면 DB의 여유 용량과 요청 제한도 함께 설계해야 한다.</p>
+<p>또한 이 코드는 Spring 의존성이 있는 예제이므로 앞의 독립 Java 모델처럼 <code>javac</code> 한 줄만으로 실행되지 않는다. Spring Data Redis 의존성과 연결 팩토리, 빈 구성이 필요하다. 클래스에 코드가 실려 있다는 사실과 해당 프로젝트에서 실제 Redis와 통합 검사를 했다는 사실을 구분한다. 예제의 목적은 서버 설정, 클라이언트 설정, 키의 수명이라는 세 경계를 읽는 데 있다.</p>
+<h2 id="section-15">8. 운영 사고를 설정 경로로 역추적하기</h2>
 <p><strong>사례 A: 재시작 이후 갑자기 OOM 오류가 늘었다.</strong> 먼저 서버가 정말 메모리를 다 쓴 것인지, Redis의 <code>noeviction</code> 쓰기 거절인지, OS가 프로세스를 종료한 것인지 구분한다. 그 다음 재시작 전후의 <code>maxmemory</code>, 정책, 이미지 버전, 기동 인자를 비교한다. 어제 긴급하게 늘린 한도가 파일에 남지 않아 이전 값으로 돌아갔을 수 있다. 해결은 현재값을 다시 키우는 것에서 끝나지 않는다. 왜 원본 구성이 갱신되지 않았는지를 수정해야 한다.</p>
 <p><strong>사례 B: CONFIG REWRITE가 성공했는데 다음 배포에서 되돌아갔다.</strong> 컨테이너 내부 파일만 수정됐고, 다음 컨테이너는 Git의 옛 설정으로 생성되었을 수 있다. 이때 Redis 명령이 실패한 것이 아니라 구성 관리 경로가 두 개가 된 것이다. 원본 템플릿을 수정하고 재배포 후 현재값을 검증한다.</p>
 <p><strong>사례 C: 접속이 안 되어 bind를 모든 인터페이스로 바꿨다.</strong> 연결 문제를 해결하면서 노출 범위를 넓힌 위험한 대응이다. 먼저 주소, 포트, 방화벽, 컨테이너 네트워크, 인증, TLS 요구를 나누어 확인한다. 루프백 제한 해제는 보안 설계 변경이며 별도 검토가 필요하다. “접속된다”와 “안전하게 접속된다”는 같은 합격 기준이 아니다.</p>
-<h2 id="section-10">9. 변경 검토표와 스스로 설명할 문제</h2>
+<h2 id="section-16">운영 추론 연습. 관찰에서 결론으로 한 단계씩 이동하기</h2>
+<p>가상의 입고 화면에서 상품명 캐시 저장 오류가 증가했다고 하자. 대시보드에 Redis 메모리 사용량이 높게 보인다는 이유로 곧바로 서버 RAM을 늘리는 것은 너무 빠른 결론이다. 우선 오류 종류를 확인한다. Redis가 <code>noeviction</code> 정책 아래 메모리 관련 쓰기 오류를 반환한 경우와 연결 자체가 끊긴 경우는 출발점이 다르다. 전자는 서버가 살아서 요청을 판단한 것이고, 후자는 프로세스 종료·네트워크·타임아웃 등 추가 조사가 필요하다.</p>
+<p>다음으로 변경 시점을 맞춘다. 오류가 재배포 직후 시작됐는가, 트래픽 증가 시점에 시작됐는가, 새로운 종류의 키를 쓰기 시작한 시점인가? 시간의 상관관계는 원인을 확정하지 않지만 가설을 만든다. “배포 직후부터 한도가 줄었다”는 가설이 있다면 배포 원본과 현재 <code>CONFIG GET</code>을 비교한다. “값이 커졌다”는 가설이라면 샘플 키의 크기와 직렬화 변경을 확인한다. 같은 메모리 경고를 보더라도 필요한 증거는 가설마다 달라진다.</p>
+<p>그 다음에는 바꾸려는 설정의 부작용을 적는다. 한도를 올리면 즉시 쓰기 여유가 늘 수 있지만 OS나 컨테이너의 메모리 경계를 넘을 위험이 있다. 정책을 eviction으로 바꾸면 쓰기 오류가 줄어도 중요한 상태가 사라질 수 있다. TTL을 줄이면 메모리 사용은 줄어도 원본 DB 조회가 늘 수 있다. 어느 선택도 다른 비용이 없는 만능 해결책이 아니다. <strong>오류율 하나를 낮추는 것과 시스템 전체를 안정화하는 것은 다르다.</strong></p>
+<p>마지막으로 변경 효과를 시간 구간으로 관찰한다. 변경 직후의 성공 응답만 보지 말고 오류율, 캐시 적중률, DB 조회량, 메모리, 지연을 같은 구간에서 비교한다. 캐시 적중률이 낮아졌는데 Redis 오류만 사라졌다면 부하가 DB로 이동했을 수 있다. 증상을 없앤 것인지, 원인을 해결한 것인지 판단하려면 의존 서비스까지 이어서 봐야 한다.</p>
+<p>이 연습에서 중요한 능력은 Redis 옵션을 많이 외우는 것이 아니다. <strong>관찰한 사실, 그 사실로 만든 가설, 가설을 구별할 추가 증거, 변경의 부작용</strong>을 서로 다른 문장으로 쓰는 능력이다. 면접에서도 “메모리가 부족하면 증설합니다”보다 이 흐름으로 설명하면 판단의 깊이가 드러난다.</p>
+<h2 id="section-17">9. 변경 검토표와 스스로 설명할 문제</h2>
 <p>설정 변경 요청에는 적어도 목적, 대상 인스턴스, 기존값, 새 값, 서비스 영향, 확인 지표, 롤백값, 영속화 경로를 적는다. 이 중 하나가 비어 있으면 팀원은 명령 한 줄은 알지만 의도와 위험은 알 수 없다. 특히 메모리 한도를 낮추는 변경은 그 순간의 사용량에 따라 eviction이나 쓰기 오류를 유발할 수 있으므로 단순히 숫자만 작게 쓰는 작업이 아니다.</p>
 <p>연습 문제를 하나 생각해 보자. 파일에는 2 GiB, 기동 인자에는 3 GiB, 어제 <code>CONFIG SET</code>으로는 4 GiB를 적용했다. 지금 <code>CONFIG GET</code>이 4 GiB라고 해서 내일도 4 GiB라고 말할 수 있는가? 정답은 아니다. 기동 경로와 구성 영속화 여부를 조사해야 한다. 이 질문에 “재시작해 보면 되죠”라고만 답하면 운영 검증 순서가 거꾸로다. 먼저 문서와 실행 경로로 예상값을 만든 다음 안전한 환경에서 재시작해 예상과 비교해야 한다.</p>
-<h2 id="section-11">10. 재시작 검증을 자동화할 때의 합격 기준</h2>
+<h2 id="section-18">10. 재시작 검증을 자동화할 때의 합격 기준</h2>
 <p>테스트 환경에서 재시작 검증을 자동화한다면 응답 가능 여부와 설정 일치를 분리해 검사한다. PING이 성공해도 다른 포트의 옛 프로세스에 연결했을 수 있고, 설정은 예상과 달라도 서버 자체는 정상 응답할 수 있다. 먼저 대상 주소와 프로세스 식별 정보를 확인하고, 다음으로 핵심 설정의 현재값을 읽고, 마지막으로 작은 테스트 키의 저장·만료 동작을 확인한다. 데이터 검증은 업무 키가 아닌 전용 접두사를 사용한다.</p>
 <p>예를 들어 배포 계약을 “루프백 실습 주소, 포트 16379, noeviction, 128 MiB”로 정했다면 각 항목을 별도 assertion으로 다룬다. 실패 시 전체 CONFIG 출력을 무조건 첨부하지 말고 필요한 항목과 비밀을 제거한 오류만 남긴다. 테스트가 원본 설정 파일을 수정했다면 종료 시 복구하거나 일회용 디렉터리를 사용한다. 테스트의 목적은 서버가 어떻게든 시작하게 만드는 것이 아니라, 의도한 구성으로 시작했음을 증명하는 것이다.</p>
-<h2 id="section-12">면접 질문과 상세 답변</h2>
+<h2 id="section-19">면접 질문과 상세 답변</h2>
 <details class="question"><summary>1. redis.conf를 수정했는데 실행 중인 Redis에 반영되지 않는 이유는 무엇인가요?</summary><div class="answer">
 
 <p>설정 파일은 일반적으로 기동 시 읽는 입력이다. 이미 실행 중인 프로세스가 파일 변경을 계속 감시해서 자동 반영하는 것은 아니다. 동적 변경이 지원되는 항목은 관리 권한으로 <code>CONFIG SET</code>을 사용할 수 있고, 지원되지 않는 항목은 계획된 재시작이 필요할 수 있다. 답변에서 중요한 것은 “재시작하세요”보다 먼저 실제 기동 파일, 명령행 덮어쓰기, 현재 <code>CONFIG GET</code> 값을 확인한다는 순서다. 잘못된 파일을 고쳤다면 재시작해도 결과는 바뀌지 않는다.</p>
@@ -170,12 +417,50 @@ public void cacheDisplayName(String userId, String displayName) {
 <p>명령의 OK 응답 하나로 충분하지 않다. 변경 전후의 현재값, 예상한 서비스 지표, 오류율과 지연, 필요한 백그라운드 작업의 완료 상태, 원본 구성 반영, 재기동 후 일치 검증이 증거가 된다. 변경의 범위에 맞춰 확인해야 하며, 모든 변경에 무조건 재시작을 요구하는 것은 아니다. 다만 재시작 내구성이 목표라면 실제 재기동 검증이나 검증된 배포 테스트가 필요하다.</p>
 </div></details>
 
-<h2 id="section-13">정리와 공식 자료</h2>
+<h2 id="section-20">추가 면접 문답: 정답 뒤의 이유까지 설명하기</h2>
+<details class="question"><summary>9. Redis가 PONG을 반환하면 배포 검증이 끝난 것 아닌가요?</summary><div class="answer">
+
+<p>아니다. PONG은 해당 연결로 PING을 처리할 수 있음을 보여 준다. 원하는 버전의 인스턴스인지, 의도한 메모리 정책인지, 애플리케이션 계정이 필요한 데이터 명령을 수행할 수 있는지, 재시작 후 구성이 유지되는지까지 보여 주지는 않는다.</p>
+<p>식당에 전화했을 때 누군가 “여보세요”라고 대답했다고 오늘 주문한 메뉴가 준비되어 있다는 뜻은 아닌 것과 비슷하다. 통신 가능 여부는 첫 확인이고 업무 계약 충족은 다음 확인이다. 배포 검사에서는 주소와 버전을 식별하고, 필요한 설정을 읽고, 전용 테스트 키로 최소 기능을 확인한다. 검사의 목적에 따라 내구성이나 장애 전환은 별도 실험으로 분리한다.</p>
+<p>꼬리 질문으로 “모든 설정을 전부 비교해야 하나요?”가 나오면 서비스 계약에 영향을 주는 항목을 선정한다고 답한다. 전체 출력의 완전 일치는 버전별 표현 차이와 비밀 노출을 만들 수 있다. 무엇을 왜 검사하는지 명확한 좁은 검사가 더 유용할 수 있다.</p>
+</div></details>
+
+<details class="question"><summary>10. 설정 파일을 고친 뒤 애플리케이션만 재시작하면 Redis 설정도 바뀌나요?</summary><div class="answer">
+
+<p>Redis 서버와 애플리케이션은 별도 프로세스이므로 일반적으로 그렇지 않다. Spring의 연결 설정을 고치고 Spring을 다시 시작하면 새 연결 대상이나 클라이언트 정책이 적용될 수 있다. Redis 서버의 기동 설정 파일을 고친 경우에는 서버가 그 파일을 다시 읽거나 지원되는 런타임 변경을 받아야 한다. 한쪽의 재시작이 다른 쪽의 파일을 다시 읽게 만들지는 않는다.</p>
+<p>면접에서는 프로세스 경계를 먼저 그린다. “이 파일을 읽는 주체는 Spring이고, 저 파일을 읽는 주체는 Redis입니다”라고 말하면 혼동이 줄어든다. 컨테이너를 함께 재생성하는 배포 도구가 있다면 결과적으로 둘 다 재시작될 수 있지만, 그것은 배포 도구의 동작이지 Redis와 Spring이 본래 하나의 프로세스라는 뜻이 아니다.</p>
+</div></details>
+
+<details class="question"><summary>11. 메모리 한도를 낮췄는데 RSS가 그대로면 CONFIG SET이 실패한 건가요?</summary><div class="answer">
+
+<p>그렇게 결론 내릴 수 없다. 먼저 CONFIG GET으로 설정이 적용됐는지 확인한다. 설정값은 메모리 정책의 기준이고 RSS는 OS가 관찰하는 물리 메모리 상주량이다. 키가 제거되어 Redis 내부의 할당량이 줄어도 allocator가 확보한 페이지를 바로 OS에 반환하지 않을 수 있다. 복제 버퍼와 영속성 작업 등 다른 메모리 요인도 있다.</p>
+<p>온도조절기의 목표값과 방의 현재 온도를 나누어 생각하면 쉽다. 다만 Redis의 메모리 변화는 단순한 시간 지연만의 문제가 아니라 계산 범위와 할당 방식도 다르다. 따라서 “조금 기다리면 무조건 같아진다”는 답도 틀리다. 설정 적용, 데이터셋 사용량, allocator 상태, RSS를 서로 다른 지표로 비교해야 한다.</p>
+</div></details>
+
+<details class="question"><summary>12. 설정 검증 프로그램이 잘못된 값을 발견하면 자동 수정하게 해도 되나요?</summary><div class="answer">
+
+<p>그것은 단순 검증에서 자동 운영으로 책임이 커지는 설계다. 잘못된 대상에 연결했거나 일시적 긴급 변경을 발견했을 때 검증기가 임의로 복구하면 오히려 장애를 만들 수 있다. 예를 들어 운영자가 메모리 압박을 완화하려고 한도를 바꿨는데 오래된 계약을 가진 프로그램이 되돌릴 수 있다.</p>
+<p>먼저 검증은 차이를 보고하고, 변경은 승인된 원본 구성과 운영 절차로 수행하도록 분리하는 것이 이해하기 쉽다. 자동 복구가 필요한 시스템이라면 소유권, 허용 변경 범위, 변경 충돌 처리, 중단 조건, 감사 기록을 별도 정책으로 설계한다. 자동화가 나쁜 것이 아니라 관찰과 변경을 구별하지 않는 자동화가 위험한 것이다.</p>
+</div></details>
+
+<details class="question"><summary>13. TTL을 5분으로 정했으면 캐시는 반드시 5분 동안 존재하나요?</summary><div class="answer">
+
+<p>아니다. TTL은 최대 유효기간을 정하는 데 쓰이지만, 그 전에 명시적 삭제나 덮어쓰기, eviction, 장애가 발생할 수 있다. 따라서 TTL이 남았다는 가정만으로 다음 요청이 반드시 hit라고 설계하면 안 된다. 캐시를 사용하는 조회 경로에는 정상적인 miss 처리가 필요하다.</p>
+<p>반대로 TTL이 끝났다는 것은 그 값을 유효한 캐시로 계속 제공해도 된다는 의미가 아니다. Redis가 내부적으로 만료 키를 정리하는 방식과 애플리케이션의 업무상 유효성은 구분해야 한다. 실무에서는 “얼마나 오래 보관할까?”와 “없을 때 어떻게 재생성할까?”를 한 쌍으로 설계한다. 이 장에서 TTL과 eviction을 별도 설정 축으로 나눈 이유다.</p>
+</div></details>
+
+<h2 id="section-21">정리와 공식 자료</h2>
 <p>설정 운영의 핵심은 숫자를 많이 외우는 것이 아니라 <strong>현재값·다음 기동값·승인된 원본값을 구별하는 습관</strong>이다. 다음 장에서는 그중 가장 자주 오해하는 메모리 한도를 OS 관점으로 확장한다.</p>
 <ul>
-<li><a href="https://redis.io/docs/latest/operate/oss_and_stack/management/config/">Redis configuration</a>: 설정 파일과 동적 변경의 공식 설명.</li>
-<li><a href="https://redis.io/docs/latest/commands/config-get/">CONFIG GET</a>, <a href="https://redis.io/docs/latest/commands/config-set/">CONFIG SET</a>: 실행 버전의 지원 여부와 동적 설정 확인.</li>
-<li><a href="https://redis.io/docs/latest/commands/config-rewrite/">CONFIG REWRITE</a>: 파일 반영의 범위와 제약.</li>
-<li><a href="https://redis.io/docs/latest/develop/reference/eviction/">Key eviction</a>: 메모리 정책과 만료의 차이.</li>
+<li><p><a href="https://redis.io/docs/latest/operate/oss_and_stack/management/config/">Redis configuration</a>: 설정 파일과 동적 변경의 공식 설명.</p>
+</li>
+<li><p><a href="https://redis.io/docs/latest/commands/config-get/">CONFIG GET</a>, <a href="https://redis.io/docs/latest/commands/config-set/">CONFIG SET</a>: 실행 버전의 지원 여부와 동적 설정 확인.</p>
+</li>
+<li><p><a href="https://redis.io/docs/latest/commands/config-rewrite/">CONFIG REWRITE</a>: 파일 반영의 범위와 제약.</p>
+</li>
+<li><p><a href="https://redis.io/docs/latest/develop/reference/eviction/">Key eviction</a>: 메모리 정책과 만료의 차이.</p>
+</li>
+<li><p><a href="https://docs.spring.io/spring-boot/docs/3.2.0/reference/html/application-properties.html">Spring Boot 3.2 연결 설정 속성</a>: 예제의 spring.data.redis 속성 의미.</p>
+</li>
 </ul>
 </article><nav aria-label="연재 이동"><a href="/posts/redis-study-00.html">← Redis 학습 지도와 기초 다지기: 명령어에서 장애 설계까지</a><a href="/posts/redis-study-02.html">운영 환경과 메모리 여유 — maxmemory 밖에서 벌어지는 일 →</a></nav><footer>Redis 학습 연재 · <a href="/learning/redis/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

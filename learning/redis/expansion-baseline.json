@@ -1,0 +1,192 @@
+{
+  "baseCommit": "94e8975d49101d16d68b445a030944b3f846ad87",
+  "measurement": "Unicode code points in Markdown body, excluding JSON metadata",
+  "lessons": [
+    {
+      "file": "00-roadmap.md",
+      "baselineCharacters": 16198,
+      "minimumCharacters": 32396,
+      "baselineSha256": "7f9ed12ed3bdb5d94911eb3dd81fd9d3dd93779aec3dfc24828c154d9177c281"
+    },
+    {
+      "file": "01-configuration.md",
+      "baselineCharacters": 11989,
+      "minimumCharacters": 23978,
+      "baselineSha256": "c2a91330133afb1c634d5f7a1480a256d6aeaea647e66446e79f46e71469332e"
+    },
+    {
+      "file": "02-os-memory.md",
+      "baselineCharacters": 13309,
+      "minimumCharacters": 26618,
+      "baselineSha256": "eeaf5390a2fc30f60fb05dc9ea5dab515e2d77d533cb7999ea89966730d39ad3"
+    },
+    {
+      "file": "03-memory-encoding.md",
+      "baselineCharacters": 13394,
+      "minimumCharacters": 26788,
+      "baselineSha256": "b8a1de5015cfd55a139ba98165784f4895c409315a2af167f28e60566255994a"
+    },
+    {
+      "file": "04-rdb-persistence.md",
+      "baselineCharacters": 12351,
+      "minimumCharacters": 24702,
+      "baselineSha256": "d7a9576185c6839e3523f09ae9d925969ef2ae7781409526d207bcf6768dfab2"
+    },
+    {
+      "file": "05-aof.md",
+      "baselineCharacters": 14692,
+      "minimumCharacters": 29384,
+      "baselineSha256": "a20f4114673e8f474668bb3dc0b0171da8567706ed4e83c11d668a1441a5970f"
+    },
+    {
+      "file": "06-backup-dr.md",
+      "baselineCharacters": 15871,
+      "minimumCharacters": 31742,
+      "baselineSha256": "29f082aeabdccd6b58d2f4f882dde388ef22c4ae44287770e9ade01b676123f4"
+    },
+    {
+      "file": "07-replication-sync.md",
+      "baselineCharacters": 14924,
+      "minimumCharacters": 29848,
+      "baselineSha256": "81ba02eef51e6ba3f3db8c753841a52bc012c85ff46ac75ead53c48310643e2a"
+    },
+    {
+      "file": "08-replication-operations.md",
+      "baselineCharacters": 17118,
+      "minimumCharacters": 34236,
+      "baselineSha256": "7558aefce2cca171f573a5fbb87fe6265af4d932f3defbb93da8a92240a76aac"
+    },
+    {
+      "file": "09-sentinel-topology.md",
+      "baselineCharacters": 11922,
+      "minimumCharacters": 23844,
+      "baselineSha256": "f1086189c942d7a051698e4a318ffbb6833bf5bad0e333acfd644e9534f7a93c"
+    },
+    {
+      "file": "10-sentinel-failover-api.md",
+      "baselineCharacters": 12534,
+      "minimumCharacters": 25068,
+      "baselineSha256": "5fef6bdfb69e920f5e203f0ec989a4837a5d8dbb2545e5ecdbdadbf3a2b91da9"
+    },
+    {
+      "file": "11-sentinel-auth-detection.md",
+      "baselineCharacters": 12997,
+      "minimumCharacters": 25994,
+      "baselineSha256": "d68ab4cdfbf4be7b3cb87915492cb7131bba3524edbf686005d23d79ba224dc9"
+    },
+    {
+      "file": "12-sentinel-consensus-partition.md",
+      "baselineCharacters": 12780,
+      "minimumCharacters": 25560,
+      "baselineSha256": "7ed7e93273322ef96cbda52861085e80445205c3d911931a3dbec7ca8447f9c3"
+    },
+    {
+      "file": "13-cluster-sharding-guarantees.md",
+      "baselineCharacters": 11940,
+      "minimumCharacters": 23880,
+      "baselineSha256": "86b085072edf27438737a0f1a3c14057dd3628c72c2f845105f20b7cc20f5715"
+    },
+    {
+      "file": "14-cluster-lab-resharding.md",
+      "baselineCharacters": 12185,
+      "minimumCharacters": 24370,
+      "baselineSha256": "0e37abec2cc93ab4deb94477ea78233c7f4f511a1cd010dab43b074dff6291e4"
+    },
+    {
+      "file": "15-cluster-failover-node-changes.md",
+      "baselineCharacters": 12605,
+      "minimumCharacters": 25210,
+      "baselineSha256": "29eebdb4aabf84acb6861bc1c22a948f8575811c267335f6cb11d1d8d1adc4f0"
+    },
+    {
+      "file": "16-cluster-design-slot-model.md",
+      "baselineCharacters": 13102,
+      "minimumCharacters": 26204,
+      "baselineSha256": "cdd786061e091b33e191557b2ad7368a742bf2fe2c8bafde15ec8139a3521afd"
+    },
+    {
+      "file": "17-moved-ask-multikey.md",
+      "baselineCharacters": 12610,
+      "minimumCharacters": 25220,
+      "baselineSha256": "0a8803c33d7a288e2b487463a3c170dbded7d258ec690a68b5cb1aa98abe1c77"
+    },
+    {
+      "file": "18-cluster-failover-consensus.md",
+      "baselineCharacters": 13269,
+      "minimumCharacters": 26538,
+      "baselineSha256": "4fed8d2ed4fa3c84c32f4092a73080de4e9d2436176bb11b20254de2f4a467e6"
+    },
+    {
+      "file": "19-cluster-propagation-rejoin.md",
+      "baselineCharacters": 14175,
+      "minimumCharacters": 28350,
+      "baselineSha256": "707609e2a1caf6c0827055a8a61765c7d17db33c9dee29f37cf32166690f0bf1"
+    },
+    {
+      "file": "20-latency-slow-commands.md",
+      "baselineCharacters": 14101,
+      "minimumCharacters": 28202,
+      "baselineSha256": "195cd231061079a4e1948fbaaf106470f85cb85989ab4926de52b20f4702d014"
+    },
+    {
+      "file": "21-fork-memory-disk-latency.md",
+      "baselineCharacters": 15480,
+      "minimumCharacters": 30960,
+      "baselineSha256": "5307e6ccbed287c522b65b1034996c293de428a01cf8d98d5c0563c96de80247"
+    },
+    {
+      "file": "22-latency-monitor.md",
+      "baselineCharacters": 16551,
+      "minimumCharacters": 33102,
+      "baselineSha256": "658044c003362fb2972be44c9d03378d6e9e38736260a04cd3652870f919e1c2"
+    },
+    {
+      "file": "23-benchmark.md",
+      "baselineCharacters": 18552,
+      "minimumCharacters": 37104,
+      "baselineSha256": "90385af8a5bc60165c0565054e80b30a0df79921f350ba565cfd74664903c729"
+    },
+    {
+      "file": "24-security-auth.md",
+      "baselineCharacters": 12176,
+      "minimumCharacters": 24352,
+      "baselineSha256": "8bb1a0f69d9b76d17283ee17025a1e20e0a222a86b95b8afe19ad9aa1d908f4f"
+    },
+    {
+      "file": "25-acl.md",
+      "baselineCharacters": 12036,
+      "minimumCharacters": 24072,
+      "baselineSha256": "0a77c2c619a9f7940003d5776988cbac9fb3d7f513f52e552335b0d887fe662e"
+    },
+    {
+      "file": "26-tls.md",
+      "baselineCharacters": 12219,
+      "minimumCharacters": 24438,
+      "baselineSha256": "8765cfbaeeb2ca078c16f8babecc73cb17dcbbc0d1d8992f51a2323abff528fa"
+    },
+    {
+      "file": "27-cpu-profiling.md",
+      "baselineCharacters": 11852,
+      "minimumCharacters": 23704,
+      "baselineSha256": "c953dc5b03d3bd0e815842d56a39c806a356c9340544340727f3dac4e40f8ca1"
+    },
+    {
+      "file": "28-shutdown-signals.md",
+      "baselineCharacters": 11755,
+      "minimumCharacters": 23510,
+      "baselineSha256": "e281e47cffc1715caac98311a6361dcea2b574313a4520d4cc7fda63551b7d9b"
+    },
+    {
+      "file": "29-event-loop.md",
+      "baselineCharacters": 11943,
+      "minimumCharacters": 23886,
+      "baselineSha256": "d732440a594d1012a9fb4495cc68fb765f808b74a415dbd6403d8359abee47a3"
+    },
+    {
+      "file": "30-sds.md",
+      "baselineCharacters": 13348,
+      "minimumCharacters": 26696,
+      "baselineSha256": "c72b322746c618fad6d0eadd1e4523554bad6a366180be4726da5e9d77c4e329"
+    }
+  ]
+}
