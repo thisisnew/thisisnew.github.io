@@ -1,11 +1,15 @@
 {
-  "scope": "Six isolated Redis processes on one localhost; cluster routing and coordinated failover smoke test only",
+  "scope": "Six isolated Redis 7.2.5 processes on one localhost; routing, one two-key slot migration with ASK/TRYAGAIN/TTL observations, and coordinated manual failover only",
   "not_tested": [
     "network partitions",
-    "crash/unclean failover",
+    "automatic or crash/unclean failover",
     "cross-host durability",
     "Sentinel",
     "Spring client topology refresh",
+    "production load or large keys",
+    "all data types or expiry races",
+    "FORCE or TAKEOVER",
+    "node addition/removal or binary upgrades",
     "throughput"
   ],
   "checks": [
@@ -13,12 +17,14 @@
     "same_hash_tag_mset_succeeds",
     "cross_slot_mset_rejected",
     "moved_and_cluster_aware_read",
+    "migration_midpoint_ask_tryagain_and_one_connection_asking_scope_observed",
+    "migrated_slot_views_converge_and_test_values_type_positive_ttl_preserved",
     "coordinated_replica_failover_preserves_test_key_after_topology_convergence"
   ],
   "status": "passed",
-  "redisVersion": "Redis server v=7.2.5 sha=00000000:0 malloc=libc bits=64 build=b83c020dac904a15",
-  "scriptSha256": "864b7a3f15ee7249e344eb46cc1a8fcbae32a4aa1959ffb0887c75a6e8734983",
+  "redisVersion": "Redis server v=7.2.5 sha=f60370ce:0 malloc=libc bits=64 build=46e16f5bdd058a14",
+  "scriptSha256": "ded46df9ffc86664ddd6726522a9aa8eedb36a0c50c7529607621a638c7c28a6",
   "processesStopped": true,
   "temporaryDataRemoved": true,
-  "checkedAt": "2026-10-21T23:16:04.662315+00:00"
+  "checkedAt": "2026-10-22T21:44:56.054969+00:00"
 }

@@ -1,10 +1,10 @@
 {
-  "checkedAt": "2026-10-22T21:26:44.088687+00:00",
+  "checkedAt": "2026-10-22T21:45:18.986289+00:00",
   "baselineCommit": "94e8975d49101d16d68b445a030944b3f846ad87",
   "measurement": "Unicode code points in Markdown body, excluding JSON metadata",
   "goal": "Each of the 31 lessons individually at least twice its baseline body length; length alone does not prove teaching quality",
   "complete": false,
-  "expandedCount": 13,
+  "expandedCount": 16,
   "totalCount": 31,
   "lessons": [
     {
@@ -142,30 +142,30 @@
       "baselineCharacters": 11940,
       "minimumCharacters": 23880,
       "baselineSha256": "86b085072edf27438737a0f1a3c14057dd3628c72c2f845105f20b7cc20f5715",
-      "currentCharacters": 11940,
-      "currentSha256": "86b085072edf27438737a0f1a3c14057dd3628c72c2f845105f20b7cc20f5715",
-      "ratio": 1.0,
-      "expanded": false
+      "currentCharacters": 24570,
+      "currentSha256": "fb208eec473da76dbb42d6bd6900dd468d51d52d1c73262b193b17f8f4f18bfc",
+      "ratio": 2.058,
+      "expanded": true
     },
     {
       "file": "14-cluster-lab-resharding.md",
       "baselineCharacters": 12185,
       "minimumCharacters": 24370,
       "baselineSha256": "0e37abec2cc93ab4deb94477ea78233c7f4f511a1cd010dab43b074dff6291e4",
-      "currentCharacters": 12185,
-      "currentSha256": "0e37abec2cc93ab4deb94477ea78233c7f4f511a1cd010dab43b074dff6291e4",
-      "ratio": 1.0,
-      "expanded": false
+      "currentCharacters": 25362,
+      "currentSha256": "52a0f767bdbe2f15c68cba47b169052d68529bae2e032cbdde5ba4b444018702",
+      "ratio": 2.081,
+      "expanded": true
     },
     {
       "file": "15-cluster-failover-node-changes.md",
       "baselineCharacters": 12605,
       "minimumCharacters": 25210,
       "baselineSha256": "29eebdb4aabf84acb6861bc1c22a948f8575811c267335f6cb11d1d8d1adc4f0",
-      "currentCharacters": 12605,
-      "currentSha256": "29eebdb4aabf84acb6861bc1c22a948f8575811c267335f6cb11d1d8d1adc4f0",
-      "ratio": 1.0,
-      "expanded": false
+      "currentCharacters": 26344,
+      "currentSha256": "1ff4cc6fd3bf9a5568034a50b3c56da5698f04f6e5d8a35e69dc753d7a24cfd2",
+      "ratio": 2.09,
+      "expanded": true
     },
     {
       "file": "16-cluster-design-slot-model.md",

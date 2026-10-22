@@ -4,6 +4,17 @@
 
 
 
+실행 검증 기록: [로컬 Cluster 통합 시험](/learning/redis/cluster-checks.json)은 Redis 7.2.5의 임시 여섯 노드에서 단일 슬롯 이전 중 ASK·TRYAGAIN·동일 연결의 ASKING 범위, 이전 뒤 표본 값·자료형·양수 TTL 및 정상 수동 전환을 검사한다. 자동 장애 전환·네트워크 분할·FORCE·TAKEOVER·노드 추가/제거·버전 업그레이드·Spring 재연결·운영 부하는 이 시험에 포함하지 않는다. [Java 예제 실행 기록](/learning/redis/expansion-code-checks.json)은 교육 모델의 본문 일치·컴파일·독립 main 검사를 별도로 기록한다. 아래의 수동 실습 명령 전체를 실행했다는 뜻은 아니며 실제 통과 여부와 검사 시각은 각 기록에서 확인한다.
+
+## 입문 해설. 리샤딩은 영업 중인 창고의 담당 구역을 바꾸는 일이다
+
+배송 구역 100번을 창고 A에서 B로 넘기는 상황을 떠올려 보자. 컴퓨터의 주소록에서 담당자를 B로 바꾸기만 하면 될까? 아직 A의 선반에 있는 물건을 찾는 요청이 실패할 수 있다. 물건부터 전부 옮기고 마지막에 주소록을 바꾸면 될까? 이동 도중 새로 들어오는 조회와 저장은 어디에서 처리할지 정해야 한다. 온라인 리샤딩의 어려움은 옮기는 작업 그 자체보다 **이동 중에도 들어오는 요청을 올바른 장소로 안내하는 것**에 있다.
+
+Redis에서는 선반의 구역 번호에 해당하는 것이 슬롯이고, 구역 안 물건은 개별 키다. 하나의 슬롯에는 여러 키가 들어갈 수 있다. 슬롯 소유권은 아직 A인데 일부 키는 이미 B로 옮겨진 과도기가 생긴다. 따라서 “슬롯 주인은 누구인가?”와 “지금 이 키가 어디에 있는가?”를 나눠 물어야 한다. 이 구분을 이해하면 왜 한 종류의 리다이렉션만으로 충분하지 않은지, 왜 같은 슬롯의 두 키도 이동 중에는 일시 오류를 만날 수 있는지 연결된다.
+
+이 장은 운영 데이터 이전용 명령 모음이 아니라 상태를 읽는 훈련이다. 먼저 로컬의 빈 Cluster를 구성하고, 내가 만든 테스트 키의 원래 값과 자료형을 기록한다. 다음으로 작은 이동 계획 하나를 정하고, 이동 전·중·후의 소유권과 데이터 위치를 비교한다. 마지막으로 애플리케이션의 읽기·쓰기가 어떤 결과를 냈는지 확인한다. 성공 문구 하나를 보는 것보다 내가 예상한 조건이 실제 관찰과 일치했는지를 설명하는 것이 학습 목표다.
+
+
 ## 1. 실습 목표는 성공 메시지가 아니라 불변식 확인이다
 
 **불변식**은 과정이 바뀌어도 유지되어야 하는 조건이다. Cluster 실습에서는 모든 필요한 슬롯이 담당자를 갖고, 각 노드가 같은 최종 소유권을 이해하고, 테스트 키가 이동 전후에 올바르게 읽히는지를 확인한다. 생성 도구가 성공을 출력했다는 사실은 시작점이지 애플리케이션 검증의 끝이 아니다. 명령을 실행하기 전에 테스트 키 목록과 예상 값을 파일이나 노트에 기록하면 사후 비교가 쉬워진다.
@@ -184,6 +195,194 @@ record OperationTrace(
 
 배송 조회 API가 리샤딩 중 몇 번의 짧은 재시도를 하더라도 사용자는 deadline 안에 정상 응답을 받을 수 있다. 반대로 전체 timeout이 너무 짧으면 Cluster가 정상적으로 ASK를 처리하는 동안에도 고객 오류가 늘 수 있다. timeout을 무조건 늘리는 것도 해결책은 아니다. 동시 요청이 오래 쌓여 애플리케이션 메모리와 원장 fallback을 압박할 수 있다. 이동 배치 크기, 재시도 정책, 동시성 제한, 고객 응답 계약을 함께 조정한다.
 
+## 실습 준비 보충. 여섯 프로세스가 각각 무엇을 보관하는지 확인하기
+
+실습용 `redis.conf`와 `nodes.conf`는 역할이 다르다. 전자는 사람이 초기 실행 옵션을 정하는 파일이고, 후자는 Cluster 노드가 자신의 정체성과 구성을 보존하는 상태 파일이다. 하나의 설정 템플릿을 여섯 번 복사해 사용하는 것은 가능하지만, 런타임 상태 파일을 여섯 프로세스가 공유해서는 안 된다. 같은 파일명이어도 각 노드의 작업 디렉터리가 다르면 별도 파일이며, 실습에서는 이 차이를 실제 경로로 확인한다.
+
+포트도 두 종류다. 데이터 포트는 클라이언트 요청과 일부 노드 간 데이터 작업에 사용한다. cluster bus 포트는 노드들이 구성·장애 정보 등을 교환하는 통신 경로다. 로컬에서는 둘 다 loopback에 있으므로 네트워크 차이를 느끼기 어렵지만, 운영에서는 앱에서 접근할 수 있는 주소와 노드끼리 접근할 수 있는 주소가 다를 수 있다. 실습 성공만으로 컨테이너 포트 매핑이나 보안 그룹이 있는 실제 배치까지 검증했다고 말하지 않는다.
+
+각 노드가 빈 상태인지 확인하는 일도 데이터와 구성 양쪽에서 필요하다. 데이터가 없다고 과거 Cluster 정체성까지 없는 것은 아니고, 새 프로세스라고 기존 디스크가 자동으로 비워지는 것도 아니다. 이 교재의 기본 경로는 새 임시 디렉터리와 빈 노드다. 과거 데이터를 복구하거나 기존 standalone 데이터를 Cluster로 옮기는 문제는 별도다. 그때는 DB 0, 키 직렬화, 자료형, TTL, 다중 키 명령 호환성까지 계획해야 한다.
+
+| 시작 전 질문 | 확인 이유 | 잘못된 추론 |
+|---|---|---|
+| 직접 만든 빈 노드인가? | 다른 서비스 데이터 보호 | 로컬 포트니까 무조건 실습용이다 |
+| 노드별 디렉터리가 다른가? | 설정 상태와 파일 충돌 방지 | 프로세스가 다르면 파일도 자동 분리된다 |
+| 현재 primary·replica ID는 무엇인가? | 이동 대상과 데이터 사본 확인 | 포트 번호만 보면 역할을 안다 |
+| 어떤 키를 어떤 값으로 만들었는가? | 이전 후 비교의 기준 확보 | 오류가 없으면 데이터도 모두 맞다 |
+
+## 프로토콜 확대경. MIGRATING과 IMPORTING은 같은 슬롯의 서로 다른 관점이다
+
+정상 상태에서는 A가 슬롯 S의 담당자이고 B는 담당자가 아니라고 하자. 이동을 준비하면 A는 S를 B로 내보내는 중이라고 기록하고, B는 S를 A로부터 받는 중이라고 기록한다. 두 표시는 서로 다른 노드가 가진 방향성 있는 상태다. 둘 중 하나만 바뀐 순간이나 명령이 도중 실패한 상태를 생각하면, 한 노드에서 본 출력 하나만으로 전체 이동이 끝났다고 말할 수 없는 이유가 보인다.
+
+출발지 A에서 아직 존재하는 단일 키를 요청하면 A가 처리할 수 있다. 이미 옮겨져서 A에 없는 키를 요청하면 A는 B로 가라는 임시 안내를 반환할 수 있다. 그 안내가 `ASK`다. B는 아직 공식 소유자가 아닐 수 있으므로 단순히 같은 GET을 보내는 것만으로는 요청을 받아들이지 않을 수 있다. 클라이언트가 같은 목적지 연결에서 `ASKING`을 보낸 뒤 해당 명령을 보내는 절차가 필요하다. 서로 다른 커넥션에 나눠 보내면 이 전제가 깨진다.
+
+`ASKING`은 “이 목적지가 앞으로 이 슬롯의 영구 소유자다”라는 선언이 아니다. 다음 명령을 위한 일시적 예외 허용에 가깝다. 그래서 클라이언트는 ASK 하나를 보고 슬롯 맵 전체를 영구 변경하면 안 된다. 최종 소유권이 B로 수렴한 뒤 옛 담당 A로 간 요청은 `MOVED` 안내를 받을 수 있다. MOVED와 ASK를 구분하는 이유는 재전송 목적지만 다른 것이 아니라 지도 갱신의 의미가 다르기 때문이다.
+
+| 관찰 지점 | 단일 키의 위치 | 관찰할 수 있는 동작 |
+|---|---|---|
+| 이동 전 A | A | 정상 처리 |
+| 이동 중 A | 아직 A | A에서 정상 처리 |
+| 이동 중 A | 이미 B로 이전 | ASK로 B 안내 |
+| 이동 중 B, ASKING 없이 접근 | B에 있어도 공식 소유권은 A | A로의 MOVED 가능 |
+| 이동 중 B, 같은 연결의 ASKING 뒤 접근 | B | 일시적으로 처리 허용 |
+| 이동 완료 뒤 옛 A | B | 새 담당 B로 MOVED |
+
+이 표는 안정된 한 번의 관찰을 설명하는 학습 모델이다. 실제 작업 중에는 상태가 계속 바뀌므로 요청마다 결과가 달라질 수 있다. 주소·슬롯 번호·시각·접속한 노드와 연결을 함께 기록해야 모순처럼 보이는 로그를 해석할 수 있다. “아까 A에서 읽혔는데 이번에는 ASK가 왔다”는 사실은 반드시 이상이 아니라 그 사이에 키가 이동했다는 증거일 수 있다.
+
+낮은 수준 명령을 이해하는 것과 운영에서 수동으로 조립하는 것은 다르다. `CLUSTER SETSLOT`은 슬롯 상태를, `MIGRATE`는 키 이전을 다루며, 최종 소유권 전파까지 포함하면 조정해야 할 상태가 늘어난다. 이 장의 기본 실습에서는 `redis-cli --cluster reshard`의 계획과 결과를 읽는다. 뒤의 자동 검증 스크립트는 ASK 과도기를 의도적으로 관찰하기 위해 자체 임시 노드에만 낮은 수준 명령을 사용한다. 운영 대상에 그대로 적용할 절차로 제시하는 것이 아니다.
+
+## 다중 키 확대경. 두 키가 같은 슬롯인데 왜 TRYAGAIN을 받을까
+
+같은 슬롯의 `shipment:{S200}:status`와 `shipment:{S200}:carrier`가 있다고 하자. status는 A에 남고 carrier는 B로 먼저 이동했다. 이 순간 A는 두 값을 한 번에 제공할 수 없고, B도 아직 두 값을 모두 가지고 있지 않다. Cluster는 두 노드에서 값을 모아 하나의 원자적 MGET처럼 조합해 주는 프록시가 아니다. 이동 중 같은 슬롯의 키들이 나뉜 상태에서는 `TRYAGAIN` 같은 응답을 보낼 수 있다.
+
+여기서 CROSSSLOT과 구별하자. CROSSSLOT은 명령이 요구하는 키들의 슬롯 배치 조건이 맞지 않는 문제다. 같은 요청을 즉시 다시 보내도 키 설계가 바뀌지 않는 한 해결되지 않는다. TRYAGAIN은 과도기 상태가 안정되면 같은 슬롯 명령이 다시 처리 가능해질 수 있는 종류의 안내다. 무한 반복해서 되는 문제라는 뜻은 아니다. 전체 deadline과 지연 예산, 취소 조건을 둬야 한다.
+
+timeout은 또 다르다. 서버가 명령을 수행했는지 불명확할 수 있으므로 단지 잠시 기다렸다가 동일한 비멱등 쓰기를 반복하면 중복 효과가 생길 수 있다. MOVED·ASK는 지원 클라이언트가 내부에서 처리해 앱에서는 최종 지연만 보일 수도 있다. 애플리케이션이 어떤 예외를 받는지와 프로토콜에서 어떤 안내가 오갔는지는 관찰 계층이 다르다. 하나의 `catch(Exception)`에서 모든 경우를 즉시 재시도하면 원인도 업무 결과도 구분하기 어려워진다.
+
+| 결과 | 먼저 묻는 질문 | 대표 대응 방향 |
+|---|---|---|
+| MOVED | 지도가 오래되었는가? 새 주소에 도달 가능한가? | 지원 클라이언트의 경로·토폴로지 처리 확인 |
+| ASK | 키 이전 중인가? 같은 연결의 ASKING 절차인가? | 임시 경로 처리 확인 |
+| CROSSSLOT | 한 명령의 실제 키 슬롯이 같은가? | 키·명령·업무 경계 수정 |
+| TRYAGAIN | 이동 중 키가 나뉘어 있는가? | 제한된 지연 재시도·작업 관찰 |
+| timeout | 실행 결과를 알고 있는가? | 요청 ID 기반 결과 확인·중복 방지 |
+
+## Java 예제. TTL 검사는 이전 전후의 숫자 일치 검사가 아니다
+
+TTL이 60초인 키를 옮기는 동안 5초가 지났다면 이동 뒤 남은 시간이 55초인 것은 자연스럽다. 전후 PTTL이 같아야 한다고 검사하면 정상적인 시간 경과를 오류로 오판한다. 반대로 TTL이 없어져서 `-1`로 바뀌거나 키가 사라져 `-2`가 되었다면 의도된 만료인지 별도 검토해야 한다. 아래 모델은 값이 존재하는 TTL 샘플에 한해 관찰된 경과 시간과 허용 오차를 고려한다. 실제 서버 시계·네트워크·마이그레이션 전체를 재현하는 모델은 아니다.
+
+```java
+public final class ClusterMoveEvidenceLesson {
+    record Sample(String type, String value, long pttlMillis) {}
+
+    static boolean samePayload(Sample before, Sample after) {
+        return before.type().equals(after.type())
+                && before.value().equals(after.value());
+    }
+
+    static boolean plausibleTtl(long before, long after,
+                                long elapsedMillis, long toleranceMillis) {
+        if (before <= 0 || after <= 0 || elapsedMillis < 0 || toleranceMillis < 0) {
+            return false;
+        }
+        long expected = before - elapsedMillis;
+        return expected > 0 && Math.abs(after - expected) <= toleranceMillis;
+    }
+
+    public static void main(String[] args) {
+        Sample before = new Sample("string", "PACKED", 60000);
+        Sample after = new Sample("string", "PACKED", 54900);
+        if (!samePayload(before, after)) throw new AssertionError("payload");
+        if (!plausibleTtl(before.pttlMillis(), after.pttlMillis(), 5000, 300)) {
+            throw new AssertionError("elapsed time must be considered");
+        }
+        if (plausibleTtl(60000, -1, 5000, 300)) {
+            throw new AssertionError("lost expiry must not pass");
+        }
+        if (plausibleTtl(60000, -2, 5000, 300)) {
+            throw new AssertionError("missing key needs separate investigation");
+        }
+        if (samePayload(before, new Sample("string", "LOST", 54900))) {
+            throw new AssertionError("value mismatch");
+        }
+        System.out.println("payload unchanged and sampled TTL matches elapsed time");
+    }
+}
+```
+
+복잡한 자료형은 이 모델의 문자열 value 비교만으로 충분하지 않다. Hash 필드·List 순서·Sorted Set 점수처럼 업무 의미가 있는 내용을 표본에 맞게 기록해야 한다. TTL이 짧아 검증 도중 자연 만료할 키는 별도 집합으로 다룬다. “사라졌으니 무조건 유실”과 “시간이 지났으니 전부 정상 만료”라는 두 추정을 모두 피해야 한다. 이동 시험용 키에는 충분히 긴 TTL을 두고 경과 시간을 함께 남기는 것이 원인 구분에 유리하다.
+
+운영에서 큰 키 전체를 직렬화해 매번 비교하면 검증 자체가 부하를 만들 수 있다. 표본 크기와 명령 비용, 키 크기, 요청 빈도를 정하고 지표를 함께 관찰한다. 표본 N개가 통과했다면 보고서에도 그 범위를 적는다. 전체 데이터셋의 무결성을 증명했다고 확대하지 않는다. 또한 검사 사이에 다른 애플리케이션이 값을 수정했다면 값 차이가 마이그레이션 오류인지 정상 업무 쓰기인지 알 수 없으므로 검증 전용 키나 버전 기록이 필요하다.
+
+## Java 예제. 재시도 횟수와 전체 시간 예산을 함께 검사하기
+
+재시도 세 번이라는 설정만으로 요청이 짧게 끝난다고 보장되지 않는다. 한 번의 네트워크 timeout이 길고 그 사이 backoff까지 있으면 전체 요청은 훨씬 오래 걸린다. 아래 코드는 실제 클라이언트가 아니라 앱이 정한 단순 재시도 게이트다. 서버가 실행을 시작하기 전에 TRYAGAIN으로 거부했다고 확인한 종류만 대상으로 삼고, timeout은 별도 결과 확인으로 보낸다. 실제 드라이버 내부 재시도 횟수와 앱 재시도가 겹치는지도 따로 계산해야 한다.
+
+```java
+public final class ClusterRetryBudgetLesson {
+    enum Failure { TRYAGAIN_BEFORE_EXECUTION, CROSSSLOT, TIMEOUT }
+    enum Action { DELAYED_RETRY, STOP, RECONCILE }
+
+    static Action decide(Failure failure, int attemptsMade, int maximumAttempts,
+                         long elapsedMillis, long deadlineMillis,
+                         long nextDelayMillis, long minimumAttemptMillis) {
+        if (attemptsMade < 1 || maximumAttempts < 1 || elapsedMillis < 0
+                || deadlineMillis < 1 || nextDelayMillis < 0 || minimumAttemptMillis < 1) {
+            throw new IllegalArgumentException("invalid retry budget");
+        }
+        if (failure == Failure.TIMEOUT) return Action.RECONCILE;
+        if (failure == Failure.CROSSSLOT) return Action.STOP;
+        long remaining = deadlineMillis - elapsedMillis;
+        return attemptsMade < maximumAttempts && remaining > nextDelayMillis
+                && remaining - nextDelayMillis >= minimumAttemptMillis
+                ? Action.DELAYED_RETRY : Action.STOP;
+    }
+
+    public static void main(String[] args) {
+        if (decide(Failure.TRYAGAIN_BEFORE_EXECUTION, 1, 3, 40, 200, 20, 30)
+                != Action.DELAYED_RETRY) throw new AssertionError("budget available");
+        if (decide(Failure.TRYAGAIN_BEFORE_EXECUTION, 3, 3, 40, 200, 20, 30)
+                != Action.STOP) throw new AssertionError("attempt limit");
+        if (decide(Failure.TRYAGAIN_BEFORE_EXECUTION, 1, 3, 170, 200, 20, 30)
+                != Action.STOP) throw new AssertionError("deadline limit");
+        if (decide(Failure.CROSSSLOT, 1, 3, 1, 200, 20, 30)
+                != Action.STOP) throw new AssertionError("schema error");
+        if (decide(Failure.TIMEOUT, 1, 3, 1, 200, 20, 30)
+                != Action.RECONCILE) throw new AssertionError("unknown outcome");
+        System.out.println("attempt, deadline, schema and unknown-outcome gates passed");
+    }
+}
+```
+
+예제의 시간은 가정한 밀리초 값이며 권장 timeout이 아니다. `minimumAttemptMillis`도 실제 네트워크 완료를 보장하지 않는다. 남은 예산이 너무 작은 시도를 시작하지 않도록 하는 로컬 정책일 뿐이다. 실제 구현은 단조 시계를 사용해 경과 시간을 계산하고, 서버·HTTP·메시지 처리 등 상위 deadline을 전파한다. 재시도 지연에는 필요에 따라 지터를 넣어 모든 앱 인스턴스가 동시에 몰리는 현상을 완화하되, 지터를 넣는다고 처리량 한계를 넘을 수 있는 것은 아니다.
+
+재시도 횟수와 성공률만 수집하면 문제를 놓칠 수 있다. 첫 시도 성공률, 최종 성공률, 요청별 전체 지연, timeout 뒤 결과 확인 건수, 중복 효과 여부를 나누어 본다. 이동 중 최종 성공률이 높아도 p99 지연이 급증해 고객 deadline을 넘으면 사용자 경험은 나빠진다. 반대로 프로토콜 ASK 횟수가 늘었어도 deadline 안에서 요청이 정상 처리되면 곧바로 장애라고 단정하지 않는다. 프로토콜 이벤트와 업무 실패를 다른 지표로 보는 연습이다.
+
+## 리샤딩 완료 판정. 도구·데이터·경로·업무 네 가지 증거를 모으기
+
+첫 증거는 도구와 구성 상태다. 이동 계획에 기록한 슬롯이 최종 target 소유로 보이며, 여러 노드가 그 결과에 수렴하는지 확인한다. 출발지·목적지에 MIGRATING·IMPORTING 표시가 남아 있으면 완료로 기록하지 않는다. 그렇다고 표시만 지우는 것으로 해결하려 하지 않는다. 키 위치가 어디까지 바뀌었는지와 도구가 어느 단계에서 실패했는지부터 확인한다. 같은 오류를 무조건 fix로 덮으면 다음 판단에 필요한 증거를 잃을 수 있다.
+
+두 번째 증거는 데이터다. 내가 만든 검증 키의 값·자료형·TTL을 비교한다. 출발지의 `CLUSTER COUNTKEYSINSLOT`과 목적지의 결과를 사용하면 특정 슬롯에 남은 키를 확인하는 데 도움이 된다. 전체 `DBSIZE` 차이만 보는 것은 충분하지 않다. 다른 슬롯의 키와 만료·새 쓰기가 섞일 수 있기 때문이다. 검증하는 순간에도 업무가 계속된다면 기준 버전이나 요청 ID가 필요하며, 단순 전후 합계를 무결성 증명으로 부르면 안 된다.
+
+세 번째 증거는 요청 경로다. 과거 source로 간 요청이 최종 MOVED를 받는지, Cluster 지원 경로로는 새 담당 노드에서 읽히는지 확인한다. 이때 실험용 일반 CLI와 지원 CLI의 차이를 의도적으로 관찰한다. 일반 CLI에서 MOVED가 보였다는 사실은 잘못된 명령이 아니라 경로 안내를 관찰한 것일 수 있다. 실제 앱이 언제 토폴로지를 갱신했는지, 목적지 연결·인증이 정상인지도 별도 검증 대상이다.
+
+네 번째 증거는 업무다. 예약 수량이 중복 감소하지 않았는가? 성공 응답을 받은 테스트 요청의 결과가 확인되는가? 결과 미상 요청을 실패로 버리지 않고 분류했는가? 이 증거는 단순 키 조회보다 애플리케이션 통합 시험에 가깝다. 뒤의 로컬 프로토콜 시험이 키 이동과 리다이렉션을 통과하더라도 실제 Spring 앱의 요청 ID·직렬화·재연결을 실행하지 않았다면 그 범위는 미검증으로 남는다.
+
+## 작업 중단 연습. 느려졌다고 무조건 역방향으로 이동하지 않기
+
+가상으로 슬롯 100개를 옮기는 계획을 세웠고 열 번째 슬롯에서 지연이 기준을 넘었다고 하자. 현재 슬롯이 완료됐는지, 도구가 계속 다음 슬롯을 시작하는지, source와 target의 메모리·명령 지연이 어떤지를 먼저 본다. 작업을 멈춘다는 것은 대개 추가 위험을 늘리지 않는 방향의 결정이다. 이미 이동한 열 슬롯을 즉시 되돌리는 것은 또 다른 데이터 이동이며, 현재 과부하를 키울 수 있다. 중단·재개·역방향 이전을 다른 행동으로 적는다.
+
+목적지 용량이 부족하면 슬롯 수가 적었다는 이유로 놀랄 수 있다. 슬롯 하나에 큰 키가 몰려 있을 수 있기 때문이다. 이동 계획에는 슬롯 개수 외에 키 수와 크기, 목적지 복제 비용, 여유 메모리와 네트워크를 포함한다. 표본 측정과 초기 작은 배치로 위험을 줄일 수 있지만 모든 키의 비용을 정확히 예측하는 것은 아니다. 중단 기준은 실제 지연·오류·메모리와 함께 관찰해 결정한다.
+
+“온라인으로 가능”은 요청을 모두 중지시키는 전면 정지가 설계상 필수는 아니라는 의미로 읽는다. 모든 순간에 모든 명령이 같은 지연으로 성공한다는 의미가 아니다. 특히 다중 키 명령, 큰 키, 촘촘한 deadline, 목적지 주소 접근 문제는 따로 시험해야 한다. 성공적으로 이동한 한 번의 로컬 실험으로 운영 부하에서 무중단·무오류를 약속하지 않는다. 이 한계를 명확히 알수록 실제 작업 전 검증 항목을 더 잘 고를 수 있다.
+
+## 추가 면접 문답. 이동 중의 예외를 설명하기
+
+<details><summary>ASK를 받았으니 슬롯 맵을 목적지로 영구 변경하면 되나요?</summary>
+
+아닙니다. ASK는 이동 중 특정 요청의 임시 경로를 안내합니다. 슬롯의 공식 소유권은 아직 출발지일 수 있고 같은 슬롯의 다른 키는 출발지에 남을 수 있습니다. 목적지에서는 같은 연결에서 ASKING을 보낸 뒤 해당 명령을 실행하는 절차가 필요합니다. 영구 지도 변경과 임시 명령 경로를 구분해야 합니다. 지원 클라이언트의 내부 처리에 맡기되, 직접 검증할 때는 연결이 바뀌지 않았는지도 확인합니다.
+
+</details>
+
+<details><summary>TTL을 가진 키는 이전 뒤 PTTL이 정확히 같아야 하나요?</summary>
+
+아닙니다. 관찰과 이전 동안 시간이 흐르므로 남은 TTL이 줄어드는 것이 자연스럽습니다. 경과 시간을 고려해 허용 범위로 비교하고, TTL이 사라진 -1과 키가 없는 -2는 다른 상태로 분류해야 합니다. 짧은 TTL은 시험 도중 자연 만료할 수 있으므로 충분한 수명의 전용 검증 키를 사용하면 해석이 쉬워집니다. 값·자료형·TTL은 별도 검사이며 키 개수 하나로 대체할 수 없습니다.
+
+</details>
+
+<details><summary>TRYAGAIN은 횟수 제한 없이 재시도하면 결국 성공하지 않나요?</summary>
+
+이동 상태가 수렴하면 처리 가능해질 수 있지만 수렴 시점은 보장되지 않고 요청의 상위 deadline도 있습니다. 즉시 반복하면 서버와 앱 대기를 늘릴 수 있으므로 제한된 횟수·지연·전체 시간 예산을 사용합니다. timeout은 실행 결과가 불명확할 수 있어 같은 재시도 정책으로 묶지 않습니다. 클라이언트 내부 리다이렉션 처리와 앱 재시도가 겹치는지도 측정해야 실제 시도 수와 지연을 설명할 수 있습니다.
+
+</details>
+
+<details><summary>리샤딩 도구가 성공했고 샘플 값도 맞으면 검증이 끝난 것 아닌가요?</summary>
+
+그 두 증거는 필요하지만 범위가 제한적입니다. 슬롯 소유권 수렴과 열린 이동 상태, 자료형·TTL, 애플리케이션의 새 주소 접근·인증, 요청 deadline과 중복 효과를 별도로 확인해야 합니다. 표본만 검사했다면 표본 범위의 통과로 기록합니다. 로컬 CLI 시험은 실제 Spring 클라이언트의 직렬화·재연결·업무 멱등성까지 자동으로 검증하지 않으므로 시험 수준을 나누어 보고하는 것이 정확합니다.
+
+</details>
+
+
 ## 면접 질문과 깊이 있는 답변
 
 답을 펼치기 전에 원리, 장애 반례, 운영 확인 방법의 세 순서로 말해 보자. 짧은 정의만 외우기보다 어떤 조건에서 그 설명이 깨지는지를 덧붙이는 것이 중요하다.
@@ -239,8 +438,11 @@ ASK는 이동 중 해당 요청에 대한 임시 안내이고 MOVED는 슬롯 �
 
 ## 원문과 공식 확인 자료
 
-이 장은 제공된 `Redis_Senior_Study/chapters/14_` 원문의 해당 주제를 한국어로 재구성하고 독립적인 학습 예제와 판단 절차를 추가했다. 제공 원문은 최신 버전 보증 자료가 아니므로 운영 적용 전 실제 Redis와 클라이언트 버전을 확인한다. 공식 링크는 2026-10-21 집필 시 확인했으며 이 장의 실습 명령을 실행했다는 뜻은 아니다.
+이 장은 제공된 `Redis_Senior_Study/chapters/14_` 원문의 해당 주제를 한국어로 재구성하고 독립적인 학습 예제와 판단 절차를 추가했다. 제공 원문은 최신 버전 보증 자료가 아니므로 운영 적용 전 실제 Redis와 클라이언트 버전을 확인한다. 공식 링크는 2026-10-22 확장 시 다시 확인했으며 이 장의 실습 명령을 실행했다는 뜻은 아니다.
 
 - [Redis 공식 Cluster 운영 가이드](https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/) — 구성·리샤딩·노드 운영의 기준.
 - [Redis 공식 Cluster 명세](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/) — 슬롯·프로토콜·보장 범위의 기준.
 - [CLUSTER FAILOVER 명령](https://redis.io/docs/latest/commands/cluster-failover/) — 정상·강제 수동 전환의 의미.
+
+- [MIGRATE 공식 명령](https://redis.io/docs/latest/commands/migrate/) — 키 이전과 오류 의미.
+- [ASKING 공식 명령](https://redis.io/docs/latest/commands/asking/) — 임시 리다이렉션 연결 처리.

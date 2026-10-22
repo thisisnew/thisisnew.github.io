@@ -1,6 +1,6 @@
 # Redis 기초 확장판 Java 예제
 
-00~12편의 완전한 클래스를 본문에서 추출했다. Java 21 기준이다.
+00~15편의 완전한 클래스를 본문에서 추출했다. Java 21 기준이다.
 
 ## 독립 실행 모델
 
@@ -83,3 +83,20 @@ python scripts/check-redis-foundations.py --java-home "$JAVA_HOME" --spring-clas
 ```
 
 Maven 경로는 Spring Boot 3.2.0의 의존성 관리를 사용한다. Sentinel 서버 통합 시험과 Java 교육 모델 검사는 CI에서 별도 실행되며, 배포는 두 검사와 기존 브라우저 검사 통과를 요구한다. 전편의 두 배 확장이 완료됐다는 뜻은 아니며 `expansion-progress.json`의 complete 값을 확인한다.
+
+## 13~15편 Cluster 예제
+
+- `ClusterShardBudgetLesson`: replica 수를 늘린 물리 메모리와 중복 없는 데이터 예산의 차이. 가상 용량 산술이며 실제 Redis 메모리 계산기가 아니다.
+- `ClusterWriteOutcomeLesson`: ACK·명시적 거부·timeout의 업무 판단 구분. 실제 재시도나 정합성 복구는 구현하지 않는다.
+- `ClusterMoveEvidenceLesson`: 값·자료형과 경과 시간을 고려한 TTL 표본 비교. 실제 마이그레이션 구현이 아니다.
+- `ClusterRetryBudgetLesson`: 시도 횟수·전체 deadline·오류 종류에 따른 교육용 게이트. 실제 클라이언트·타이머는 구현하지 않는다.
+- `ClusterMaintenanceGateLesson`: 팀이 관찰한 유지보수 시작 조건과 차단 이유. Redis 선출 적격성 계산이 아니다.
+- `ClusterProtectionRecoveryLesson`: 서비스 정상화와 다음 작업을 위한 replica 보호 회복의 차이.
+
+서버 통합 검사는 저장소 루트에서 다음처럼 별도로 실행한다.
+
+```bash
+python scripts/check-redis-cluster.py --bin-dir /path/to/redis-7.2.5/src
+```
+
+자체 임시 디렉터리와 비어 있는 localhost 데이터·bus 포트를 사용하는 여섯 프로세스 실습이다. 같은 태그의 두 키를 가진 한 슬롯을 이동하며 ASK·TRYAGAIN·동일 연결의 ASKING 범위, 최종 소유권 수렴과 값·자료형·양수 TTL, 정상 수동 전환 뒤 표본 읽기를 확인한다. 네트워크 분할·자동 장애 전환·강제 옵션·Spring 재연결·노드 추가/제거·버전 업그레이드·운영 부하는 시험하지 않는다. 실제 범위와 스크립트 해시는 `learning/redis/cluster-checks.json`에 기록한다. CI는 이 통합 검사도 배포 전에 요구한다.

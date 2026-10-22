@@ -23,7 +23,7 @@ def until(fn,seconds=20):
   except (RuntimeError,subprocess.SubprocessError):pass
   time.sleep(.1)
  raise AssertionError('Condition timed out')
-report={'scope':'Six isolated Redis processes on one localhost; cluster routing and coordinated failover smoke test only','not_tested':['network partitions','crash/unclean failover','cross-host durability','Sentinel','Spring client topology refresh','throughput'], 'checks':checks}
+report={'scope':'Six isolated Redis 7.2.5 processes on one localhost; routing, one two-key slot migration with ASK/TRYAGAIN/TTL observations, and coordinated manual failover only','not_tested':['network partitions','automatic or crash/unclean failover','cross-host durability','Sentinel','Spring client topology refresh','production load or large keys','all data types or expiry races','FORCE or TAKEOVER','node addition/removal or binary upgrades','throughput'], 'checks':checks}
 try:
  for p in ports:
   d=base/str(p);d.mkdir();conf=d/'redis.conf';conf.write_text(f'bind 127.0.0.1\nprotected-mode yes\nport {p}\ncluster-enabled yes\ncluster-config-file nodes.conf\ncluster-node-timeout 2000\nappendonly no\nsave ""\ndir {d}\nlogfile {d}/redis.log\n')
@@ -32,6 +32,14 @@ try:
  result=subprocess.run([str(bins/'redis-cli'),'--cluster','create',*[f'127.0.0.1:{p}' for p in ports],'--cluster-replicas','1','--cluster-yes'],text=True,capture_output=True,timeout=40)
  if result.returncode:raise RuntimeError(result.stdout+result.stderr)
  until(lambda:all('cluster_state:ok' in cli(p,'CLUSTER','INFO') for p in ports),30)
+ # cluster_state:ok can precede propagation of the initial replica roles.
+ # Wait for all six views to agree that three slot-owning primaries and
+ # three replicas exist before selecting any process for a role-specific task.
+ def initial_roles_ready(p):
+  rows=[line.split() for line in cli(p,'CLUSTER','NODES').splitlines()]
+  return len(rows)==6 and sum('master' in row[2] and any(r[0].isdigit() for r in row[8:])
+                              for row in rows)==3 and sum('slave' in row[2] for row in rows)==3
+ until(lambda:all(initial_roles_ready(p) for p in ports),30)
  checks.append('six_nodes_cluster_state_ok')
  slots=[cli(ports[0],'CLUSTER','KEYSLOT',k) for k in ['study:{cart42}:items','study:{cart42}:version']]
  assert slots[0]==slots[1];assert cli(ports[0],'MSET','study:{cart42}:items','a','study:{cart42}:version','1',follow=True)=='OK'
@@ -41,6 +49,53 @@ try:
  replies=[cli(p,'GET','study:{cart42}:items') for p in ports]
  assert any(x.startswith('MOVED ') for x in replies)
  assert cli(ports[0],'GET','study:{cart42}:items',follow=True)=='a';checks.append('moved_and_cluster_aware_read')
+ # Deliberately hold a migration midpoint in this disposable lab only.
+ # Observe both one-key ASK and two-key TRYAGAIN instead of inferring them
+ # from a final successful read. No user data or host networking is modified.
+ def owner(node_lines,slot):
+  return next(x.split() for x in node_lines if 'master' in x.split()[2]
+   and any(int(r.split('-')[0])<=slot<=int(r.split('-')[-1])
+           for r in x.split()[8:] if r[0].isdigit()))
+ nodes=cli(ports[0],'CLUSTER','NODES').splitlines();slot=int(slots[0])
+ source=owner(nodes,slot)
+ target=next(x.split() for x in nodes if 'master' in x.split()[2]
+             and x.split()[0]!=source[0] and any(r[0].isdigit() for r in x.split()[8:]))
+ def port_of(node):return int(node[1].split('@')[0].rsplit(':',1)[1])
+ sp,tp=port_of(source),port_of(target)
+ key1,key2='study:{cart42}:items','study:{cart42}:version'
+ assert cli(sp,'PEXPIRE',key1,120000)=='1'
+ ttl_started=time.monotonic();ttl_before=int(cli(sp,'PTTL',key1))
+ assert cli(tp,'CLUSTER','SETSLOT',slot,'IMPORTING',source[0])=='OK'
+ assert cli(sp,'CLUSTER','SETSLOT',slot,'MIGRATING',target[0])=='OK'
+ assert cli(sp,'MIGRATE','127.0.0.1',tp,key1,0,5000)=='OK'
+ assert cli(sp,'GET',key1).startswith(f'ASK {slot} ')
+ assert cli(sp,'GET',key2)=='1'
+ assert cli(sp,'MGET',key1,key2).startswith('TRYAGAIN ')
+ assert cli(tp,'GET',key1).startswith(f'MOVED {slot} ')
+ # redis-cli consumes these lines on one TCP connection. ASKING only applies
+ # to the immediately following command; a later GET is redirected again.
+ asking=subprocess.run([str(bins/'redis-cli'),'-h','127.0.0.1','-p',str(tp),'--raw'],
+   input=f'ASKING\nGET {key1}\nGET {key1}\n',text=True,capture_output=True,timeout=5)
+ assert asking.returncode==0,asking.stderr
+ lines=asking.stdout.strip().splitlines()
+ assert lines[0:2]==['OK','a'] and lines[2].startswith(f'MOVED {slot} '),lines
+ checks.append('migration_midpoint_ask_tryagain_and_one_connection_asking_scope_observed')
+ assert cli(sp,'MIGRATE','127.0.0.1',tp,key2,0,5000)=='OK'
+ assert cli(sp,'CLUSTER','COUNTKEYSINSLOT',slot)=='0'
+ primaries=[x.split() for x in nodes if 'master' in x.split()[2]
+            and any(r[0].isdigit() for r in x.split()[8:])]
+ for node in sorted(primaries,key=lambda row:row[0]!=target[0]):
+  reply=cli(port_of(node),'CLUSTER','SETSLOT',slot,'NODE',target[0])
+  assert reply=='OK',f'finalize slot on {node[0]}: {reply}'
+ until(lambda:all(owner(cli(p,'CLUSTER','NODES').splitlines(),slot)[0]==target[0]
+                  and not any(f'[{slot}-' in line for line in cli(p,'CLUSTER','NODES').splitlines())
+                  for p in ports),30)
+ assert cli(sp,'GET',key1).startswith(f'MOVED {slot} ')
+ assert cli(ports[0],'GET',key1,follow=True)=='a'
+ assert cli(tp,'TYPE',key1)=='string' and cli(tp,'GET',key2)=='1'
+ ttl_after=int(cli(tp,'PTTL',key1));elapsed_ms=int((time.monotonic()-ttl_started)*1000)
+ assert ttl_after>0 and ttl_before-elapsed_ms-2000<=ttl_after<=ttl_before+2000
+ checks.append('migrated_slot_views_converge_and_test_values_type_positive_ttl_preserved')
  nodes=cli(ports[0],'CLUSTER','NODES').splitlines();primary=next(x.split()[0] for x in nodes if 'master' in x.split()[2] and any(int(r.split('-')[0])<=int(slots[0])<=int(r.split('-')[-1]) for r in x.split()[8:] if r[0].isdigit()))
  until(lambda:any(x.split()[3]==primary and 'slave' in x.split()[2] for x in cli(ports[0],'CLUSTER','NODES').splitlines()),30)
  nodes=cli(ports[0],'CLUSTER','NODES').splitlines()

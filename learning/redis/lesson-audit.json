@@ -212,10 +212,10 @@
     "n": 13,
     "title": "Cluster 샤딩과 보장 범위",
     "source": "13-cluster-sharding-guarantees.md",
-    "sourceSha256": "86b085072edf27438737a0f1a3c14057dd3628c72c2f845105f20b7cc20f5715",
-    "characters": 11940,
-    "sections": 10,
-    "questions": 8,
+    "sourceSha256": "fb208eec473da76dbb42d6bd6900dd468d51d52d1c73262b193b17f8f4f18bfc",
+    "characters": 24570,
+    "sections": 19,
+    "questions": 12,
     "officialLinks": [
       "https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/",
       "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/",
@@ -226,28 +226,31 @@
     "n": 14,
     "title": "Cluster 구축과 리샤딩 실습",
     "source": "14-cluster-lab-resharding.md",
-    "sourceSha256": "0e37abec2cc93ab4deb94477ea78233c7f4f511a1cd010dab43b074dff6291e4",
-    "characters": 12185,
-    "sections": 9,
-    "questions": 8,
+    "sourceSha256": "52a0f767bdbe2f15c68cba47b169052d68529bae2e032cbdde5ba4b444018702",
+    "characters": 25362,
+    "sections": 18,
+    "questions": 12,
     "officialLinks": [
       "https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/",
       "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/",
-      "https://redis.io/docs/latest/commands/cluster-failover/"
+      "https://redis.io/docs/latest/commands/cluster-failover/",
+      "https://redis.io/docs/latest/commands/migrate/",
+      "https://redis.io/docs/latest/commands/asking/"
     ]
   },
   {
     "n": 15,
     "title": "Cluster 장애 전환과 노드 변경",
     "source": "15-cluster-failover-node-changes.md",
-    "sourceSha256": "29eebdb4aabf84acb6861bc1c22a948f8575811c267335f6cb11d1d8d1adc4f0",
-    "characters": 12605,
-    "sections": 11,
-    "questions": 8,
+    "sourceSha256": "1ff4cc6fd3bf9a5568034a50b3c56da5698f04f6e5d8a35e69dc753d7a24cfd2",
+    "characters": 26344,
+    "sections": 21,
+    "questions": 12,
     "officialLinks": [
       "https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/",
       "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/",
-      "https://redis.io/docs/latest/commands/cluster-failover/"
+      "https://redis.io/docs/latest/commands/cluster-failover/",
+      "https://github.com/redis/redis/blob/f60370ce28b946c1146dcea77c9c399d39601aaa/src/cluster.c"
     ]
   },
   {

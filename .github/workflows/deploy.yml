@@ -144,12 +144,16 @@ jobs:
           make -C "$RUNNER_TEMP/redis-sentinel-source/src" -j4 MALLOC=libc BUILD_TLS=no redis-server redis-cli
       - name: Verify Sentinel discovery automatic failover rejoin and discovery ACL
         run: python scripts/check-redis-sentinel.py --bin-dir "$RUNNER_TEMP/redis-sentinel-source/src"
-      - name: Upload Sentinel integration evidence
+      - name: Verify Cluster migration redirects TTL and coordinated manual failover
+        run: python scripts/check-redis-cluster.py --bin-dir "$RUNNER_TEMP/redis-sentinel-source/src"
+      - name: Upload Sentinel and Cluster integration evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: redis-sentinel-verification
-          path: learning/redis/sentinel-checks.json
+          path: |
+            learning/redis/sentinel-checks.json
+            learning/redis/cluster-checks.json
   deploy:
     if: github.event_name != 'pull_request'
     needs: [verify, verify-mysql, verify-redis-sentinel]

@@ -4,6 +4,17 @@
 
 
 
+실행 검증 기록: [로컬 Cluster 통합 시험](/learning/redis/cluster-checks.json)은 Redis 7.2.5의 임시 여섯 노드에서 단일 슬롯 이전 중 ASK·TRYAGAIN·동일 연결의 ASKING 범위, 이전 뒤 표본 값·자료형·양수 TTL 및 정상 수동 전환을 검사한다. 자동 장애 전환·네트워크 분할·FORCE·TAKEOVER·노드 추가/제거·버전 업그레이드·Spring 재연결·운영 부하는 이 시험에 포함하지 않는다. [Java 예제 실행 기록](/learning/redis/expansion-code-checks.json)은 교육 모델의 본문 일치·컴파일·독립 main 검사를 별도로 기록한다. 아래의 수동 실습 명령 전체를 실행했다는 뜻은 아니며 실제 통과 여부와 검사 시각은 각 기록에서 확인한다.
+
+## 입문 해설. 담당자 교체·담당 구역 이전·구성원 삭제를 구분하기
+
+물류센터 A의 장비를 점검하려고 한다고 하자. 같은 장부를 따라 적던 대기 담당자 A1에게 업무를 넘기면 담당 구역은 그대로이고 담당 프로세스의 역할만 바뀐다. 이것이 장애 전환을 이해하는 출발점이다. 반대로 A가 맡던 일부 배송 구역을 전혀 다른 센터 B로 넘기면 슬롯과 데이터를 옮기는 리샤딩이다. 마지막으로 A라는 센터를 주소록에서 빼는 것은 멤버십 제거다. 세 작업은 영향을 주는 상태가 다르므로 명령도 검사도 다르다.
+
+서버를 추가할 때도 세 단계를 구분한다. 프로세스를 실행했다는 사실은 Redis가 응답한다는 뜻이다. Cluster에 알려졌다는 사실은 구성원으로 인식된다는 뜻이다. 실제 슬롯을 받거나 replica로 동기화되었다는 사실은 데이터 역할을 수행한다는 뜻이다. 새 primary가 슬롯 0개를 가지고 있다면 메모리가 충분해도 기존 데이터의 저장 부하가 자동으로 나뉘지는 않는다. 새 replica가 목록에 나타났더라도 전체 동기화가 끝나기 전에는 기대한 대기 사본이 완성되지 않았을 수 있다.
+
+이 장에서 계속 던질 질문은 “현재 누가 쓰기를 받고, 어떤 데이터를 가지고, 다음 장애 때 누가 대신할 수 있는가?”다. 이 세 질문에 답할 수 있으면 정상 수동 전환·자동 장애 전환·노드 축소·롤링 유지보수의 차이를 더 쉽게 이해할 수 있다. 명령 이름을 외우는 것보다 각 단계 뒤에 이 세 질문의 답이 어떻게 바뀌는지 적어 보는 것이 중요하다. 다음 작업을 시작할 조건도 같은 질문으로 정한다.
+
+
 ## 1. 노드 작업은 데이터·역할·멤버십 세 가지 변화다
 
 노드를 추가한다는 말에는 빈 프로세스를 실행하는 일, Cluster 구성원으로 알려지는 일, 슬롯을 받거나 다른 primary를 복제하는 일이 섞여 있다. 노드를 제거한다는 말에도 슬롯을 비우는 일, 다른 노드가 그 멤버를 잊는 일, 프로세스를 종료하는 일이 섞여 있다. 이들을 하나의 동작이라고 생각하면 빈 노드를 추가한 뒤 부하가 분산되지 않는 이유를 이해하지 못하거나, 데이터가 있는 primary를 먼저 종료하는 사고를 만들 수 있다.
@@ -177,6 +188,200 @@ P1에 replica가 둘, P2에는 하나도 없다면 일부 조건에서 replica�
 
 한 shard의 전환과 replica 복구가 끝나면 다음 shard로 넘어간다. 장애가 발생하면 어디에서 멈췄는지를 표에 표시하고 남은 노드를 한꺼번에 재시작하지 않는다. 계획 작업의 목표는 최단 명령 수가 아니라 각 단계에서 현재 권위 데이터와 남은 장애 내성을 설명할 수 있는 상태를 유지하는 것이다.
 
+## 관찰 도구 해설. ROLE·복제 정보·Cluster 정보는 같은 보고서가 아니다
+
+`ROLE`은 접속한 Redis가 지금 어떤 복제 역할을 수행하는지 보는 데 도움이 된다. `INFO replication`은 복제 링크와 동기화 상태 등 더 상세한 정보를 제공한다. `CLUSTER NODES`는 접속한 노드가 알고 있는 Cluster 정체성·부모·슬롯·링크 상태를 보여 준다. 이 출력들은 서로 관련되지만 관찰 대상과 시점이 다르다. 하나가 정상이라고 다른 모든 층까지 정상이라는 결론을 내리지 않는다.
+
+예를 들어 R의 `ROLE`이 master로 바뀌었더라도 다른 노드의 슬롯 인식이 아직 수렴 중일 수 있다. 반대로 여러 노드가 R을 새 primary로 알고 있어도 앱이 오래된 연결이나 잘못된 주소를 사용해 실패할 수 있다. 또한 새 primary가 쓰기를 받아도 이를 따라가는 건강한 replica가 없다면 다음 장애 대비는 약해져 있다. “전환 완료”라는 말을 한 가지 성공 조건으로 뭉치지 말고 관찰 항목을 나눠야 한다.
+
+| 관찰 | 알려 주는 것 | 이것만으로 모르는 것 |
+|---|---|---|
+| PING | 해당 접속 경로에서 응답함 | 역할·슬롯·복제 최신성 |
+| ROLE | 그 노드의 현재 복제 역할 | 모든 노드의 구성 수렴·앱 성공 |
+| INFO replication | 복제 링크·동기화 관찰 | 업무 데이터 전부의 정확성 |
+| CLUSTER NODES | 그 노드가 아는 구성과 슬롯 | 모든 다른 노드가 같은 시점의 인식을 가짐 |
+| 앱의 테스트 쓰기·읽기 | 해당 업무 경로의 실제 처리 | 다른 모든 슬롯·다음 장애 대비 |
+
+로그를 남길 때는 포트만 쓰지 말고 node ID와 시각을 같이 적는다. 같은 주소에서 프로세스를 재설치하고 상태 파일을 새로 만들었다면 예전 노드와 다른 정체성이 될 수 있다. 주소가 다시 열렸다고 이전 담당자가 그대로 돌아왔다고 판단하면 안 된다. 반대로 역할이 바뀌어도 node ID는 같은 프로세스 정체성을 이어갈 수 있다. 주소·정체성·역할의 세 단어를 구분하면 노드 교체 기록이 명확해진다.
+
+## 정상 수동 전환의 내부 순서. 복제 스트림의 같은 줄까지 맞추기
+
+계획된 유지보수에서 정상 `CLUSTER FAILOVER`를 replica R에 요청하는 이유는 R을 다음 쓰기 담당자로 만들기 위해서다. R은 기존 primary P와 협력해 전환 절차를 진행한다. 핵심은 P가 전환 과정에서 쓰기 처리를 조정하고 자신이 도달한 복제 스트림 위치를 알리며, R이 그 위치까지 처리했는지를 확인한 뒤 승격을 시작한다는 점이다. 장부 비유로 현재 담당자가 새 쓰기를 잠시 조정하고 “이 줄까지는 넘겨야 한다”고 기준선을 알려 주는 것이다.
+
+replication offset은 임의의 주문 버전 번호와 같은 것이 아니다. 복제 스트림에서 어디까지 처리했는지 나타내는 위치다. 서로 관계없는 복제 이력의 숫자만 가져와 대소를 비교해 최신 데이터를 확정해서는 안 된다. 정상 수동 전환에서는 현재 primary와 그 replica라는 관계 안에서 정해진 기준 위치를 맞추는 맥락이 중요하다. 숫자 하나보다 어느 primary의 어떤 이력을 따라가고 있는지 함께 확인한다.
+
+기준 위치를 맞췄다고 바로 모든 앱 요청이 끝난 것은 아니다. 선출 승인과 역할 변경, 슬롯 담당 정보 전파, 클라이언트 경로 갱신이 뒤따른다. 명령 응답의 `OK`는 시작 요청을 수락했다는 의미이고, 결과는 별도 관찰로 확인해야 한다. 기존 연결에서 실행 중인 요청이나 응답 유실, 다른 shard의 동시 문제까지 자동으로 해결하는 업무 트랜잭션도 아니다. 전환 도중 오류·timeout이 났다면 먼저 실제 역할과 요청 결과를 조회한다.
+
+| 단계 | 쉬운 설명 | 확인할 증거 |
+|---|---|---|
+| 요청 수락 | R에게 교체 절차를 시작하라고 요청 | OK와 이후 로그 |
+| P와 협력 | P가 알려 준 복제 기준선을 준비 | 수동 전환 관련 로그·부모 관계 |
+| R이 기준선까지 처리 | 새 담당자가 넘겨받을 변경을 따라옴 | 기준 offset 도달 관련 로그 |
+| 승인·역할 변경 | R이 P의 슬롯을 맡을 새 primary가 됨 | ROLE·여러 노드의 NODES |
+| 앱 경로 정상화 | 클라이언트가 새 담당자에 요청 | 실제 쓰기·읽기·오류율 |
+| 보호 회복 | 새 primary를 지킬 replica가 정상화 | 복제 링크·지연·배치 정책 |
+
+이 표는 정상 경로의 이해를 위한 요약이다. 내부 타이머와 메시지 전송을 모두 구현한 상태도는 아니다. 실제 Redis 7.2.5 소스에서는 `clusterCommand`, `clusterHandleManualFailover`, `clusterFailoverReplaceYourMaster` 같은 함수로 요청 수락·기준 offset 확인·역할과 슬롯 변경의 책임을 나누어 읽을 수 있다. 소스를 볼 때도 함수 이름만 외우기보다 어느 상태를 기다리고 무엇을 변경하는지 표시하면 동작을 따라가기 쉽다.
+
+## 자동 전환과 강제 옵션. 줄이는 대기 조건과 사라지는 보장을 따로 보기
+
+자동 장애 전환은 P가 정상적으로 협력할 수 없는 상황에서 다른 노드의 장애 인식과 승격 후보·승인 절차를 통해 진행된다. 따라서 정상 수동 전환과 같은 복제 기준선 맞추기를 항상 기대할 수 없다. R이 살아 있다는 사실 외에 후보가 유효한지, 필요한 primary들이 서로 통신하고 승인할 수 있는지, Cluster 상태가 전환을 허용하는지를 확인해야 한다. 자동 전환 실패를 곧바로 “replica가 없어서” 한 가지 원인으로 축소하지 않는다.
+
+`FORCE`는 정상 primary와 기준 위치를 맞추는 협력 단계를 생략하는 경로다. 하지만 필요한 다른 primary들의 승인까지 전부 없애는 선택으로 이해하면 안 된다. `TAKEOVER`는 합의 승인을 거치지 않고 새 구성 epoch를 만들어 슬롯을 주장하는 경로다. 이것은 “FORCE도 실패했으니 한 단계 더 강하게 누르는 버튼”이라는 사용 순서가 아니다. 각 옵션이 어떤 전제를 제거하는지 알고, 네트워크 분할과 데이터 권위를 통제하는 별도 복구 계획에서 판단해야 한다.
+
+| 경로 | 기존 primary의 정상 협력 | 승인 절차의 의미 | 주요 판단 |
+|---|---|---|---|
+| 정상 수동 전환 | 사용함 | 정상 선출·전환 경로 유지 | 계획 작업에 필요한 복제·연결 상태 |
+| FORCE | 생략함 | 다른 primary 승인까지 자동 제거하지 않음 | 후보 데이터와 손실 범위 |
+| TAKEOVER | 생략함 | 합의 없이 슬롯 권위를 주장 | 중복 권위 방지·재해복구 결정 |
+
+두 쪽이 서로를 보지 못하는데 양쪽 운영자가 각각 TAKEOVER를 실행하면, 같은 업무 범위에 대해 서로 다른 권위를 주장하는 구성을 만들 수 있다. 이를 안전하게 복구하려면 어떤 데이터셋을 최종 기준으로 삼을지와 반대쪽 쓰기를 어떻게 막을지부터 결정해야 한다. 이 교재는 FORCE와 TAKEOVER를 기본 자동 재시도 경로로 제공하지 않으며, 자체 통합 시험에서도 실행하지 않는다. 실제로 시험하지 않은 경로를 성공한 일반 경로와 같은 수준의 증거로 표시하지 않는다.
+
+## Java 예제. 작업을 시작해도 되는 조건을 한 번 더 묻기
+
+아래 모델은 팀이 정한 유지보수 시작 조건을 검사한다. Redis 내부 선출 알고리즘이나 모든 승격 적격성을 구현한 코드는 아니다. `backupRecoveryChecked`는 백업 파일의 존재만이 아니라 팀이 요구한 복구 확인이 끝났다는 외부 입력이고, replica 상태·장애 도메인·앱 오류 예산 역시 다른 관찰에서 채워야 한다. 교육용 모델이 모르는 상태를 true로 가정해서는 안 된다.
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+public final class ClusterMaintenanceGateLesson {
+    record Evidence(boolean backupRecoveryChecked, boolean expectedParent,
+                    boolean replicaLinkUp, boolean initialSyncFinished,
+                    boolean independentFailureDomain, boolean applicationHealthy) {}
+
+    static List<String> blockers(Evidence e) {
+        List<String> result = new ArrayList<>();
+        if (!e.backupRecoveryChecked()) result.add("recovery evidence missing");
+        if (!e.expectedParent()) result.add("unexpected replica parent");
+        if (!e.replicaLinkUp()) result.add("replication link down");
+        if (!e.initialSyncFinished()) result.add("initial sync in progress");
+        if (!e.independentFailureDomain()) result.add("shared failure domain");
+        if (!e.applicationHealthy()) result.add("application already unhealthy");
+        return List.copyOf(result);
+    }
+
+    public static void main(String[] args) {
+        Evidence ready = new Evidence(true, true, true, true, true, true);
+        if (!blockers(ready).isEmpty()) throw new AssertionError("ready");
+        Evidence syncing = new Evidence(true, true, true, false, true, true);
+        if (!blockers(syncing).equals(List.of("initial sync in progress"))) {
+            throw new AssertionError("a connected replica may still be syncing");
+        }
+        Evidence risky = new Evidence(true, true, false, false, false, true);
+        if (blockers(risky).size() != 3) throw new AssertionError("independent reasons");
+        System.out.println("ready blockers=" + blockers(ready));
+        System.out.println("syncing blockers=" + blockers(syncing));
+    }
+}
+```
+
+여러 조건을 한 개의 `healthy=true`로 압축하면 나중에 원인을 설명하기 어렵다. 링크가 연결되었어도 초기 동기화가 끝나지 않았을 수 있고, 복제가 정상이어도 같은 호스트에 배치되어 함께 실패할 수 있다. 기존 앱이 이미 오류 예산을 소모하고 있다면 기술적으로 전환 가능해도 계획 작업을 미루는 팀 정책을 둘 수 있다. 시작 조건은 Redis가 명령을 받아들이는 최소 조건보다 넓은 운영 판단이다.
+
+조건이 모두 통과해도 안전이 영구 보장되는 것은 아니다. 관찰 이후 상태가 바뀔 수 있으므로 실행 직전에 부모·역할을 다시 읽고, 실행 중에도 중단 기준을 본다. 이 모델은 미리 관찰한 불리한 증거를 숨기지 않도록 돕는 도구다. 자동화한다면 실패한 조건과 관찰 시각을 로그에 남기고, 과거의 통과 결과를 오래 재사용하지 않는다. 실제 전환의 권한·버전 호환·승인 조건까지 대신 계산하는 도구로 쓰지 않는다.
+
+## Java 예제. 서비스 복구와 replica 보호 회복을 분리하기
+
+아래는 한 shard에 대해 팀이 관찰한 네 가지 조건으로 다음 작업 여부를 결정하는 모델이다. 새 primary가 되어 슬롯 인식이 수렴하고 앱의 테스트 요청이 성공했다면 서비스는 회복했다고 기록할 수 있다. 그러나 건강하고 독립적인 replica가 아직 없으면 다음 계획 작업을 진행하지 않는 정책을 둔다. 다른 모든 슬롯의 상태나 실제 지연을 측정하는 코드는 아니며, 입력은 별도 확인이 필요하다.
+
+```java
+public final class ClusterProtectionRecoveryLesson {
+    record Observation(boolean expectedPrimary, boolean slotViewsConverged,
+                       boolean applicationProbePassed, boolean replicaProtected) {}
+
+    static boolean serviceRestored(Observation e) {
+        return e.expectedPrimary() && e.slotViewsConverged()
+                && e.applicationProbePassed();
+    }
+
+    static boolean nextMaintenanceAllowed(Observation e) {
+        return serviceRestored(e) && e.replicaProtected();
+    }
+
+    public static void main(String[] args) {
+        Observation roleOnly = new Observation(true, false, false, false);
+        Observation serving = new Observation(true, true, true, false);
+        Observation protectedAgain = new Observation(true, true, true, true);
+        if (serviceRestored(roleOnly)) throw new AssertionError("role alone");
+        if (!serviceRestored(serving)) throw new AssertionError("service probe");
+        if (nextMaintenanceAllowed(serving)) {
+            throw new AssertionError("serving is not replica protection");
+        }
+        if (!nextMaintenanceAllowed(protectedAgain)) {
+            throw new AssertionError("all evidence present");
+        }
+        System.out.println("service restored before the next maintenance is allowed");
+    }
+}
+```
+
+이 차이는 실제 작업 순서를 바꾼다. 새 primary R이 정상 응답하기 시작했다고 바로 다른 replica를 재시작하면, 아직 보호되지 않은 shard가 늘어날 수 있다. 한 shard의 전환·앱 확인·복제 보호 회복을 마친 뒤 다음 shard로 넘어가면 동시에 유지보수로 늘어나는 위험을 줄일 수 있다. 그 순서가 모든 장애를 방지하는 것은 아니지만 적어도 무엇을 잃어버린 채 다음 단계를 시작하는지 드러내 준다.
+
+보고서에는 요청 수락 시각, 새 역할 관찰 시각, 앱 첫 정상 요청 시각, replica 링크와 정책 회복 시각을 따로 남긴다. 시간을 분리하면 서버 전환이 느렸는지, 클라이언트가 옛 경로에 머물렀는지, 데이터 동기화가 오래 걸렸는지 찾기 쉽다. 하나의 “복구 10초” 숫자만 남기면 실제 병목을 파악하기 어렵다. 예제의 조건은 이런 관찰 설계를 코드로 작게 표현한 것이다.
+
+## 노드 추가 워크숍. 새 primary를 넣으면 언제 용량이 늘어나는가
+
+P4라는 새 빈 primary를 기존 Cluster에 넣었다고 하자. 멤버십에는 P4가 보이지만 슬롯이 아직 없다면 기존 P1·P2·P3의 데이터는 그대로다. 이때 전체 메모리 대시보드에서 사용률 평균이 낮아져도 가장 가득 찬 shard의 문제가 해결된 것은 아니다. P4가 실제 슬롯과 키를 받아야 데이터 부하를 나눌 수 있다. 평균만 보면 새 빈 서버가 위험한 기존 서버의 수치를 희석할 수 있다.
+
+슬롯을 옮길 때는 source·target 모두에 여유가 필요하다. 목적지의 키 데이터 외에 복제·네트워크·일시 작업 비용도 관찰한다. 새 primary에 replica를 준비하는 시점은 팀의 위험 허용 정책에 따라 계획하되, 데이터를 받은 뒤 보호 사본이 없는 기간을 숨기지 않는다. 기존 shard마다 replica가 하나씩 있다는 사실은 새 shard의 보호를 의미하지 않는다. 슬롯을 추가로 맡는 쓰기 담당자가 생기면 그 데이터의 다음 장애 후보도 다시 그려야 한다.
+
+새 primary가 슬롯을 가지기 시작하면 Cluster의 투표권 집합과 과반 계산에 미치는 영향도 확인해야 한다. 단순히 전체 프로세스 수를 하나 늘리는 산술이 아니다. 어떤 primary가 슬롯을 맡고 있으며 서로 어떤 구성으로 인식하는지를 봐야 한다. 변경 중에는 한 노드의 출력이 다른 노드와 다를 수 있으므로 여러 관찰과 도구 검사를 묶는다. 이 장의 Java 유지보수 모델은 이런 동적 선출 멤버십 계산을 구현하지 않는다.
+
+새 replica를 넣는 경우에는 target primary ID를 먼저 확정한다. 포트를 보고 임의로 부모를 추정하지 않는다. 목록에 추가되었다는 결과와 복제가 정상화되었다는 결과를 나누어 기록한다. 초기 동기화가 길어질 때 원본 primary의 지연·메모리·네트워크도 함께 증가할 수 있다. 복사본을 추가하는 작업은 읽기 경로에만 영향을 주는 무비용 작업이 아니므로 사용자 지연을 보면서 속도와 작업 창을 정한다.
+
+## 노드 축소 워크숍. 빈 슬롯 수와 빈 데이터 수가 무엇을 뜻하는가
+
+primary를 제거하기 전 담당 슬롯을 다른 primary로 이전한다. 이때 슬롯 0개라는 상태, 남은 키가 없는 상태, 구성원에서 사라진 상태, 프로세스가 종료된 상태는 서로 다른 증거다. 슬롯을 옮겼어도 열린 이전 상태가 남거나 다른 노드의 소유권 인식이 수렴하지 않았을 수 있다. 제거 도구의 최종 점검과 여러 노드의 구성·실제 키 검사를 통해 단계별 상태를 확인한다.
+
+제거 대상에 replica가 연결되어 있다면 그 replica를 앞으로 누구의 보호로 사용할지도 정한다. 주소록에서 primary를 없앴다고 모든 데이터 복사본과 연결이 의도한 방식으로 자동 정리되는 것은 아니다. 필요한 재배치 후 초기 동기화와 실제 장애 도메인을 다시 확인한다. replica migration은 일부 상황에서 보호 배치를 개선할 수 있지만 운영자가 기대한 위치와 시간에 정확히 끝나는 전체 배치 관리 시스템으로 보면 안 된다.
+
+축소 후 용량은 평균 외에 최악 shard를 기준으로 계산한다. P1·P2·P3·P4 중 P4를 빼면 남은 서버의 슬롯과 부하가 늘어난다. 단순 메모리 합계가 충분해도 특정 핫키나 태그를 작은 단위로 나눌 수 없으면 한 primary가 먼저 병목이 된다. 축소 계획에는 데이터 크기·명령 비용·요청 편중·복제 보호를 포함한다. “평균 사용률이 40%니까 절반을 빼도 된다” 같은 계산은 분포를 무시한다.
+
+프로세스를 종료하기 전 필요한 로그와 node ID·슬롯 이전 계획을 보존한다. 이후 문제가 생겼을 때 구성 변경과 실제 트래픽 변화를 연결할 근거가 된다. 영속 데이터와 비밀 값이 있는 디스크의 정리는 조직의 데이터 처리 절차에 따른다. 이 교재의 일회용 로컬 환경은 테스트 전용 데이터만 사용하고 임시 프로세스와 경로를 정리한다. 그 간단한 종료 절차를 운영 데이터 삭제 절차로 일반화하지 않는다.
+
+## 롤링 유지보수 사례. 다음 노드를 시작하지 않을 조건부터 정하기
+
+세 shard의 버전을 순차로 변경하는 가상 작업을 보자. 목표 버전의 호환성을 검토하고 복구 시험을 마친 뒤 A1 replica부터 작업한다. 새 버전으로 기동해 정상 동기화·지연·앱 호환을 확인하고, 정상 수동 전환으로 A1을 primary로 만든다. 이후 이전 A가 replica가 된 상태에서 작업하고 복제 보호를 회복한다. 이 흐름은 버전 호환을 검증한 경우의 계획 예시이며 모든 버전 쌍에 그대로 적용되는 업그레이드 지침은 아니다.
+
+| 작업 상황 | 다음 행동을 정할 기준 |
+|---|---|
+| replica가 기동했지만 동기화 진행 중 | 전환을 시작하지 않고 원인·진행 상태 확인 |
+| 전환 요청은 OK이나 역할이 바뀌지 않음 | 반복 호출보다 로그·현재 역할·timeout 확인 |
+| 역할은 바뀌었지만 앱 쓰기 실패 | 주소·토폴로지·ACL·연결·업무 예외 확인 |
+| 앱은 정상이나 replica 보호가 미회복 | 다음 shard 작업 보류 |
+| 새 버전에서 기존 데이터 해석 문제 | 더 확산하지 않고 호환·복구 계획에 따라 판단 |
+
+롤백은 버전 문자열을 예전 것으로 바꾸는 행위와 같지 않다. 새 버전이 영속성 파일이나 설정을 바꿨다면 이전 버전이 그것을 읽을 수 있는지 확인해야 한다. 최신 데이터가 어느 노드에 있고 어떤 백업 시점으로 복구할 것인지도 별도다. 전환을 반대로 수행하는 역할 롤백과 바이너리 다운그레이드, 데이터 복원은 다른 절차다. 계획 단계에서 이를 구분해야 문제 발생 시 더 큰 데이터 손실을 피할 수 있다.
+
+작업자가 둘 이상이면 한 가지 진행 기록을 기준으로 삼는다. “7001 작업 완료”보다 “node ID R이 primary가 되었고 앱 시험 통과, 이전 P는 replica 동기화 완료”처럼 결과 상태를 적는다. 작업 직후 새로 합류한 사람이 같은 전환을 다시 실행하지 않도록 시각·명령·확인 결과·다음 허용 단계를 남긴다. 자동화도 동일하게 현재 상태를 확인한 뒤 다음 단계를 선택해야 하며, 명령을 정해진 횟수 반복하는 것으로 대체할 수 없다.
+
+## 추가 면접 문답. 역할 변경과 작업 완료의 차이
+
+<details><summary>CLUSTER FAILOVER가 OK인데 앱은 계속 실패합니다. 무엇부터 보나요?</summary>
+
+OK는 요청 수락이므로 먼저 실제 역할 변경이 완료됐는지 확인합니다. 대상 replica의 ROLE, 여러 노드의 슬롯 소유권, 관련 로그를 봅니다. 그다음 앱이 새 담당 노드에 직접 접근·인증할 수 있는지, 오래된 경로를 사용하지 않는지 확인합니다. 마지막으로 요청별 결과와 오류 종류를 봐야 합니다. timeout은 명령 미실행 증거가 아니므로 비멱등 쓰기를 무조건 다시 보내지 않습니다. 역할 완료·구성 수렴·앱 정상화를 구분해서 기록하면 지연 구간을 찾기 쉽습니다.
+
+</details>
+
+<details><summary>정상 전환이 안 되면 FORCE, 그래도 안 되면 TAKEOVER 순서인가요?</summary>
+
+그런 단계형 재시도 절차로 사용하면 위험합니다. FORCE는 기존 primary와의 정상 협력 없이 승격을 시도하고, TAKEOVER는 합의 승인까지 우회해 슬롯을 주장하는 경로입니다. 실패 원인이 네트워크 경로·후보 데이터·승인 집합 중 무엇인지 먼저 알아야 합니다. 특히 분할 양쪽에서 강제 권위를 만들면 충돌을 키울 수 있습니다. 재해복구 계획 안에서 권위 데이터와 손실 허용 범위, 반대쪽 쓰기 통제를 결정한 뒤 검토할 옵션입니다.
+
+</details>
+
+<details><summary>새 primary가 응답하니 다음 서버를 재시작해도 되나요?</summary>
+
+서비스 정상화와 다음 장애 대비 회복을 분리해야 합니다. 새 primary의 역할·슬롯 수렴·앱 요청 성공을 확인하고, 이어서 건강한 replica가 원하는 장애 도메인에 있으며 동기화와 지연이 정책을 만족하는지 봅니다. 보호 수준이 회복되기 전에 다음 노드를 중단하면 동시에 취약한 범위가 늘어납니다. 계획 작업은 명령 수가 적은 것보다 각 단계에서 남은 데이터 사본과 권위를 설명할 수 있는 것이 중요합니다.
+
+</details>
+
+<details><summary>노드를 추가했는데 평균 메모리만 낮아지고 기존 서버는 그대로입니다. 왜 그런가요?</summary>
+
+빈 primary의 멤버십 추가와 슬롯·키 이전은 별개이기 때문입니다. 새 노드가 슬롯을 받지 않았다면 실제 데이터는 기존 primary들에 남습니다. 평균 사용률은 빈 서버가 추가되어 낮아질 수 있으므로 가장 가득 찬 shard의 실제 사용량과 소유 슬롯·키 분포를 확인해야 합니다. 리샤딩으로 부하를 나눈 뒤에도 핫키 하나는 자동 분할되지 않으며, 새 shard에 대한 replica 보호도 별도로 준비해야 합니다.
+
+</details>
+
+
 ## 면접 질문과 깊이 있는 답변
 
 답을 펼치기 전에 원리, 장애 반례, 운영 확인 방법의 세 순서로 말해 보자. 짧은 정의만 외우기보다 어떤 조건에서 그 설명이 깨지는지를 덧붙이는 것이 중요하다.
@@ -232,8 +437,10 @@ primary의 직접 서비스 경로를 유지하면서 새 버전의 기동·복�
 
 ## 원문과 공식 확인 자료
 
-이 장은 제공된 `Redis_Senior_Study/chapters/15_` 원문의 해당 주제를 한국어로 재구성하고 독립적인 학습 예제와 판단 절차를 추가했다. 제공 원문은 최신 버전 보증 자료가 아니므로 운영 적용 전 실제 Redis와 클라이언트 버전을 확인한다. 공식 링크는 2026-10-21 집필 시 확인했으며 이 장의 실습 명령을 실행했다는 뜻은 아니다.
+이 장은 제공된 `Redis_Senior_Study/chapters/15_` 원문의 해당 주제를 한국어로 재구성하고 독립적인 학습 예제와 판단 절차를 추가했다. 제공 원문은 최신 버전 보증 자료가 아니므로 운영 적용 전 실제 Redis와 클라이언트 버전을 확인한다. 공식 링크는 2026-10-22 확장 시 다시 확인했으며 이 장의 실습 명령을 실행했다는 뜻은 아니다.
 
 - [Redis 공식 Cluster 운영 가이드](https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/) — 구성·리샤딩·노드 운영의 기준.
 - [Redis 공식 Cluster 명세](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/) — 슬롯·프로토콜·보장 범위의 기준.
 - [CLUSTER FAILOVER 명령](https://redis.io/docs/latest/commands/cluster-failover/) — 정상·강제 수동 전환의 의미.
+
+- [Redis 7.2.5 Cluster 구현](https://github.com/redis/redis/blob/f60370ce28b946c1146dcea77c9c399d39601aaa/src/cluster.c) — 본문에서 설명한 수동 전환의 요청·offset·역할 변경 경계.

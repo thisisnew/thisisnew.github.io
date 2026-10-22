@@ -4,6 +4,19 @@
 
 
 
+실행 검증 기록: [로컬 Cluster 통합 시험](/learning/redis/cluster-checks.json)은 Redis 7.2.5의 임시 여섯 노드에서 단일 슬롯 이전 중 ASK·TRYAGAIN·동일 연결의 ASKING 범위, 이전 뒤 표본 값·자료형·양수 TTL 및 정상 수동 전환을 검사한다. 자동 장애 전환·네트워크 분할·FORCE·TAKEOVER·노드 추가/제거·버전 업그레이드·Spring 재연결·운영 부하는 이 시험에 포함하지 않는다. [Java 예제 실행 기록](/learning/redis/expansion-code-checks.json)은 교육 모델의 본문 일치·컴파일·독립 main 검사를 별도로 기록한다. 아래의 수동 실습 명령 전체를 실행했다는 뜻은 아니며 실제 통과 여부와 검사 시각은 각 기록에서 확인한다.
+
+## 입문 해설. 복사본을 늘리는 것과 장부를 나누는 것은 다른 일이다
+
+배송 조회 데이터가 적을 때는 한 직원이 모든 배송 장부를 관리해도 된다. 그런데 보관할 장부가 책상보다 커지고 찾아오는 사람이 많아지면 두 가지 선택을 생각할 수 있다. 첫째는 같은 장부를 복사해 다른 직원에게 주는 것이다. 둘째는 배송 번호에 따라 장부를 나누어 맡기는 것이다. 전자가 **복제**, 후자가 **샤딩**이다. 복제는 같은 내용의 사본을 만들고, 샤딩은 각 담당자가 책임지는 데이터 범위를 나눈다.
+
+이 차이를 놓치면 “Redis 여섯 대니까 한 대보다 여섯 배 많은 원본 데이터를 저장하겠네”라는 계산을 하게 된다. primary 세 개와 replica 세 개라면 논리적으로 서로 다른 데이터를 맡는 담당자는 세 개다. replica 세 개는 그 세 장부의 복사본을 가진다. 여섯 프로세스의 메모리 합계와 중복 없이 보관할 수 있는 업무 데이터의 크기는 같은 숫자가 아니다. 각 노드에 운영 여유까지 필요하므로 원본 데이터 크기에 단순히 서버 수만 곱하거나 나눠서는 안 된다.
+
+Cluster를 선택하는 첫 질문도 “고가용성이 필요한가?” 하나로 끝나지 않는다. 한 primary의 메모리·처리량 범위를 넘어서 데이터를 나누어야 하는가? 애플리케이션이 분산된 키와 부분 실패를 다룰 준비가 되어 있는가? 업무상 함께 처리해야 하는 키를 같은 슬롯으로 모을 수 있는가? 현재 문제가 자동 장애 전환뿐이라면 비샤딩 복제 그룹과 Sentinel로 해결할 수 있는 범위인지도 비교한다. 반대로 데이터 분산이 필요하다면 Sentinel 수를 늘려서는 해결되지 않는다.
+
+이 장의 읽기 순서는 **무엇을 나누는지 → 요청이 어디로 가는지 → 함께 처리할 수 있는 범위 → 장애 뒤 남는 보장**이다. 처음부터 선출 알고리즘의 세부 단계까지 외울 필요는 없다. 우선 “이 키의 담당 primary는 누구이며, 그 primary가 사라지면 어떤 복사본이 남는가?”를 따라갈 수 있으면 된다. 이후 14편에서는 담당자를 바꾸는 리샤딩을, 15편에서는 담당 프로세스의 역할을 바꾸는 작업을 실제 상태 변화와 연결한다.
+
+
 ## 1. 복제와 샤딩을 다른 축으로 그린다
 
 하나의 물류센터가 모든 송장을 보관하면 특정 시간에 조회가 몰리거나 메모리가 부족해질 수 있다. 같은 장부의 복사본을 만드는 복제는 장애 대비와 일부 읽기 분산에 도움이 되지만 원본 데이터의 저장 범위를 나누지는 않는다. **샤딩**은 전체 키 공간을 여러 primary에 나누어 저장하는 방식이다. Redis Cluster는 샤딩과 각 shard의 복제를 함께 제공한다. Sentinel은 비샤딩 복제 그룹의 primary 교체를 돕는 별도 구조이며 Cluster를 운용하기 위해 Sentinel을 덧붙이는 구조가 아니다.
@@ -149,6 +162,186 @@ A primary만 실패하고 A1이 승격되었다고 하자. 비동기 복제 때�
 
 일부 슬롯이 없을 때 나머지 슬롯의 조회를 계속 제공할지 전체 기능을 막을지 업무별로 정한다. 배송 조회는 존재하는 shard의 정보를 보여 주되 unavailable과 not-found를 구분할 수 있다. 반면 여러 shard의 재고 합계로 출고 여부를 판단하는 기능은 일부 결과만으로 승인을 내려서는 안 된다. `cluster-require-full-coverage`를 변경하기 전에 이런 응답 의미가 정의되어 있어야 한다. 설정은 업무 정책의 구현 수단이지 정책의 대체물이 아니다.
 
+## 슬롯을 이해하는 연습. 키 이름·슬롯 번호·서버 주소를 세 칸에 적기
+
+슬롯은 데이터를 나누기 위한 고정된 논리 번호다. 주소록에서 “배송 번호 S100은 분류 구역 4160번에 속하고, 현재 그 구역은 센터 B가 맡는다”처럼 두 단계를 거친다. 여기서 4160은 설명용 숫자이며 해당 키의 실제 계산값이 아니다. 첫 단계인 키에서 슬롯으로 가는 규칙은 키의 실제 바이트와 해시 태그 규칙으로 정한다. 둘째 단계인 슬롯에서 노드로 가는 규칙은 현재 Cluster의 소유권 정보다. 키 이름을 유지하면서 담당 서버만 바꿀 수 있는 이유가 이 간접 참조에 있다.
+
+| 구분 | 독자가 적어 볼 값 | 바뀌는 대표 원인 |
+|---|---|---|
+| 키 | `shipment:{S100}:status` | 업무 식별자·키 스키마·직렬화 변경 |
+| 슬롯 | 서버의 `CLUSTER KEYSLOT` 결과 | 입력 바이트나 태그 부분 변경 |
+| 현재 primary | 슬롯 맵에 나타나는 node ID와 주소 | 리샤딩·장애 전환·노드 교체 |
+| replica | 해당 primary를 복제하는 node ID | 복제 배치 변경·승격 |
+
+같은 서버 주소를 보았다고 같은 슬롯이라고 판단하지 않는다. 한 primary가 많은 슬롯을 맡기 때문이다. 예를 들어 100번 슬롯과 200번 슬롯이 모두 A에 있어도 두 슬롯은 별개의 분산 단위다. 두 키가 지금 우연히 A에 있다는 이유로 다중 키 명령을 허용하면, 나중에 100번 슬롯만 B로 옮겼을 때 그 명령의 의미가 깨진다. Redis Cluster는 현재 우연한 배치보다 안정적인 슬롯 경계를 기준으로 제약을 둔다고 이해하면 된다.
+
+반대로 서로 다른 키 이름도 같은 태그가 있으면 같은 슬롯을 보장할 수 있다. `shipment:{S100}:status`와 `shipment:{S100}:events`는 서로 다른 값과 자료형을 가질 수 있지만 같은 태그 바이트를 사용한다. 동일 슬롯은 동일 키라는 뜻이 아니다. 같은 슬롯의 두 키는 별도로 만료되거나 삭제될 수 있다. 한 키가 존재한다고 다른 키도 존재하는지, 두 값이 업무상 일관되는지는 명령과 애플리케이션 설계가 책임진다.
+
+태그가 다르면 반드시 슬롯도 다르다고 생각하는 것도 오류다. 키 후보의 수는 사실상 매우 많고 슬롯은 16,384개이므로 서로 다른 입력이 같은 슬롯으로 들어가는 해시 충돌이 가능하다. 그래서 cross-slot 실험은 이름만 보고 판단하지 말고 두 키의 실제 슬롯 번호가 다른지 확인한다. 동일 태그는 같은 슬롯을 의도적으로 보장하는 수단이며, 다른 태그는 다른 슬롯을 보장하는 수단이 아니다.
+
+직렬화도 이 표의 입력에 들어간다. Java 문자열에 중괄호가 있어도 전송할 키를 다른 바이너리 표현으로 바꾸면 기대한 슬롯과 다를 수 있다. API 문서에 보이는 문자열, 로그에 출력한 문자열, 서버로 전달한 바이트가 같은지 확인해야 한다. 초보 단계에서는 문자열 직렬화를 명시적으로 사용해 개념을 익히고, 프레임워크를 적용한 뒤에는 실제 서버의 `CLUSTER KEYSLOT`과 애플리케이션 키 생성 결과를 비교한다.
+
+## 요청을 따라가기. seed 주소 하나가 모든 데이터를 중계하지는 않는다
+
+Cluster 클라이언트의 seed는 처음 지도를 얻기 위해 방문하는 안내소에 가깝다. 지도에 A·B·C가 있다고 배우면 이후에는 해당 슬롯의 담당 노드에 직접 요청한다. seed를 로드밸런서의 유일한 서비스 주소처럼 이해하면 방화벽과 인증을 잘못 설계하기 쉽다. 애플리케이션이 seed에 접속하는 데 성공해도 지도에 실린 B 주소로는 갈 수 없다면 B의 슬롯을 읽는 순간 실패할 수 있다. 단순 PING 성공과 전체 업무 경로 성공을 다른 검사로 둬야 하는 이유다.
+
+예를 들어 seed A가 알려 준 슬롯 맵에 어떤 키의 담당자가 B라고 적혀 있다면 클라이언트는 B에 연결한다. 옛 지도 때문에 A로 갔다면 A가 `MOVED`와 목적지 정보를 반환할 수 있다. 지원 클라이언트는 그 정보를 사용해 경로를 수정하고 필요할 때 토폴로지를 새로 읽는다. 이 과정은 클라이언트가 실제로 목적지에 도달할 수 있고 인증도 성공한다는 전제 위에서 동작한다. 잘못 광고한 컨테이너 내부 주소를 `MOVED`로 받는다면 재시도 횟수를 늘리는 것만으로 해결되지 않는다.
+
+연결 수를 계산할 때도 같은 원리가 적용된다. 애플리케이션 인스턴스 수가 늘고 클라이언트가 여러 노드에 연결하면 서버 측 연결 수와 소켓 자원이 증가한다. 구체적인 연결 공유·pool 동작은 라이브러리 버전에 따라 다르므로 가상의 고정 배수를 정답처럼 외우지 않는다. 실제 클라이언트 구성, 서버 `INFO clients`, 토폴로지 갱신 연결과 Pub/Sub·blocking 명령의 별도 연결 여부를 확인한다. 한 노드에서 보이는 연결 수를 전체 Cluster 합계로 부르지 않는다.
+
+설정 검토는 세 경로로 나눠 적으면 빠뜨리기 어렵다. 첫째는 앱에서 모든 잠재적 데이터 담당 노드로 가는 경로다. 둘째는 노드 사이 cluster bus의 경로다. 셋째는 복제와 키 이전 등에 사용하는 노드 간 데이터 포트 경로다. 포트 번호가 열려 있다는 검사 외에도 인증·TLS·광고 주소가 각 경로에서 맞는지 확인한다. 이 표를 만들면 평소 GET은 성공하지만 리샤딩이나 장애 전환에서만 실패하는 상황을 더 체계적으로 찾을 수 있다.
+
+## 보장 범위를 분해하기. 원자성·복제·내구성·멱등성은 서로 다르다
+
+재고 차감 요청을 처리할 때 자주 등장하는 네 단어를 분리하자. **원자성**은 다른 요청이 중간 상태를 관찰하며 끼어드는 문제와 관련된다. **복제**는 변경을 다른 노드에 전달하는 문제다. **내구성**은 특정 장애 이후에도 데이터를 되살릴 수 있는 문제다. **멱등성**은 같은 업무 요청을 반복해도 효과가 중복되지 않도록 하는 성질이다. 한 슬롯의 Lua 스크립트를 썼다는 사실 하나로 네 문제가 전부 해결되지는 않는다.
+
+가령 수량 확인과 감소를 한 스크립트에 넣으면 같은 노드에서 다른 명령이 그 사이에 끼어들지 못하도록 만들 수 있다. 그러나 스크립트가 수량을 변경한 뒤 잘못된 자료형 명령을 실행하면 일반적인 SQL 롤백처럼 앞 변경이 사라지는 것은 아니다. 더구나 성공한 변경이 replica에 도착하기 전에 primary가 실패하는 문제도 별개다. 그래서 입력·자료형·중복 여부 검증을 변경보다 앞에 두고, 장애 뒤 중복과 누락을 다룰 최종 업무 기록을 별도로 설계한다.
+
+| 질문 | 같은 슬롯이 해결하는 범위 | 추가로 결정할 것 |
+|---|---|---|
+| 관련 두 키를 한 명령·스크립트에서 다룰 수 있는가? | Cluster의 배치 제약을 충족할 수 있다 | 명령 자체의 키 제약과 이동 중 오류 |
+| 명령 실행 중 오류가 나면 이전 쓰기가 되돌아가는가? | 일반 롤백을 제공하지 않는다 | 사전 검증·변경 순서·복구 절차 |
+| primary가 실패해도 승인된 쓰기가 남는가? | 보장하지 않는다 | 복제·영속성·실패 모델·원장 |
+| timeout 뒤 요청을 다시 보내도 되는가? | 보장하지 않는다 | 요청 ID·중복 처리·결과 조회 |
+
+`WAIT`도 이 구분 위에서 읽는다. 앞선 쓰기의 복제를 일정 수 replica가 확인하도록 기다리는 데 쓸 수 있지만, Cluster 전체의 합의 커밋이나 업무 트랜잭션을 만들어 주지는 않는다. 기대한 수보다 적은 응답을 받았을 때 앞선 쓰기가 자동 취소되는 것도 아니다. 실제 클라이언트에서 쓰기와 확인 명령이 어느 노드의 어느 연결로 실행되는지도 중요하다. 단지 예제에 `WAIT 1` 한 줄을 더했다고 전체 요청이 강한 일관성을 얻었다고 설명하면 안 된다.
+
+## Java 예제. 총 메모리와 원본 데이터 예산을 따로 계산하기
+
+다음 클래스는 가상 측정치를 받아 산술 경계를 검사한다. 각 primary와 그 replica가 같은 용량을 가지며, 모든 shard에 동일한 비율의 운영 여유를 남긴다는 단순 모델이다. 실제 Redis의 키 메모리 계산기나 서버 권장값이 아니다. 특히 `maxmemory`는 프로세스 RSS의 엄격한 상한과 같지 않으므로 OS·복제·영속성 작업까지 고려한 실제 측정이 필요하다. 예제의 25%는 학습용 입력값이며 운영 권장 비율이 아니다.
+
+```java
+public final class ClusterShardBudgetLesson {
+    record Plan(int primaries, int replicasPerPrimary,
+                long memoryPerNodeMiB, int reservePercent) {
+        Plan {
+            if (primaries < 1 || replicasPerPrimary < 0 || memoryPerNodeMiB < 1
+                    || reservePercent < 0 || reservePercent >= 100) {
+                throw new IllegalArgumentException("invalid plan");
+            }
+        }
+
+        long processes() {
+            return Math.multiplyExact((long) primaries, replicasPerPrimary + 1L);
+        }
+
+        long provisionedMiB() {
+            return Math.multiplyExact(processes(), memoryPerNodeMiB);
+        }
+
+        long logicalBudgetMiB() {
+            long perShard = Math.multiplyExact(memoryPerNodeMiB,
+                    100L - reservePercent) / 100;
+            return Math.multiplyExact((long) primaries, perShard);
+        }
+    }
+
+    public static void main(String[] args) {
+        Plan oneCopy = new Plan(3, 0, 1024, 25);
+        Plan twoCopies = new Plan(3, 1, 1024, 25);
+        if (twoCopies.processes() != 6) throw new AssertionError("processes");
+        if (twoCopies.provisionedMiB() != 6144) throw new AssertionError("physical");
+        if (twoCopies.logicalBudgetMiB() != 2304) throw new AssertionError("logical");
+        if (oneCopy.logicalBudgetMiB() != twoCopies.logicalBudgetMiB()) {
+            throw new AssertionError("replica must not increase unique-data budget");
+        }
+        if (new Plan(4, 1, 1024, 25).logicalBudgetMiB() != 3072) {
+            throw new AssertionError("another shard changes the model budget");
+        }
+        System.out.println("processes=" + twoCopies.processes());
+        System.out.println("provisionedMiB=" + twoCopies.provisionedMiB());
+        System.out.println("logicalBudgetMiB=" + twoCopies.logicalBudgetMiB());
+    }
+}
+```
+
+이 모델에서 replica 수만 늘리면 전체 할당 메모리는 증가하지만 중복 없는 데이터 예산은 증가하지 않는다. primary 수를 늘리면 모델상의 예산은 증가한다. 다만 실제로는 새 primary를 구성에 넣은 뒤 슬롯과 키를 이전해야 여유 공간을 사용할 수 있다. 또 특정 shard 하나가 가득 차면 나머지 shard의 빈 공간이 자동으로 그 쓰기를 받아 주지 않는다. 총합 예산과 가장 바쁜 shard의 여유를 동시에 보는 것이 핵심이다.
+
+## Java 예제. 응답을 못 받은 쓰기는 실패 확정이 아니다
+
+다음은 Redis 클라이언트 구현이 아니라 클라이언트 관찰을 업무 판단으로 바꾸는 최소 모델이다. 연결이 끊긴 시점에 서버가 명령을 실행했는지는 알 수 없을 수 있다. 서버가 차감한 직후 응답이 유실되었다면 다시 `DECR`를 보내는 것은 중복 차감이 된다. 반대로 실제로 서버에 도달하지 않았다면 재시도하지 않을 때 요청이 누락된다. 이를 구분하려면 고유 요청 ID와 결과 조회·중복 처리 규칙이 필요하다.
+
+```java
+public final class ClusterWriteOutcomeLesson {
+    enum Observation { ACKNOWLEDGED, EXPLICITLY_REJECTED, TIMEOUT }
+    enum Decision { RECORD_ACK, INSPECT_REJECTION, RECONCILE_BY_REQUEST_ID }
+
+    static Decision decide(Observation observation) {
+        return switch (observation) {
+            case ACKNOWLEDGED -> Decision.RECORD_ACK;
+            case EXPLICITLY_REJECTED -> Decision.INSPECT_REJECTION;
+            case TIMEOUT -> Decision.RECONCILE_BY_REQUEST_ID;
+        };
+    }
+
+    public static void main(String[] args) {
+        if (decide(Observation.TIMEOUT) != Decision.RECONCILE_BY_REQUEST_ID) {
+            throw new AssertionError("timeout is an unknown execution outcome");
+        }
+        if (decide(Observation.ACKNOWLEDGED) != Decision.RECORD_ACK) {
+            throw new AssertionError("record what the client observed");
+        }
+        if (decide(Observation.EXPLICITLY_REJECTED) != Decision.INSPECT_REJECTION) {
+            throw new AssertionError("inspect the concrete server error");
+        }
+        System.out.println("timeout requires reconciliation, not blind DECR retry");
+        System.out.println("an ACK is not a cross-failure durability proof");
+    }
+}
+```
+
+명시적 오류도 전부 같은 의미는 아니다. CROSSSLOT처럼 실행 전에 배치 조건을 거부한 경우와, 일부 변경 뒤 스크립트 실행 오류가 난 경우는 다르다. 따라서 이 모델의 `INSPECT_REJECTION`은 “무조건 아무 일도 없었으니 재시도”가 아니다. 실제 오류 종류와 해당 명령의 실행 경계를 확인하라는 뜻이다. ACK도 클라이언트가 성공 응답을 관찰했다는 기록일 뿐 이후 모든 실패에 대해 영구 보존을 증명하는 표시는 아니다.
+
+## 장애 표로 생각하기. 여섯 프로세스 중 네 개가 남았다는 정보는 부족하다
+
+세 primary A·B·C와 각 replica A1·B1·C1을 고정한 가상 상황을 보자. A와 B1이 사라졌다면 A의 데이터 후보 A1과 살아 있는 primary B·C가 남는다. 반면 A와 A1이 사라졌다면 A의 슬롯을 재구성할 현재 복사본이 없다. 사라진 프로세스 수는 둘로 같지만 데이터 범위와 복구 가능성이 다르다. 자동 전환이 가능한지는 연결 관계, 후보 적격성, 승인 가능한 primary 집합도 만족해야 한다.
+
+| 가상 상실 조합 | 남은 데이터 후보 | 우선 확인할 문제 |
+|---|---|---|
+| A만 상실 | A1 | 적격 후보·과반 승인·앱 경로 |
+| A와 B1 상실 | A1, B, C 및 나머지 복사본 | A 전환과 B의 복제 보호 감소 |
+| A와 A1 상실 | A shard의 후보 없음 | 커버리지·백업·재생성·부분 서비스 |
+| A·B가 한쪽, C와 replica들이 다른 쪽으로 분리 | 위치별로 다름 | 어느 쪽에 투표권 있는 primary가 남는가 |
+
+마지막 행에서 replica가 많이 모여 있다는 사실만으로 그쪽이 primary 과반을 가지는 것은 아니다. 과반과 후보는 다른 조건이다. 실제 선출에는 설정 epoch와 인식 전파 같은 추가 조건도 있으므로 이 표를 선출 시뮬레이터로 쓰지는 않는다. 표의 목적은 “남은 프로세스 수”를 세는 대신 **데이터 복사본·승인 집합·네트워크 경로·서비스 정책**을 질문하게 만드는 데 있다.
+
+장애 뒤 복구도 단계로 기록한다. 슬롯 소유자가 정해진 시점, 앱의 첫 쓰기가 성공한 시점, 오류율이 평상시로 돌아온 시점, replica 보호 수준이 회복된 시점은 다를 수 있다. 고객이 다시 조회할 수 있게 되었어도 새 primary에 아직 건강한 replica가 없다면 다음 장애에 취약하다. 장애 종료 보고에는 서비스 정상화와 보호 수준 회복을 분리해 적는다. 이 구분은 다음 15편의 유지보수 중단 조건으로 이어진다.
+
+## 설계 연습. 여러 창고의 합계를 일부 응답으로 계산해도 되는가
+
+조회 API가 세 shard에서 재고를 각각 읽는다고 하자. A에서 10개, B에서 20개를 받았고 C는 unavailable이다. 결과를 30개라고 보여 주면 “확인된 두 곳의 합계”일 수는 있지만 전체 재고가 정확히 30개라는 뜻은 아니다. C의 실패를 값 0으로 바꾸면 장애를 업무 사실로 바꾸는 셈이다. 반면 정확한 전체 합계가 필요 없는 참고 화면이라면 일부 결과와 조회 불가 영역을 명시해서 제공하는 정책을 정할 수 있다.
+
+상품 출고를 승인하는 API는 더 엄격한 판단이 필요하다. 필요한 키가 여러 슬롯에 분산되어 있다면 순차 쓰기 중 일부만 성공할 수 있다. 애플리케이션에서 `try/catch`로 감싼다고 이미 성공한 다른 shard의 변경이 원복되지 않는다. 관련 데이터를 같은 슬롯으로 모을 수 있는지 검토하고, 그 범위를 넘어서는 정합성은 영속 원장과 상태 전이·보상 절차 등에서 처리한다. 여기서 설계의 출발점은 어떤 데이터를 Redis에 저장할지보다 어떤 업무 결과를 최종 사실로 삼을지다.
+
+캐시 장애를 DB fallback으로 넘기는 경우에도 원장 보호를 함께 계산한다. 평소 Redis가 대부분의 조회를 처리했다면 한 shard의 장애만으로 DB 유입이 크게 증가할 수 있다. 키 누락과 Redis unavailable을 같은 cache miss로 뭉뚱그리면 장애 때 원장을 무제한으로 호출하게 된다. 동시성 제한, 제한된 stale 응답, 요청 차단 등은 업무 허용 범위에 맞게 정한다. Cluster의 자동 전환은 이런 애플리케이션 부하 전파를 대신 제어하지 않는다.
+
+## 추가 면접 문답. 설계의 경계를 설명하기
+
+<details><summary>같은 primary에 저장된 두 키도 CROSSSLOT이 날 수 있나요?</summary>
+
+네. 같은 노드와 같은 슬롯은 다릅니다. 한 primary는 많은 슬롯을 맡고, 다중 키 연산의 배치 제약은 슬롯을 기준으로 합니다. 지금 우연히 같은 노드에 있다는 이유로 허용하면 이후 한 슬롯만 이동했을 때 동작이 바뀌게 됩니다. 실제 두 키에 `CLUSTER KEYSLOT`을 실행해 번호를 비교하고, 함께 원자적으로 다룰 업무 단위에 같은 해시 태그를 적용할 수 있는지 검토합니다. 모든 키에 하나의 태그를 붙이면 병목이 한 슬롯에 모이므로 범위를 작게 잡아야 합니다.
+
+</details>
+
+<details><summary>한 슬롯의 Lua가 성공하면 장애 뒤에도 재고 차감이 반드시 남나요?</summary>
+
+그렇게 결론 내릴 수 없습니다. 한 노드에서 다른 명령이 중간에 끼어들지 않는 실행 성질과 비동기 복제·영속성의 장애 보장은 다른 축입니다. 성공 응답 후 replica에 변경이 도착하기 전에 primary가 사라지는 반례가 있습니다. 또 응답을 받지 못해 재시도하면 중복 효과가 생길 수 있습니다. 원자성만 설명하고 끝내지 말고 영속 원장의 요청 ID와 unique 제약, 결과 확인과 복구 정책까지 업무 손실 허용 수준에 맞게 설명해야 합니다.
+
+</details>
+
+<details><summary>replica를 두 배로 늘렸는데 저장 용량이 그대로인 이유를 설명해 주세요.</summary>
+
+replica는 다른 shard의 데이터를 새로 담당하는 노드가 아니라 자신이 따라가는 primary의 데이터 사본을 보관합니다. 따라서 사본 수를 늘리면 물리 자원과 읽기 선택지·장애 대응 여지는 달라지지만 중복 없는 원본 데이터의 저장 범위는 자동으로 늘지 않습니다. 저장 범위를 나누려면 primary shard와 슬롯 배치를 바꾸는 작업이 필요합니다. 총 메모리 외에 가장 메모리가 많은 shard, 복제·버퍼·영속성 여유, 실제 키 크기를 함께 확인합니다.
+
+</details>
+
+<details><summary>Redis Cluster가 unavailable이면 DB에서 읽으면 되지 않나요?</summary>
+
+업무적으로 가능한 fallback일 수 있지만 부하와 응답 의미를 함께 설계해야 합니다. 캐시가 평소 처리하던 요청이 DB로 한꺼번에 유입되면 원장까지 느려질 수 있습니다. unavailable을 값 없음으로 취급해서도 안 됩니다. 화면별로 stale 응답 허용 여부와 정확한 최신값이 필요한 범위를 정하고, fallback 동시성 제한과 timeout을 둡니다. 장애 실험에서는 Redis 복구 시간뿐 아니라 DB QPS·대기·애플리케이션 자원도 관찰해야 전체 서비스가 회복했다고 말할 수 있습니다.
+
+</details>
+
+
 ## 면접 질문과 깊이 있는 답변
 
 답을 펼치기 전에 원리, 장애 반례, 운영 확인 방법의 세 순서로 말해 보자. 짧은 정의만 외우기보다 어떤 조건에서 그 설명이 깨지는지를 덧붙이는 것이 중요하다.
@@ -204,7 +397,7 @@ primary의 적용·응답과 replica 전달 사이에는 비동기 복제 구간
 
 ## 원문과 공식 확인 자료
 
-이 장은 제공된 `Redis_Senior_Study/chapters/13_` 원문의 해당 주제를 한국어로 재구성하고 독립적인 학습 예제와 판단 절차를 추가했다. 제공 원문은 최신 버전 보증 자료가 아니므로 운영 적용 전 실제 Redis와 클라이언트 버전을 확인한다. 공식 링크는 2026-10-21 집필 시 확인했으며 이 장의 실습 명령을 실행했다는 뜻은 아니다.
+이 장은 제공된 `Redis_Senior_Study/chapters/13_` 원문의 해당 주제를 한국어로 재구성하고 독립적인 학습 예제와 판단 절차를 추가했다. 제공 원문은 최신 버전 보증 자료가 아니므로 운영 적용 전 실제 Redis와 클라이언트 버전을 확인한다. 공식 링크는 2026-10-22 확장 시 다시 확인했으며 이 장의 실습 명령을 실행했다는 뜻은 아니다.
 
 - [Redis 공식 Cluster 운영 가이드](https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/) — 구성·리샤딩·노드 운영의 기준.
 - [Redis 공식 Cluster 명세](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/) — 슬롯·프로토콜·보장 범위의 기준.

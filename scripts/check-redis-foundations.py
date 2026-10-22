@@ -46,10 +46,11 @@ report = {
         'Independent teaching models and checksum example only; not Redis integration tests',
         'Spring GoodsNameCache, GoodsHashCache and SentinelClientConfiguration compiled only; no Spring integration runtime',
         'Sentinel teaching models are not full voting, membership, failure detection or TILT implementations; see separate sentinel-checks.json for local server integration',
+        'Cluster budget, outcome, TTL, retry and maintenance models are independent policies, not Redis algorithms or Spring integration; see cluster-checks.json for the separate localhost protocol test',
         'GoodsLookupPolicy compiled only',
         'AOF models do not simulate real filesystem, fsync or Redis implementation',
         'Replication models cover one compatible history and planning arithmetic, not full PSYNC',
-        'Existing redis-lab and cluster reports refer to separate unchanged labs',
+        'Existing redis-lab and the separate cluster-checks report describe only their explicitly recorded integration scopes',
     ],
 }
 (ROOT / 'learning/redis/expansion-code-checks.json').write_text(
