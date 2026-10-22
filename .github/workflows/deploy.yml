@@ -22,6 +22,7 @@ jobs:
         run: |
           python tools/verify_site.py
           python scripts/check-aws.py
+          python scripts/check-redis.py
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -62,7 +63,8 @@ jobs:
         if: failure()
         run: docker logs kafka-study || true
   verify-mysql:
-    runs-on: ubuntu-latest
+    # Playwright 1.51.1 supports Ubuntu 24.04, not the moving ubuntu-latest image.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -98,6 +100,7 @@ jobs:
           node tools/check_categories.cjs
           node scripts/check-aws-browser.cjs
           node scripts/check-jvm-browser.cjs
+          node scripts/check-redis-browser.cjs
       - name: Upload MySQL verification evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -109,6 +112,8 @@ jobs:
             mysql-screenshots/
             learning/jvm-browser-checks.json
             /tmp/jvm-*.png
+            learning/redis/browser-checks.json
+            /tmp/redis-*.png
       - name: MySQL logs on failure
         if: failure()
         run: docker logs mysql-school || true
