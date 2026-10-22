@@ -1,7 +1,7 @@
 {
-  "checkedAt": "2026-10-22T14:39:22.428665+00:00",
+  "checkedAt": "2026-10-22T14:50:32.045417+00:00",
   "runtime": "openjdk version \"21.0.12.1\" 2026-08-18 LTS\nOpenJDK Runtime Environment Corretto-21.0.12.12.1 (build 21.0.12.1+12-LTS)\nOpenJDK 64-Bit Server VM Corretto-21.0.12.12.1 (build 21.0.12.1+12-LTS, mixed mode, sharing)",
-  "compilation": "9 complete classes compiled with --release 21; Spring examples against Spring Data Redis 3.2.0 and Spring Framework 6.1.1",
+  "compilation": "10 complete classes compiled with --release 21; Spring examples against Spring Data Redis 3.2.0 and Spring Framework 6.1.1",
   "sourceHashes": {
     "IdempotentStockLesson.java": "3b8acab8f901e28e12c11b6d9c41d5607cc1c2a5b7dc57dcbc35b67c2530cbc9",
     "RedisConfigContract.java": "e6072d1120885e0a8e5b9ab8fe7ac09b70fcc38077117b1a3931f5c4617238c4",
@@ -11,7 +11,8 @@
     "GoodsNameCache.java": "2461e90b31738c93874149b56c1bd1e8a1e6461baed8c12259eed63cfeb88ea0",
     "GoodsLookupPolicy.java": "9fc97bbd6eb9778d881e04c49d43d8da91741f6d052182b1dda887a9f4ac293f",
     "RedisMemoryBudget.java": "cf49e64399a691c6747d7fbf17c353b748083c69adea7b4cc2bea8dab53f2fbb",
-    "RedisTextBytes.java": "012cf5bf2e27e430d5c508aa8f372e32e6c2b5af00fbc46ef28f72b3bb89eb3f"
+    "RedisTextBytes.java": "012cf5bf2e27e430d5c508aa8f372e32e6c2b5af00fbc46ef28f72b3bb89eb3f",
+    "RedisSnapshotLesson.java": "46e8d429552333f026de8472d486eefb5d70c91fafc0059fa8b00bbb0d3d9d3c"
   },
   "executed": [
     {
@@ -43,6 +44,11 @@
       "class": "RedisBucketAddress",
       "status": "passed",
       "stdout": "Address[key=goods:bucket:v1:12, field=34]\nAddress[key=goods:bucket:v1:13, field=0]"
+    },
+    {
+      "class": "RedisSnapshotLesson",
+      "status": "passed",
+      "stdout": "live=90\nrestored=100\npoint age seconds=30"
     }
   ],
   "limits": [

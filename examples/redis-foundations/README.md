@@ -1,6 +1,6 @@
 # Redis 기초 확장판 Java 예제
 
-00~03편의 완전한 클래스를 본문에서 추출했다. Java 21 기준이다.
+00~04편의 완전한 클래스를 본문에서 추출했다. Java 21 기준이다.
 
 ## 독립 실행 모델
 
@@ -10,13 +10,14 @@ Redis 서버가 필요하지 않다. 로컬 임시 출력 디렉터리를 사용
 javac --release 21 -encoding UTF-8 -d /tmp/redis-foundations \
   LocalKeyValueLesson.java IdempotentStockLesson.java \
   RedisConfigContract.java RedisMemoryBudget.java \
-  RedisTextBytes.java RedisBucketAddress.java GoodsLookupPolicy.java
+  RedisTextBytes.java RedisBucketAddress.java GoodsLookupPolicy.java RedisSnapshotLesson.java
 java -cp /tmp/redis-foundations LocalKeyValueLesson
 java -cp /tmp/redis-foundations IdempotentStockLesson
 java -cp /tmp/redis-foundations RedisConfigContract
 java -cp /tmp/redis-foundations RedisMemoryBudget
 java -cp /tmp/redis-foundations RedisTextBytes
 java -cp /tmp/redis-foundations RedisBucketAddress
+java -cp /tmp/redis-foundations RedisSnapshotLesson
 ```
 
 GoodsLookupPolicy는 API 입력 검증 클래스이며 main은 없다.

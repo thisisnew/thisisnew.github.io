@@ -1,10 +1,10 @@
 {
-  "checkedAt": "2026-10-22T14:40:16.706008+00:00",
+  "checkedAt": "2026-10-22T14:50:32.593181+00:00",
   "baselineCommit": "94e8975d49101d16d68b445a030944b3f846ad87",
   "measurement": "Unicode code points in Markdown body, excluding JSON metadata",
   "goal": "Each of the 31 lessons individually at least twice its baseline body length; length alone does not prove teaching quality",
   "complete": false,
-  "expandedCount": 4,
+  "expandedCount": 5,
   "totalCount": 31,
   "lessons": [
     {
@@ -52,10 +52,10 @@
       "baselineCharacters": 12351,
       "minimumCharacters": 24702,
       "baselineSha256": "d7a9576185c6839e3523f09ae9d925969ef2ae7781409526d207bcf6768dfab2",
-      "currentCharacters": 12351,
-      "currentSha256": "d7a9576185c6839e3523f09ae9d925969ef2ae7781409526d207bcf6768dfab2",
-      "ratio": 1.0,
-      "expanded": false
+      "currentCharacters": 26289,
+      "currentSha256": "fe6ca149ddf31a32b7df40740b41d05a58b67da42b5b2fed453309af6763a040",
+      "ratio": 2.128,
+      "expanded": true
     },
     {
       "file": "05-aof.md",
