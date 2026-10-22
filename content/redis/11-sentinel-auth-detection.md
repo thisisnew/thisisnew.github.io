@@ -4,6 +4,19 @@
 
 
 
+실행 검증 기록: [로컬 Sentinel 통합 시험](/learning/redis/sentinel-checks.json)은 Redis 7.2.5에서 정상 primary 종료 뒤 자동 승격, 이전 primary의 replica 재편입, 한 Sentinel의 발견 전용 계정에 대한 조회 허용·강제 전환 거부를 확인했다. 실제 호스트·네트워크 분할·전원 장애·Spring 클라이언트 재연결은 이 시험의 범위에 포함하지 않았다. [Java 예제 검사](/learning/redis/expansion-code-checks.json)는 본문의 완전한 클래스와 소스 파일 일치, 컴파일 및 독립 main 실행 범위를 따로 기록한다.
+
+## 처음 이해할 바탕. 누구인지 확인하는 것과 무엇을 허용하는 것은 다르다
+
+인증은 접속한 주체가 누구인지 확인하는 과정이고, 인가는 그 주체가 어떤 행동을 해도 되는지 정하는 과정이다. 회사 출입증이 유효하다고 모든 창고와 서버실에 들어갈 수 있는 것은 아니다. Redis에서도 비밀번호가 맞아 연결됐다는 사실과 필요한 명령·키·채널에 접근할 수 있다는 사실은 다르다.
+
+Sentinel 환경에서는 이 구분이 더 중요해진다. 애플리케이션이 현재 primary 주소를 묻는 연결과 상품 상태를 바꾸는 연결, Sentinel이 노드의 역할을 바꾸는 연결은 목적이 다르다. 같은 계정을 모두 사용하면 설정이 짧아 보일 수 있지만, 어떤 경로가 어떤 권한을 필요로 하는지 검토하기 어려워지고 불필요한 권한이 퍼질 수 있다.
+
+또한 비밀번호는 암호화된 통신 자체를 의미하지 않는다. 인증서로 상대의 신원을 검증하는 TLS 조건은 또 다른 층이다. 연결 실패를 볼 때 주소와 포트, TLS, 인증, 명령 권한을 나누어 조사하면 원인을 좁힐 수 있다. “로그인이 안 된다”라는 한 문장만으로 모든 실패를 같은 것으로 처리하지 않는다.
+
+이 장의 또 다른 주제인 장애 판단도 같은 태도로 읽는다. 누군가 응답하지 않는다는 관측과 그 서버가 실제로 고장 났다는 사실은 다를 수 있다. 감시자는 네트워크와 권한, 프로세스의 실행 상태를 거쳐 응답을 받는다. 그 경로가 깨져도 데이터 서버 자체는 살아 있을 수 있다. 판단의 근거와 원인을 구별해야 한다.
+
+
 ## 1. 인증은 하나의 비밀번호 문제가 아니다
 
 물류센터의 출입증을 떠올려 보자. 고객 상담원은 배송 상태를 조회할 수 있어야 하지만 출고 담당자를 교체할 권한은 필요 없다. 복제 담당자는 장부를 받아 적어야 하고 관리위원은 담당자 변경 명령을 내릴 수 있어야 한다. Redis의 인증·권한도 역할별로 나누어야 한다. **인증**은 누가 접속했는지 확인하는 것이고 **인가**는 그 사람이 어떤 명령과 키·채널을 사용할 수 있는지 정하는 것이다. TLS는 전송 경로의 암호화와 신원 검증을 다루며 비밀번호 설정만으로 대체되지 않는다.
@@ -14,13 +27,13 @@
 
 **ACL**은 Access Control List, 즉 접근 제어 목록이다. Redis 데이터 노드의 ACL은 Redis 6부터 제공되며 Sentinel 자체 ACL은 Redis 6.2부터 제공된다는 버전 차이가 있다. 설치 버전과 클라이언트의 username 지원 여부를 먼저 확인한다. Sentinel이 감시 대상 Redis에 접속할 계정은 `sentinel auth-user logistics-main 사용자`와 `sentinel auth-pass logistics-main 비밀번호`로 지정한다. Sentinel들끼리 사용할 계정은 `sentinel sentinel-user`, `sentinel sentinel-pass`이며 같은 대상이 아니다.
 
-```text
-애플리케이션 ─ discovery 계정 ─→ Sentinel
-애플리케이션 ─ application 계정 → 데이터 Redis
-Sentinel ─ monitor/control 계정 → 모든 데이터 Redis
-Sentinel ─ sentinel peer 계정 ─→ 다른 Sentinel
-replica ─ replication 계정 ───→ 현재 primary
-```
+| 연결 출발 | 도착 대상 | 목적 |
+|---|---|---|
+| 애플리케이션 | Sentinel | 현재 주소 발견 |
+| 애플리케이션 | 데이터 Redis | 업무 데이터 접근 |
+| Sentinel | 데이터 Redis | 감시와 역할 제어 |
+| Sentinel | 다른 Sentinel | 감시자 협력 |
+| replica | 현재 primary | 데이터 복제 |
 
 승격 가능한 모든 데이터 노드에 필요한 사용자와 권한을 준비한다. 현재 primary에만 계정을 만들면 장애 전환 직후 새 primary에서 `WRONGPASS`나 `NOPERM`이 발생할 수 있다. replica의 복제 인증도 미래의 역할 전환을 고려한다. ACL 사용자와 `masteruser`·`masterauth`를 사용하는 복제 경로, Sentinel의 제어 경로를 혼동하지 않는다. 계정 회전은 새 자격 증명을 준비하고 모든 경로가 수용하도록 한 뒤 클라이언트를 전환하고 이전 자격 증명을 제거하는 순서로 계획한다.
 
@@ -176,6 +189,197 @@ done
 
 긴 Lua 실행에 따른 `BUSY`도 일반 연결 끊김과 구분한다. Sentinel은 특정 조건에서 `SCRIPT KILL`을 시도할 수 있지만 이미 쓰기를 수행한 스크립트를 안전하게 취소하여 모든 변경을 되돌리는 기능은 아니다. 권한과 스크립트 상태에 따라 결과가 다르다. 운영자가 임의로 프로세스를 종료하기 전에 실행 중인 스크립트와 업무 영향을 분석해야 한다. 제어 계정에 필요한 명령 권한이 빠졌다면 이 경로도 달라질 수 있다.
 
+## 인증 지도. 다섯 연결을 출발 주체와 목적별로 읽기
+
+연결 방향을 먼저 적으면 설정 이름이 덜 헷갈린다. replica가 primary에 접속할 때 제시하는 비밀은 replica 쪽에서 사용된다. Sentinel이 데이터 Redis를 제어할 때 쓰는 계정은 대상 데이터 노드에서 허용되어야 한다. 애플리케이션이 Sentinel에 로그인하는 계정은 애플리케이션의 데이터 읽기 계정과 다를 수 있다.
+
+| 출발 주체 | 목적지 | 필요한 업무 | 설정과 점검의 질문 |
+|---|---|---|---|
+| 애플리케이션 | Sentinel | 논리 그룹의 현재 주소 발견 | 발견 계정과 감시 그룹 이름이 맞는가 |
+| 애플리케이션 | 데이터 Redis | 허용한 키 읽기·쓰기 | 모든 승격 후보에서 앱 권한이 준비됐는가 |
+| Sentinel | 데이터 Redis | 감시·상태 조회·역할 제어 | 감시와 제어에 필요한 명령이 허용되는가 |
+| Sentinel | 다른 Sentinel | 감시자 간 협력 | 감시자 자체의 인증 설정이 맞는가 |
+| replica | 현재 primary | 복제 스트림 수신 | 미래 primary에서도 복제 계정이 유효한가 |
+
+이 표를 새 primary 후보마다 반복해 보자. 현재 primary에서만 앱 로그인을 시험했다면 후보 노드에서의 로그인을 검증하지 않은 것이다. 평소 연결이 유지되는 동안에는 비밀 변경 오류가 숨어 있다가 failover와 재연결에서 드러날 수 있다. 정상 연결의 지속과 새 연결의 성공은 다른 검사다.
+
+계정 이름과 비밀번호가 같더라도 권한이 동일하다고 단정하지 않는다. 어떤 노드에는 계정이 없거나 명령 범위가 다를 수 있다. 상태를 동기화하는 데이터 복제와 계정·운영 설정 배포를 자동으로 같은 일이라고 생각하지 않는다. 사용 버전과 구성 관리 방식을 확인해 필요한 정책을 각 대상에 준비해야 한다.
+
+
+## 역할 전환 해설. 지금의 replica는 미래의 primary다
+
+primary에만 앱 쓰기 계정을 준비하고 replica는 복제만 되게 만들었다고 하자. 평소에는 잘 동작한다. replica가 승격되는 순간 클라이언트가 새 주소를 찾아도 앱 인증이나 쓰기 권한이 없어 실패할 수 있다. 역할 변경의 기술적 성공과 사용자 서비스의 회복이 갈라지는 대표적인 사례다.
+
+복제 인증도 미래 역할을 고려한다. 현재 replica들이 한 primary에 연결할 수 있다는 사실만으로 새 primary가 다른 replica의 연결을 받아 줄 준비가 됐다는 뜻은 아니다. 승격 뒤 나머지 복제본들이 새 상위를 따라가려면 그 대상에서 필요한 복제 계정과 네트워크, TLS 조건이 맞아야 한다. 새 primary는 앱의 쓰기뿐 아니라 복제의 상위 역할도 맡는다.
+
+권한 검사는 성공 사례와 거부 사례를 함께 둔다. 발견 계정은 주소 조회를 할 수 있어야 하지만 임의의 강제 전환은 거부되어야 한다. 앱 계정은 업무 키에 필요한 작업을 할 수 있어야 하지만 역할 변경과 관리 설정은 일반적으로 분리한다. 감시 계정에는 실제 제어에 필요한 기능이 있어야 한다. 정확한 Redis 명령 허용 목록은 공식 문서와 버전에 맞춰 확인한다.
+
+계정 설계에서 중요한 것은 역할 이름이 예쁜지가 아니라 필요한 작업이 가능하고 불필요한 작업이 거부되는지다. 읽기만 시험해서 통과하면 인가 검사의 절반이 빠질 수 있다. 역할 전환 뒤에도 같은 허용·거부 표를 재검사하는 것이 HA 구성의 권한 검증이다.
+
+
+## Java 정책 모델. 허용 검사와 거부 검사를 한 표에 넣기
+
+아래는 역할별 기능 분리를 보여 주는 Java 21 모델이다. Redis ACL 문법과 실제 명령 목록을 구현하지 않는다. 기능 이름은 학습용 추상화이며 이 표를 그대로 ACL 파일로 변환하면 안 된다. 코드의 목적은 필요한 성공과 필요한 실패를 함께 검사하는 데 있다.
+
+```java
+import java.util.Map;
+import java.util.Set;
+
+public final class SentinelAuthorizationLesson {
+    enum Actor { DISCOVERY_APP, BUSINESS_APP, SENTINEL_CONTROL, REPLICATION }
+    enum Action { DISCOVER_PRIMARY, READ_BUSINESS, WRITE_BUSINESS,
+                  CHANGE_ROLE, CONFIGURE_REPLICA, RECEIVE_REPLICATION }
+
+    static final Map<Actor, Set<Action>> POLICY = Map.of(
+            Actor.DISCOVERY_APP, Set.of(Action.DISCOVER_PRIMARY),
+            Actor.BUSINESS_APP, Set.of(Action.READ_BUSINESS, Action.WRITE_BUSINESS),
+            Actor.SENTINEL_CONTROL, Set.of(Action.CHANGE_ROLE, Action.CONFIGURE_REPLICA),
+            Actor.REPLICATION, Set.of(Action.RECEIVE_REPLICATION));
+
+    static boolean permits(Actor actor, Action action) {
+        return POLICY.getOrDefault(actor, Set.of()).contains(action);
+    }
+
+    static void expect(boolean expected, Actor actor, Action action) {
+        if (permits(actor, action) != expected) {
+            throw new AssertionError(actor + " / " + action);
+        }
+    }
+
+    public static void main(String[] args) {
+        expect(true, Actor.DISCOVERY_APP, Action.DISCOVER_PRIMARY);
+        expect(false, Actor.DISCOVERY_APP, Action.CHANGE_ROLE);
+        expect(true, Actor.BUSINESS_APP, Action.WRITE_BUSINESS);
+        expect(false, Actor.BUSINESS_APP, Action.CONFIGURE_REPLICA);
+        expect(true, Actor.SENTINEL_CONTROL, Action.CHANGE_ROLE);
+        expect(false, Actor.REPLICATION, Action.WRITE_BUSINESS);
+        System.out.println("3 required permissions and 3 required denials checked");
+    }
+}
+```
+
+복제 기능을 허용하면서 일반 WRITE_BUSINESS를 허용하지 않는 모델이라고 복제 계정이 낮은 민감도라는 결론은 나오지 않는다. 실제 복제 권한은 데이터 전체를 전달받는 경로와 연결될 수 있다. 일반 GET 권한의 존재 여부만으로 정보 접근 위험을 판단하면 안 된다. 추상 기능과 실제 데이터 노출 범위를 함께 이해해야 한다.
+
+SENTINEL_CONTROL의 실제 계정에는 상태 조회와 감시, 발견 관련 기능도 필요할 수 있다. 이 모델은 역할 분리의 한 관계만 보여 주므로 실제 권한을 완전하게 열거하지 않았다. 컴파일과 예제 실행은 이 작은 정책 표를 검사한 결과다. 실제 Redis ACL과 전환 후 권한의 검증은 별도 통합 시험이다.
+
+
+## 비밀 교체 연습. 연결이 살아 있는 동안에는 잘못된 새 설정이 숨을 수 있다
+
+비밀번호를 파일에서 바꿨는데 현재 연결이 계속 동작한다고 하자. 그 결과만으로 다음 연결도 새 비밀로 성공한다고 말할 수 없다. 이미 인증한 연결이 유지되는 상황과, 새 연결이 인증을 다시 수행하는 상황은 다르다. 재시작과 failover 때만 갑자기 인증 문제가 나타나는 이유가 될 수 있다.
+
+교체 계획은 경로별로 작성한다. 새 자격 증명을 허용할 대상들을 준비한다. 출발 주체가 새 값으로 접속하도록 전환한다. 실제로 새 연결을 만들어 필요한 작업과 거부 작업을 확인한다. 모든 대상이 전환됐는지 확인한 뒤 이전 비밀을 폐기한다. 두 비밀의 병행 허용 방식과 범위는 플랫폼과 정책에 따라 검토해야 한다.
+
+이 과정에서 계정의 명령·키·채널 범위를 의도치 않게 넓히지 않았는지도 본다. 비밀 교체가 권한 확대를 뜻하지는 않는다. 오류를 급하게 없애려고 광범위한 관리자 권한을 부여하면 인증 문제를 해결하면서 다른 위험을 만들 수 있다. 사용자 식별, 비밀 값, 명령 권한, 대상 노드, TLS 조건을 나누어 비교한다.
+
+로그에도 비밀 자체 대신 대상과 계정 식별자, 오류 종류, 시각을 남기는 것이 유용하다. 전체 설정을 채팅이나 공개 문서에 붙여 넣지 않아도 많은 진단은 가능하다. 필요한 증거를 남기는 것과 비밀을 복제하는 것은 다르다.
+
+
+## 장애 판단 해설. 감시자가 보고 있는 것은 네트워크 너머의 응답이다
+
+Sentinel은 서버 내부의 모든 상태를 직접 보는 전지적 관찰자가 아니다. 명령을 보내고 응답과 역할 정보를 관찰한다. 네트워크 지연과 인증, 명령 권한, 대상의 부하가 그 관측에 영향을 준다. 서버가 살아 있어도 필요한 응답을 받지 못할 수 있고, 서버가 응답해도 사용자 요청의 지연 목표를 만족하지 않을 수 있다.
+
+SDOWN을 주관적 판단이라고 부르는 이유가 여기에 있다. 한 Sentinel의 관점에서 정한 시간 동안 유효 응답을 받지 못했다는 상태다. 다른 위치의 Sentinel은 다른 네트워크 경로를 통해 정상 응답을 받을 수 있다. 관점이 다르다는 것은 어느 하나가 반드시 거짓말한다는 뜻이 아니다. 네트워크가 갈라졌거나 지연이 비대칭일 수 있다.
+
+ODOWN은 primary에 대해 필요한 다른 감시자의 최근 판단을 모아 정족수 조건을 만족하는 상태로 이해한다. 이것도 모든 장애 전환 작업의 완료를 뜻하지 않는다. 수행 권한과 적격 후보, 실제 제어가 남는다. 주관적 관찰에서 공동 판단, 실행 권한, 실제 역할 변경으로 질문이 이동한다.
+
+| 관찰 | 성급한 결론 | 다음에 확인할 것 |
+|---|---|---|
+| 한 Sentinel에 SDOWN | 서버가 물리적으로 꺼졌다 | 다른 관점·네트워크·인증·응답 |
+| 여러 Sentinel의 장애 판단 | 전환은 이미 끝났다 | 승인·후보·제어·역할 확인 |
+| Redis PING 응답 | 사용자 요청도 모두 정상이다 | 업무 지연·명령 종류·연결 경로 |
+| 앱 timeout 증가 | Sentinel도 즉시 장애로 볼 것이다 | 앱 시간 예산과 감시 조건 차이 |
+
+
+## 유효 응답 해설. 오류처럼 보이는 응답도 같은 뜻은 아니다
+
+감시에서 중요한 것은 단순히 문자열에 ERR가 보이는지가 아니라 해당 프로토콜과 구현이 무엇을 유효한 응답으로 인정하는지다. 공식 Sentinel 설명에는 PONG 외에도 LOADING과 MASTERDOWN 같은 응답이 유효 응답으로 다뤄지는 내용이 있다. 이것은 사용자 업무 명령이 성공했다는 뜻이 아니라 감시의 응답 판정에 관한 의미다.
+
+예를 들어 데이터 로드 중인 서버가 자신이 로드 중이라고 응답하는 상황과 아무 응답도 하지 않는 상황은 관측이 다르다. 오류 이름만 보고 둘을 같은 장애 시간으로 누적한다고 가정하면 감지 시점을 잘못 예측할 수 있다. 정확한 판정은 운영 버전의 문서와 구현을 확인한다.
+
+앱의 1초 timeout과 Sentinel의 30초 관찰 조건도 다른 질문이다. 앱 사용자는 이미 실패를 볼 수 있지만 감시자는 아직 유효 응답을 관찰하며 장애 조건에 도달하지 않을 수 있다. 감시 기준을 사용자 SLO라고 그대로 부르면 안 된다. 둘의 간격이 업무에 어떤 영향을 주는지 설계해야 한다.
+
+또한 시간 임계값은 모든 관측이 정확한 주기로 실행된다는 이상적인 시계가 아니다. 프로세스 정지나 CPU 포화, VM 시간 이상은 감시자 자체의 판단 환경에 영향을 준다. 12편의 TILT가 왜 필요한지도 이런 관찰 한계에서 출발한다.
+
+
+## 후보 선택 해설. 먼저 자격을 거르고 그 다음 순서를 매긴다
+
+승격 후보를 고르는 규칙은 두 단계로 나누면 쉽다. 첫 단계는 후보가 될 수 있는지다. 오래 끊겨 있거나 상태가 부적절하거나 승격 금지 정책이 있으면 순위 경쟁 전에 제외된다. 두 번째 단계는 남은 후보들 가운데 어떤 것을 선호할지다. 이 둘을 섞으면 “가장 최신인데 왜 안 뽑혔죠?”라는 질문에 답하기 어렵다.
+
+우선순위는 데이터 최신성과 다른 정책이다. 낮은 양의 replica-priority가 앞서고 0은 승격 금지라는 특별한 의미가 있다. 우선순위가 같을 때 복제 진행 위치가 비교되고, 추가 동률은 안정적인 식별 순서로 정할 수 있다. offset 하나만 보고 선택 결과를 예측하면 필터와 정책을 빠뜨린다.
+
+정책을 바꿀 때는 실제 업무 비용을 생각한다. 특정 위치의 서버를 선호하면 접근성과 자원 면에서 유리할 수 있지만 그 후보의 데이터 진행 상태가 다른 후보보다 뒤처질 수 있다. 우선순위 설정은 배치 선호를 표현하는 동시에 데이터 손실 위험과 가용성에 영향을 줄 수 있는 선택이다. 숫자를 예쁘게 정하는 문제가 아니다.
+
+
+## Java 후보 선택 예제. priority·offset·식별자를 차례로 비교하기
+
+아래 코드는 실제 Sentinel의 적격성 필터를 이미 외부에서 계산했다고 가정한다. 연결 단절 시간이나 SDOWN의 세부 규칙은 구현하지 않는다. 남은 후보에 대한 단순화된 비교 순서를 Java 21에서 검사한다. priority 0의 특별한 의미와 순위 비교를 분리해 읽어 보자.
+
+```java
+import java.util.Comparator;
+import java.util.List;
+
+public final class SentinelCandidateOrderingLesson {
+    record Candidate(String runId, int priority, long offset, boolean eligible) {
+        Candidate {
+            if (priority < 0 || offset < 0) throw new IllegalArgumentException("negative value");
+        }
+    }
+
+    static Candidate select(List<Candidate> candidates) {
+        Comparator<Candidate> order = Comparator.comparingInt(Candidate::priority)
+                .thenComparing(Comparator.comparingLong(Candidate::offset).reversed())
+                .thenComparing(Candidate::runId);
+        return candidates.stream()
+                .filter(Candidate::eligible)
+                .filter(candidate -> candidate.priority() != 0)
+                .min(order)
+                .orElseThrow(() -> new IllegalStateException("no eligible promotion candidate"));
+    }
+
+    public static void main(String[] args) {
+        Candidate preferred = new Candidate("r1", 50, 9000, true);
+        Candidate newer = new Candidate("r2", 100, 10000, true);
+        Candidate forbidden = new Candidate("r0", 0, 20000, true);
+        Candidate unhealthy = new Candidate("r3", 1, 30000, false);
+        if (!preferred.equals(select(List.of(newer, preferred, forbidden, unhealthy)))) {
+            throw new AssertionError("policy priority must precede offset");
+        }
+        Candidate samePriorityNewer = new Candidate("r4", 50, 9500, true);
+        if (!samePriorityNewer.equals(select(List.of(preferred, samePriorityNewer)))) {
+            throw new AssertionError("offset should decide equal priority");
+        }
+        Candidate tieA = new Candidate("a", 50, 9500, true);
+        Candidate tieB = new Candidate("b", 50, 9500, true);
+        if (!tieA.equals(select(List.of(tieB, tieA)))) throw new AssertionError("stable tie");
+        boolean rejected = false;
+        try {
+            select(List.of(forbidden, unhealthy));
+        } catch (IllegalStateException expected) {
+            rejected = true;
+        }
+        if (!rejected) throw new AssertionError("invalid candidates were promoted");
+        System.out.println("priority, offset, tie and exclusion cases passed");
+    }
+}
+```
+
+
+첫 검사는 offset이 더 큰 r2보다 priority가 앞선 r1이 선택될 수 있음을 보인다. 두 번째는 priority가 같아야 offset 비교가 결정적일 수 있음을 보인다. 세 번째는 완전한 동률에서 식별 순서를 사용하는 단순 규칙을 확인한다. 마지막은 승격 금지와 부적격 후보만 있을 때 선택하지 않는 경우다.
+
+이 결과는 실제 Redis 노드의 최신성을 측정한 것이 아니다. eligible을 입력으로 주입했고 네트워크와 failover 과정도 없다. 모델이 맡은 한 관계를 정확히 이해하고, 실제 후보 제외 이유는 상태·로그·버전별 규칙으로 조사해야 한다. 코드의 정렬 결과와 전체 시스템의 데이터 안전성을 같은 보장으로 말하지 않는다.
+
+
+## 진단 워크숍. 주소는 바뀌었는데 WRONGPASS 또는 NOPERM이 나온다
+
+새 primary 주소를 발견했고 네트워크 연결도 됐는데 오류가 난다고 하자. WRONGPASS 계열은 사용자와 비밀의 조합, 대상 노드의 사용자 상태 등을 조사하는 방향으로 이어진다. NOPERM 계열은 인증된 주체가 요청한 명령이나 키·채널에 허용되지 않았을 가능성을 살피게 한다. 정확한 오류 의미는 클라이언트와 서버 기록을 함께 확인한다.
+
+먼저 실패한 연결의 출발 주체와 목적을 적는다. 앱이 Sentinel에 로그인하다 실패한 것인지, 앱이 새 데이터 노드에 연결하다 실패한 것인지, Sentinel이 제어 명령을 수행하다 실패한 것인지 다르다. 같은 시간의 인증 오류라도 고쳐야 할 설정 위치가 다를 수 있다.
+
+다음에는 현재 primary와 이전 primary, 다른 후보의 정책을 비교한다. 사용자 존재와 활성 상태, 인증 방식, 필요한 명령과 키 패턴, TLS 조건이 같은 의도인지 확인한다. 전체 비밀 값을 로그에 덤프하는 대신 승인된 경로로 비교한다. 복제된 업무 데이터와 운영 계정의 준비를 자동으로 같다고 가정하지 않는다.
+
+마지막으로 실패한 작업만 허용되는지 확인한다. 오류를 없애기 위해 모든 명령과 채널을 열면 필요한 최소 변경을 알 수 없게 된다. 정상 업무와 금지 업무의 표를 전환 후 실제 계정으로 재실행하고, 재연결까지 포함한 결과를 남긴다. 목표는 오류 메시지를 없애는 것이 아니라 의도한 권한으로 서비스를 회복하는 것이다.
+
+
 ## 면접 질문과 깊이 있는 답변
 
 답을 펼치기 전에 원리, 장애 반례, 운영 확인 방법의 세 순서로 말해 보자. 짧은 정의만 외우기보다 어떤 조건에서 그 설명이 깨지는지를 덧붙이는 것이 중요하다.
@@ -228,6 +432,56 @@ Sentinel 감시 데이터 노드에서는 특히 주의해야 합니다. 내부 
 
 </details>
 
+
+## 진단 표 보충. 실패의 위치를 먼저 쓰면 조치가 좁아진다
+
+같은 화면에서 Redis 오류가 보여도 실제 실패 지점은 다를 수 있다. 이름 발견 전인지, 데이터 연결 전인지, 인증 뒤 명령 실행 단계인지 구별하면 잘못된 설정을 넓게 바꾸는 일을 줄일 수 있다. 아래 표는 조사 출발점을 정하는 예이며 오류 문자열 하나로 원인을 확정하는 규칙은 아니다.
+
+| 관측한 실패 | 먼저 적을 정보 | 다음 질문 |
+|---|---|---|
+| Sentinel 주소 질의 실패 | 발견 대상·논리 이름·연결 계정 | 감시 그룹과 발견 권한이 맞는가 |
+| 데이터 연결 실패 | 실제 IP·포트·실행 위치 | 경로와 수신 상태·TLS 조건은? |
+| 인증 오류 | 실패 노드·사용자·재연결 시각 | 후보에도 같은 인증 의도가 준비됐는가 |
+| 명령 권한 오류 | 명령·키/채널 범위·계정 | 필요한 최소 범위와 실제 정책의 차이는? |
+| 역할 변경만 실패 | 제어 주체·대상·오류 | 조회 권한과 제어 권한을 혼동했는가 |
+
+예를 들어 주소 발견은 성공하고 새 primary의 업무 쓰기만 거절된다면 Sentinel 발견 계정의 비밀부터 바꾸는 것은 조사 방향이 어긋날 수 있다. 실제 데이터 연결의 계정과 대상 노드 정책을 보아야 한다. 반대로 데이터 Redis의 앱 계정이 정상이라고 Sentinel 간 협력이 정상이라는 결론도 나오지 않는다.
+
+거부 기록을 조사할 수 있는 ACL LOG 등의 도구도 운영 버전과 접근 권한에 맞게 사용한다. 로그에는 민감한 대상 식별 정보가 있을 수 있으므로 필요한 담당 경로에서 해석하고 공개 자료에는 적절히 가린다. 목표는 권한을 무조건 넓히는 것이 아니라 어떤 연결에서 어떤 작업이 왜 실패했는지 증거를 갖추는 것이다.
+
+## 추가 면접 문답: 권한과 장애 판단을 연결해 설명하기
+
+<details><summary>비밀번호를 바꿨는데 연결이 계속 되면 교체가 검증된 건가요?</summary>
+
+현재 인증된 연결이 유지되는 상황일 수 있으므로 새 자격 증명으로 새 연결이 성공하는지 확인해야 한다. 재시작이나 failover 때만 실패하는 구성은 평소 연결 유지 시험으로 드러나지 않을 수 있다. 대상 노드와 연결 방향을 나누어 검증한다.
+
+필요한 작업의 성공과 불필요한 작업의 거부도 함께 확인한다. 이전 비밀을 폐기하는 시점은 모든 경로의 전환 확인과 연결되어야 한다. 로그에는 비밀 자체보다 대상과 계정 식별자, 오류와 시각을 남긴다.
+
+</details>
+
+<details><summary>priority 50·offset 9000과 priority 100·offset 10000 가운데 누가 앞서나요?</summary>
+
+둘 다 적격이라면 낮은 양의 priority가 앞서는 정책 때문에 첫 후보가 선호될 수 있다. offset이 더 크다는 사실만으로 두 번째가 항상 선택되지는 않는다. 또한 가장 앞선 후보라도 primary가 성공 응답한 마지막 쓰기를 모두 받았다는 보장은 별도로 검토해야 한다. 비동기 복제의 유실 창을 순위 비교 하나가 없애지는 않는다.
+
+실제 선택은 후보 제외 이유와 정책, 이력의 관계를 함께 설명한다. 정렬 규칙의 이해와 업무 데이터의 내구성 설계는 연결되지만 같은 문제는 아니다.
+
+</details>
+
+<details><summary>앱은 1초마다 실패하는데 Sentinel은 정상이라고 할 수 있나요?</summary>
+
+가능하다. 앱의 요청 시간 예산과 감시자의 유효 응답 조건이 다르기 때문이다. 감시가 정상이라는 말이 모든 업무 명령의 지연 목표를 만족한다는 뜻은 아니다. 사용자 영향과 감시 판정을 따로 관측해야 한다.
+
+느린 명령·자원 압력·네트워크와 연결 경로를 조사하고, 어떤 설정을 바꾸면 어떤 부작용이 생길지 판단한다. 감시 임계값을 사용자 SLO와 같은 숫자로 단순 맞추는 것이 항상 답은 아니다.
+
+</details>
+
+<details><summary>발견 계정이 GET-MASTER-ADDR를 실행할 수 있으면 권한 검사가 끝났나요?</summary>
+
+필요한 조회 성공을 확인한 것이고 금지한 제어 명령이 거부되는지도 별도로 검사해야 한다. 또한 발견 이후의 데이터 연결은 다른 인증 경로일 수 있다. 주소를 얻었다는 사실이 데이터 명령 권한까지 증명하지 않는다.
+
+역할별 연결과 작업의 허용·거부 표를 만들고 모든 승격 후보 및 전환 후에 확인한다. 하나의 성공 사례로 전체 HA 권한 구성이 맞다고 선언하지 않는다.
+
+</details>
 
 ## 원문과 공식 확인 자료
 

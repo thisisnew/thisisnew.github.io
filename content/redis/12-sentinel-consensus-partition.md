@@ -4,6 +4,19 @@
 
 
 
+실행 검증 기록: [로컬 Sentinel 통합 시험](/learning/redis/sentinel-checks.json)은 Redis 7.2.5에서 정상 primary 종료 뒤 자동 승격, 이전 primary의 replica 재편입, 한 Sentinel의 발견 전용 계정에 대한 조회 허용·강제 전환 거부를 확인했다. 실제 호스트·네트워크 분할·전원 장애·Spring 클라이언트 재연결은 이 시험의 범위에 포함하지 않았다. [Java 예제 검사](/learning/redis/expansion-code-checks.json)는 본문의 완전한 클래스와 소스 파일 일치, 컴파일 및 독립 main 실행 범위를 따로 기록한다.
+
+## 처음 이해할 바탕. 과반수는 무엇을 결정하는 과반수인가
+
+분산 시스템에서 합의라는 말을 들으면 모든 데이터가 완벽하게 같아진다는 뜻으로 오해하기 쉽다. 그러나 먼저 **무엇을 결정하는 합의인가**를 물어야 한다. Sentinel에서는 장애 전환을 누가 수행할지, 어떤 새 primary 구성을 채택할지에 관한 판단이 중요하다. 개별 주문 쓰기를 모든 Sentinel이 저장하고 승인하는 구조가 아니다.
+
+회의를 비유로 생각해 보자. 관리위원 과반이 새 창고 책임자를 정했다고 하자. 그 결정이 정당하다는 사실과 새 책임자의 장부에 이전 책임자가 마지막으로 받은 모든 주문이 적혀 있다는 사실은 다르다. 결정 절차는 잃어버린 주문 내용을 만들어 내지 못한다. Sentinel의 제어 결정과 Redis 비동기 데이터 복제를 구별하는 핵심이 여기에 있다.
+
+또한 과반수를 계산할 분모가 중요하다. 원래 다섯 감시자가 있는 집합에서 두 개만 서로 보인다고 그 둘을 새 전체라고 생각해 과반을 계산하면, 다른 쪽도 자기 기준으로 별도의 결정을 할 수 있다. 알려진 구성과 멤버십 규칙을 무시하고 “지금 보이는 것의 절반”으로 단순화하면 안 된다. 이 장의 숫자 예제는 고정된 알려진 집합을 전제로 한다.
+
+안전성과 진행 가능성도 구별한다. 모순된 결정을 막기 위해 충분한 승인이 없으면 새 전환을 멈출 수 있다. 이는 일부 실패에서 가용성을 포기하는 선택이 될 수 있다. 반대로 진행을 무조건 허용하면 서로 다른 쪽이 각자 권한을 주장할 위험이 커진다. 어떤 조건에서 멈추고 어떤 조건에서 진행하는지를 구체적으로 읽는 것이 중요하다.
+
+
 ## 1. 무엇에 합의하는가를 먼저 묻자
 
 Sentinel이 합의를 사용한다는 설명만 듣고 모든 Redis 쓰기가 강한 일관성으로 복제된다고 생각하면 안 된다. 여기서 핵심 합의 대상은 장애 전환을 누가 수행할지와 어떤 새 구성이 더 최신인지다. 주문 데이터 각각을 모든 감시자가 저장하거나 승인하는 구조가 아니다. **제어 구성의 안전성**과 **데이터 쓰기의 내구성**은 별개의 축이다. 관리위원회가 출고 담당자 교체를 적법하게 결정해도 대기 담당자가 받지 못한 마지막 주문서를 만들어 낼 수 없다는 비유를 기억하자.
@@ -181,6 +194,223 @@ S2 호스트가 과부하로 오랫동안 스케줄링되지 않았다가 돌아
 
 배송 조회 캐시의 RPO는 재구축 가능한 지연 범위로, 실제 출고 원장의 RPO는 승인 이벤트 손실 허용 범위로 정의할 수 있다. 같은 Redis 장애라도 두 업무의 의미는 다르다. RTO 역시 새 primary의 ROLE 변경 시각이 아니라 고객이 필요한 조회를 성공하는 시각으로 정의하는 편이 적합하다. 프로토콜의 정상화와 업무의 정상화를 분리해서 보고해야 “전환은 됐는데 고객 문의는 계속된다”는 상황을 정확히 설명할 수 있다.
 
+## 숫자 연습. 장애 판단의 정족수와 수행 승인은 다른 문이다
+
+quorum은 primary 장애 판단에 필요한 동의 수와 관련된다. 실제 전환을 수행하는 감시자는 알려진 감시자들의 과반 승인을 얻어야 하고, quorum이 그보다 크면 그 큰 조건도 충족해야 한다. 따라서 정족수만 낮춘다고 소수 쪽의 전환이 허용되는 것은 아니다.
+
+다섯 감시자에서 quorum이 2라고 하자. S1과 S2가 primary에 문제가 있다고 판단하면 장애 판단의 문을 통과할 수 있다. 그러나 둘만 서로 통신할 수 있다면 전체 다섯의 과반인 셋을 확보하지 못한다. 이 경우 “장애라고 판단한다”와 “전환을 수행할 권한이 있다”가 갈라진다.
+
+quorum을 4로 올리면 어떨까? 과반은 여전히 3이지만 더 엄격한 정족수 조건이 있으므로 필요한 규모가 커진다. 네 개의 동의와 필요한 승인 조건을 만족해야 한다. 숫자를 올리면 모든 장애를 더 많이 견디는 것이 아니라 판단과 실행을 더 어렵게 만들 수 있다. 감도와 오판, 전환 가능성의 관계를 함께 검토해야 한다.
+
+| 알려진 감시자 | quorum | 장애 동의 | 얻은 수행 승인 | 단순 모델의 판단 |
+|---:|---:|---:|---:|---|
+| 5 | 2 | 2 | 2 | 장애 판단 가능, 수행 승인 부족 |
+| 5 | 2 | 2 | 3 | 두 문을 통과할 조건 확보 |
+| 5 | 4 | 4 | 3 | 높은 정족수에 맞는 승인 규모 부족 |
+| 5 | 4 | 3 | 5 | 장애 판단 조건부터 부족 |
+| 3 | 2 | 2 | 2 | 두 문을 통과할 조건 확보 |
+| 2 | 1 | 1 | 1 | 낮은 quorum에도 과반 승인 부족 |
+
+표의 통과는 적격 replica와 제어 명령, 네트워크와 자원이 모두 준비됐다는 뜻은 아니다. 오직 지정한 판단과 승인 조건을 계산한 결과다. 실제 선출에는 epoch와 투표 규칙, 시간과 재시도, 알려진 구성 상태가 연결된다. 산술 예제를 전체 알고리즘으로 확대하지 않는다.
+
+
+## Java 정족수 모델. 두 문을 각각 검사하기
+
+아래 코드는 고정된 알려진 감시자 수, 장애 판단 동의 수, 실제 확보했다고 가정한 승인 수를 입력받는다. 네트워크나 Sentinel 메시지를 실행하지 않는다. Java 21에서 정족수와 과반 조건의 차이를 검사하는 교육용 모델이다.
+
+```java
+public final class SentinelApprovalLesson {
+    record Result(int majority, int requiredApprovals,
+                  boolean enoughDownReports, boolean mayProceed) {}
+
+    static Result evaluate(int known, int quorum, int downReports, int approvals) {
+        if (known < 1 || quorum < 1 || quorum > known
+                || downReports < 0 || downReports > known
+                || approvals < 0 || approvals > known) {
+            throw new IllegalArgumentException("invalid fixed-membership input");
+        }
+        int majority = known / 2 + 1;
+        int required = Math.max(majority, quorum);
+        boolean down = downReports >= quorum;
+        return new Result(majority, required, down, down && approvals >= required);
+    }
+
+    static void expect(boolean down, boolean proceed, int known, int quorum,
+                       int reports, int approvals) {
+        Result result = evaluate(known, quorum, reports, approvals);
+        if (result.enoughDownReports() != down || result.mayProceed() != proceed) {
+            throw new AssertionError(result);
+        }
+    }
+
+    public static void main(String[] args) {
+        expect(true, false, 5, 2, 2, 2);
+        expect(true, true, 5, 2, 2, 3);
+        expect(true, false, 5, 4, 4, 3);
+        expect(false, false, 5, 4, 3, 5);
+        expect(true, true, 3, 2, 2, 2);
+        expect(true, false, 2, 1, 1, 1);
+        for (int known : new int[]{3, 5, 7}) {
+            Result r = evaluate(known, 2, 2, known / 2);
+            if (r.mayProceed()) throw new AssertionError("minority authorized");
+        }
+        System.out.println("quorum and approval boundary cases passed");
+    }
+}
+```
+
+Result에 두 boolean을 둔 이유는 실패 이유를 나누기 위해서다. 장애 판단부터 부족한 경우와 장애 판단은 되었지만 승인 수가 부족한 경우는 운영자의 다음 질문이 다르다. 모든 실패를 false 하나로 숨기면 원인을 알아보기 어렵다. 실제 운영 도구도 필요한 상태와 근거를 구분해 보여 주면 유용하다.
+
+이 클래스는 고정 집합의 단순 산술만 다룬다. approvals는 실제로 유효한 투표를 얻었다고 가정한 값이며 단순 TCP 연결 개수가 아니다. 서로 보이는 감시자가 셋 있다고 언제나 유효한 승인이 셋이라는 뜻은 아니다. 실제 멤버십 인식과 투표의 epoch·중복 방지 규칙은 별도로 이해해야 한다.
+
+
+## 분할 해설. 양쪽이 서로를 못 본다는 것은 양쪽이 꺼졌다는 뜻이 아니다
+
+네트워크 분할은 시스템의 일부가 다른 일부와 통신하지 못하는 상황이다. 프로세스들이 모두 살아 있어도 발생할 수 있다. A 쪽에서는 B가 응답하지 않고 B 쪽에서는 A가 응답하지 않지만, 각자 가까운 애플리케이션 요청은 계속 받을 수도 있다. 통신 실패를 물리 종료와 같다고 생각하면 오래된 primary의 행동을 설명하기 어렵다.
+
+이전 primary가 고립된 쪽에 남았다고 하자. 다수 감시자가 있는 다른 쪽에서는 새 primary를 만들 수 있다. 그러나 네트워크가 끊겼으므로 Sentinel이 고립된 이전 primary에 즉시 명령을 보내 멈추게 할 수 없을 수 있다. 이때 “새 승격의 승인 조건”과 “기존 프로세스의 쓰기를 차단하는 조건”은 다른 문제다.
+
+다수 승인 규칙은 소수 쪽에서 새로운 자동 전환을 마음대로 수행하는 것을 제한하는 데 중요하다. 그 사실이 이미 쓰기를 받고 있던 이전 primary를 물리적으로 제거하거나 모든 오래된 클라이언트 연결을 즉시 끊는 기능으로 바뀌지는 않는다. 클라이언트 라우팅과 쓰기 보호, 필요하다면 저장 대상의 권한 검증 등 남은 조건을 검토해야 한다.
+
+그래서 split brain이라는 말을 쓸 때도 어느 층에서 두 권한이 보이는지 구체적으로 설명한다. 두 데이터 노드가 각자의 클라이언트에 쓰기를 받는 상황, 감시자가 서로 다른 주소를 알고 있는 상황, 외부 업무가 중복 실행된 상황은 관련되지만 같은 관측은 아니다. 증상과 보장의 층을 나누어야 한다.
+
+
+## epoch 해설. 큰 번호는 새 결정이지 더 많은 업무 데이터가 아니다
+
+configuration epoch는 구성의 순서를 구분하는 논리적 번호다. 더 새로운 primary 주소 결정을 비교하고 채택하는 데 쓰이는 관점으로 이해하자. 이 번호를 마지막 주문 ID나 데이터셋의 완전성 지표로 생각하면 안 된다. 높은 번호의 결정이 이전 primary의 모든 성공한 쓰기를 포함한다고 보장하지 않는다.
+
+책의 최신 표지와 본문의 누락 여부를 비유로 떠올려 보자. 3판이라는 표시는 그 판의 순서를 알려 준다. 이전 판을 만들던 사람이 마지막에 받았지만 새 편집팀에게 넘기지 못한 메모가 자동으로 생기는 것은 아니다. 마찬가지로 구성의 최신성은 데이터 전달의 완전성을 대신하지 못한다.
+
+통신이 회복되면 감시자들은 새 구성을 받아들이고 노드들이 현재 primary를 따라가도록 수렴할 수 있다. 이 과정은 키마다 벽시계 시간 도장을 비교해 두 데이터셋의 좋은 부분을 자동 병합하는 기능이 아니다. 이전 primary에만 남은 독자적인 쓰기가 사라질 수 있는 이유를 데이터 이력의 방향으로 설명해야 한다.
+
+
+## Java 구성 모델. 더 높은 epoch와 빠진 쓰기를 함께 보기
+
+다음 코드는 구성 선택과 데이터 집합을 별도 값으로 표현한다. 실제 Sentinel의 전파·투표·재동기화를 구현하지 않는다. 같은 논리 그룹의 두 구성 가운데 높은 epoch를 선택했을 때 데이터의 합집합이 자동으로 만들어지지 않는다는 관계만 보여 준다.
+
+```java
+import java.util.Set;
+
+public final class SentinelEpochLesson {
+    record Configuration(long epoch, String primary, Set<String> observedWrites) {
+        Configuration {
+            if (epoch < 0) throw new IllegalArgumentException("negative epoch");
+            observedWrites = Set.copyOf(observedWrites);
+        }
+    }
+
+    static Configuration newer(Configuration current, Configuration received) {
+        return received.epoch() > current.epoch() ? received : current;
+    }
+
+    public static void main(String[] args) {
+        Configuration oldSide = new Configuration(11, "old-primary", Set.of("W1", "W2"));
+        Configuration newSide = new Configuration(12, "new-primary", Set.of("W1", "W3"));
+        Configuration chosen = newer(oldSide, newSide);
+        if (chosen.epoch() != 12) throw new AssertionError("newer configuration");
+        if (chosen.observedWrites().contains("W2")) {
+            throw new AssertionError("configuration selection invented a data merge");
+        }
+        if (!chosen.observedWrites().contains("W3")) throw new AssertionError("new side");
+        if (!newSide.equals(newer(newSide, oldSide))) {
+            throw new AssertionError("older configuration replaced newer one");
+        }
+        System.out.println("chosen epoch=" + chosen.epoch());
+        System.out.println("chosen writes=" + chosen.observedWrites().stream().sorted().toList());
+        System.out.println("old-only write W2 is not automatically merged");
+    }
+}
+```
+
+W1은 양쪽에 있고 W2는 이전 쪽에만, W3는 새 쪽에만 있다고 가정했다. 새 구성을 택하면 이 모델의 결과는 W1과 W3다. W2가 실제 업무에서 중요하다면 별도 이력으로 존재와 의미를 확인해야 한다. 구성 번호 비교는 그 업무를 처리했다는 사실을 복구하는 도구가 아니다.
+
+이 함수는 같은 epoch에서 서로 다른 구성이 나타나는 예외나 실제 식별·전파 규칙을 다루지 않는다. 그 부분을 임의의 문자열 정렬로 해결하는 완전한 프로토콜이라고 사용하면 안 된다. 교육 모델의 목적은 제어 결정과 업무 데이터의 축을 분리하는 것이다.
+
+
+## 분할 사고 연습. 성공 응답을 받은 세 작업의 운명
+
+입고 작업 요청 W1·W2·W3를 생각해 보자. W1은 분할 직전 이전 primary가 성공 응답했지만 새 후보에는 아직 도착하지 않았을 수 있다. W2는 분할 뒤에도 이전 primary에 남아 있던 클라이언트가 보낸 작업이다. W3는 새 primary를 발견한 클라이언트가 보낸 작업이다. 세 요청 모두 어떤 시점에는 성공처럼 보일 수 있지만 현재 채택한 데이터셋에 모두 남는다고 보장되지 않는다.
+
+이 사례에서 로그를 모을 때는 요청 ID와 도착 노드, 응답 여부, 복제와 영속성 상태, 전환 시점의 관계를 보아야 한다. “서버 A에 10:00:01 성공”과 “서버 B에 10:00:02 성공”이라는 벽시계 순서만으로 어느 쓰기가 보존될지 판단할 수 없다. 시스템이 키별 마지막 시간 도장을 병합하는 모델이 아니기 때문이다.
+
+애플리케이션의 실제 효과도 생각해 보자. Redis에서 재고를 줄였다는 성공을 근거로 외부 주문 DB를 확정했다면, Redis 복구 뒤 카운터가 돌아가도 주문은 이미 남아 있을 수 있다. 반대로 Redis의 중복 방지 키가 사라지면 같은 요청을 다시 처리할 수 있다. 외부 업무가 같은 시점으로 자동 복원되는 것은 아니다.
+
+그래서 권위 있는 업무 기록과 멱등성, 대조 절차가 필요하다. 재시도는 최초 업무 요청의 ID를 유지해야 하고, 처리 기록과 효과를 어떤 트랜잭션 경계로 묶을지 정해야 한다. “Sentinel이 있으니 재시도하면 된다”는 설명은 이 불확실성을 생략한다. Redis가 맡는 역할을 재생성 가능한 보조 상태로 제한할 수 있는지도 설계의 선택이다.
+
+
+## 보호 기능 해설. min-replicas와 WAIT는 어떤 빈틈을 줄이는가
+
+최소 replica 조건은 최근 상태가 좋은 replica가 부족할 때 primary가 쓰기를 오래 받는 위험을 제한할 수 있다. 그러나 새로 들어온 특정 쓰기의 전달 완료를 확인한 뒤 성공 응답하는 동기 커밋과 같지는 않다. 최근 ACK와 이번 쓰기의 복제는 다른 사건이다. 08편의 수락 조건 모델을 이 분할 상황에 연결해 보자.
+
+WAIT는 지정한 연결의 선행 쓰기에 대해 복제 확인을 기다리는 데 유용하다. 목표 확인 수를 얻었다는 사실은 어떤 위험을 줄이는 증거지만, 모든 장애 유형과 승격 선택에서 무손실이라는 전역 보장으로 바꿀 수는 없다. timeout은 앞선 쓰기를 되돌리는 명령도 아니다. 결과를 못 받았을 때의 업무 처리와 재시도는 남는다.
+
+두 기능의 숫자를 강하게 잡으면 쓰기를 중단하거나 기다리는 비용이 늘 수 있다. 데이터 보호 요구와 서비스 가용성, 요청 지연을 함께 정해야 한다. 보호 기능을 썼다는 사실보다 어떤 실패 창을 줄이고 어떤 조건을 아직 받아들이는지 설명하는 것이 중요하다.
+
+이전 primary의 늦은 외부 쓰기를 막아야 한다면 저장 대상이 권한 번호나 업무 상태 전이를 검증하는 별도 설계가 필요할 수 있다. Sentinel의 epoch 값을 곧바로 모든 외부 쓰기의 fencing token으로 사용해도 된다고 일반화하지 않는다. 토큰의 발급과 단조성, 저장 대상의 강제 검증까지 요구를 명확히 해야 한다.
+
+
+## 시계 보충. 감시자 자신이 오래 멈췄다면 누구를 의심해야 할까
+
+장애 감지는 시간 차이에 의존한다. 그런데 감시자 프로세스가 CPU를 얻지 못해 오래 멈췄거나 VM이 일시 정지되었다면, 다음에 깨어났을 때 많은 대상이 동시에 오래 응답하지 않은 것처럼 보일 수 있다. 관찰자가 멈춘 시간과 관찰 대상이 고장 난 시간을 구별하기 어려운 상황이다.
+
+TILT는 이런 시간 관측 이상에서 무리한 판단을 제한하는 보호 모드로 이해할 수 있다. 데이터 서버를 모두 다시 시작하기 전에 감시자 호스트의 시간과 스케줄링, CPU 압력, VM 이벤트를 조사해야 한다. 감시자를 같은 과부하 호스트에 몰아넣으면 생존뿐 아니라 판단의 품질도 함께 영향을 받을 수 있다.
+
+공식 설명과 운영 버전의 구현에서 진입·해제 조건을 확인해야 한다. 다음 코드는 긴 간격 또는 시간 역행을 이상으로 보고, 정한 안정 구간 뒤 보호를 해제하는 교육용 시계 모델이다. 실제 Sentinel의 모든 TILT 동작과 투표·감시 예외를 재현하지 않는다.
+
+```java
+public final class SentinelTiltClockLesson {
+    static final class ClockModel {
+        private long lastTick;
+        private long abnormalAt;
+        private boolean tilted;
+
+        ClockModel(long initialTimeMillis) { lastTick = initialTimeMillis; }
+
+        void tick(long nowMillis) {
+            long delta = nowMillis - lastTick;
+            if (delta < 0 || delta > 2000) {
+                tilted = true;
+                abnormalAt = nowMillis;
+            } else if (tilted && nowMillis - abnormalAt >= 30000) {
+                tilted = false;
+            }
+            lastTick = nowMillis;
+        }
+
+        boolean tilted() { return tilted; }
+    }
+
+    public static void main(String[] args) {
+        ClockModel clock = new ClockModel(0);
+        clock.tick(100);
+        if (clock.tilted()) throw new AssertionError("ordinary interval");
+        clock.tick(2301);
+        if (!clock.tilted()) throw new AssertionError("long pause not detected");
+        for (int i = 1; i < 300; i++) clock.tick(2301L + i * 100L);
+        if (!clock.tilted()) throw new AssertionError("stable period not completed");
+        clock.tick(32301);
+        if (clock.tilted()) throw new AssertionError("stable period completed");
+        clock.tick(32201);
+        if (!clock.tilted()) throw new AssertionError("backward clock not detected");
+        System.out.println("long pause, stable recovery and backward time checked");
+    }
+}
+```
+
+이 모델은 시간을 실제로 기다리지 않고 숫자로 전달한다. 30초 해제 조건을 검사하기 위해 테스트를 30초 멈출 필요가 없다. 시간 기반 로직을 입력으로 분리하면 경계 조건을 빠르고 재현 가능하게 이해할 수 있다. 다만 실제 분산 시스템에서는 단조 시계와 벽시계의 사용, 스케줄링과 로그 시각의 의미까지 확인해야 한다.
+
+TILT가 해제됐다고 데이터가 자동으로 최신 상태가 되는 것도 아니다. 보호 모드는 감시자의 행동 조건과 관련된다. 그동안 데이터 복제와 클라이언트에 무슨 일이 있었는지는 별도 상태를 확인해야 한다. 하나의 플래그를 시스템 전체의 복구 완료로 바꾸어 읽지 않는다.
+
+
+## 실험 설계 보충. 연결 종료 시험만으로 네트워크 분할을 검증할 수 없다
+
+프로세스를 정상 종료하면 상대가 연결 종료를 비교적 명확하게 관찰할 수 있다. 네트워크가 일부 방향으로만 막힌 상황에서는 각 노드가 다른 관점을 가질 수 있다. 따라서 정상 종료 시험을 통과했다고 모든 분할 상황에서 같은 시간과 결과가 나온다고 말할 수 없다. 시험한 장애의 단위를 기록해야 한다.
+
+분할 시험을 설계한다면 누가 누구와 통신할 수 있는지 표로 만든다. 데이터 노드 간 복제, Sentinel 간 협력, Sentinel의 제어 연결, 애플리케이션의 데이터 연결을 따로 표시한다. 한쪽 앱은 이전 primary에 연결되고 다른 앱은 새 주소를 발견하는 상황이 가능하도록 생각해 보면, 왜 외부 요청 기록과 멱등성이 필요한지 보인다.
+
+이 장은 업무 환경에서 방화벽을 즉흥적으로 바꾸라는 지침이 아니다. 격리된 시험 환경과 명확한 대상, 복구 경로를 갖춘 실험을 계획하기 위한 설명이다. 위험한 장애를 주입하지 않고도 먼저 정족수 계산과 시간선, 요청의 운명을 종이와 Java 모델로 검토할 수 있다. 그 다음 실제 구현이 가정을 만족하는지 필요한 범위에서 확인한다.
+
+
 ## 면접 질문과 깊이 있는 답변
 
 답을 펼치기 전에 원리, 장애 반례, 운영 확인 방법의 세 순서로 말해 보자. 짧은 정의만 외우기보다 어떤 조건에서 그 설명이 깨지는지를 덧붙이는 것이 중요하다.
@@ -233,6 +463,40 @@ Sentinel 호스트의 시간 이상, CPU 포화, 긴 프로세스 정지나 VM s
 
 </details>
 
+
+## 추가 면접 문답: 합의의 대상과 한계를 구체적으로 말하기
+
+<details><summary>다수 쪽에서 새 primary를 뽑았으면 이전 primary는 즉시 멈추나요?</summary>
+
+네트워크가 끊겨 제어 명령이 도달하지 않으면 이전 프로세스가 계속 살아 있을 수 있다. 새 전환을 수행할 승인 조건과 기존 서버의 쓰기 차단은 다른 문제다. 오래된 클라이언트가 어디로 요청하는지도 남는다.
+
+최소 replica 조건과 클라이언트 재발견, 업무 멱등성과 필요한 외부 검증을 함께 검토한다. 과반 승인 하나로 모든 오래된 쓰기와 데이터 유실이 사라진다고 말하지 않는다.
+
+</details>
+
+<details><summary>이전 primary의 W2가 벽시계상 더 늦게 성공했으면 복귀 뒤에도 남나요?</summary>
+
+클라이언트의 벽시계상 순서만으로 보존을 약속할 수 없다. 구성의 최신 결정과 데이터의 합집합은 다르다. 더 높은 epoch는 어느 primary 구성이 새 결정인지 비교하는 데 쓰이는 관점이다. 이전 primary에만 있던 쓰기가 업무 의미에 맞게 자동 병합된다는 뜻은 아니다.
+
+복구 후 독자적인 쓰기가 사라질 수 있으므로 중요한 업무는 외부의 권위 있는 이력과 요청 ID로 대조해야 한다. 키별 마지막 벽시계 시간을 비교하는 병합 모델로 설명하면 안 된다.
+
+</details>
+
+<details><summary>지금 보이는 감시자만 새 전체로 보고 과반수를 다시 계산하면 되나요?</summary>
+
+알려진 집합과 멤버십 규칙을 무시해 각 분할의 보이는 노드만 전체라고 계산하면 안 된다. 장애 판단 조건을 낮추더라도 실제 전환에는 과반 승인이 필요하다. 고정된 두 감시자 집합의 엄격한 과반은 둘이므로 하나만 남으면 부족하다. quorum과 수행 승인이라는 두 문을 따로 계산해야 한다.
+
+실제 구성과 멤버십 인식이 안정적이라는 전제도 확인한다. 보이는 노드 수만으로 분모를 줄여 계산하면 서로 고립된 쪽의 결정을 잘못 이해할 수 있다.
+
+</details>
+
+<details><summary>데이터 서버는 정상인데 Sentinel VM이 오래 정지했다면 무엇을 확인하나요?</summary>
+
+먼저 감시자 자신이 정상적인 시간 간격으로 실행되고 있는지 조사해야 한다. CPU 포화나 긴 프로세스 정지, VM 중단과 시간 변화가 관측에 영향을 줄 수 있다. 데이터 서버의 물리 장애로 바로 단정하지 않는다.
+
+로그와 시간, 호스트 상태를 확인하고 보호 해제 뒤에도 실제 역할·복제·클라이언트 상태를 별도로 검사한다. 감시자의 보호 플래그가 없어졌다는 사실만으로 서비스 전체가 복구됐다고 말할 수는 없다.
+
+</details>
 
 ## 원문과 공식 확인 자료
 

@@ -1,10 +1,10 @@
 {
-  "checkedAt": "2026-10-22T15:28:08.246517+00:00",
+  "checkedAt": "2026-10-22T21:26:44.088687+00:00",
   "baselineCommit": "94e8975d49101d16d68b445a030944b3f846ad87",
   "measurement": "Unicode code points in Markdown body, excluding JSON metadata",
   "goal": "Each of the 31 lessons individually at least twice its baseline body length; length alone does not prove teaching quality",
   "complete": false,
-  "expandedCount": 9,
+  "expandedCount": 13,
   "totalCount": 31,
   "lessons": [
     {
@@ -102,40 +102,40 @@
       "baselineCharacters": 11922,
       "minimumCharacters": 23844,
       "baselineSha256": "f1086189c942d7a051698e4a318ffbb6833bf5bad0e333acfd644e9534f7a93c",
-      "currentCharacters": 11922,
-      "currentSha256": "f1086189c942d7a051698e4a318ffbb6833bf5bad0e333acfd644e9534f7a93c",
-      "ratio": 1.0,
-      "expanded": false
+      "currentCharacters": 24431,
+      "currentSha256": "52333e4a25f5218fb21e7cb45d2d91ddfbf9e93c54de8685be7d8dc0804346ed",
+      "ratio": 2.049,
+      "expanded": true
     },
     {
       "file": "10-sentinel-failover-api.md",
       "baselineCharacters": 12534,
       "minimumCharacters": 25068,
       "baselineSha256": "5fef6bdfb69e920f5e203f0ec989a4837a5d8dbb2545e5ecdbdadbf3a2b91da9",
-      "currentCharacters": 12534,
-      "currentSha256": "5fef6bdfb69e920f5e203f0ec989a4837a5d8dbb2545e5ecdbdadbf3a2b91da9",
-      "ratio": 1.0,
-      "expanded": false
+      "currentCharacters": 25618,
+      "currentSha256": "d22cba9f0490d8be5772e8565f9fe1e0befcc64abd5913072fbd294ae7f1591d",
+      "ratio": 2.044,
+      "expanded": true
     },
     {
       "file": "11-sentinel-auth-detection.md",
       "baselineCharacters": 12997,
       "minimumCharacters": 25994,
       "baselineSha256": "d68ab4cdfbf4be7b3cb87915492cb7131bba3524edbf686005d23d79ba224dc9",
-      "currentCharacters": 12997,
-      "currentSha256": "d68ab4cdfbf4be7b3cb87915492cb7131bba3524edbf686005d23d79ba224dc9",
-      "ratio": 1.0,
-      "expanded": false
+      "currentCharacters": 26476,
+      "currentSha256": "a1b643d2f53fb99fa7cb3776bfb7f14ccce8c9dd3e563dcbeddb60c42aa617db",
+      "ratio": 2.037,
+      "expanded": true
     },
     {
       "file": "12-sentinel-consensus-partition.md",
       "baselineCharacters": 12780,
       "minimumCharacters": 25560,
       "baselineSha256": "7ed7e93273322ef96cbda52861085e80445205c3d911931a3dbec7ca8447f9c3",
-      "currentCharacters": 12780,
-      "currentSha256": "7ed7e93273322ef96cbda52861085e80445205c3d911931a3dbec7ca8447f9c3",
-      "ratio": 1.0,
-      "expanded": false
+      "currentCharacters": 26201,
+      "currentSha256": "aff9a27b93ff4bf4f08f06abba30dbdd6377f9b95ebf6fcafff77b67c9eda9d6",
+      "ratio": 2.05,
+      "expanded": true
     },
     {
       "file": "13-cluster-sharding-guarantees.md",

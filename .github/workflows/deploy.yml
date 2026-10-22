@@ -28,7 +28,20 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-          cache-dependency-path: examples/kafka-lab/pom.xml
+          cache-dependency-path: |
+            examples/kafka-lab/pom.xml
+            examples/redis-foundations/pom.xml
+      - name: Verify complete Redis Java examples and expansion progress
+        run: |
+          mvn -B -f examples/redis-foundations/pom.xml dependency:build-classpath -Dmdep.outputFile=target/classpath.txt
+          python scripts/check-redis-foundations.py --java-home "$JAVA_HOME" --spring-classpath "$(cat examples/redis-foundations/target/classpath.txt)"
+          python scripts/check-redis-expansion.py
+      - name: Upload Redis Java execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redis-java-verification
+          path: learning/redis/expansion-code-checks.json
       - name: Verify JVM series links, content, and Java 21 examples
         run: |
           python scripts/check-jvm.py
@@ -117,9 +130,29 @@ jobs:
       - name: MySQL logs on failure
         if: failure()
         run: docker logs mysql-school || true
+  verify-redis-sentinel:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build pinned Redis 7.2.5 local test binaries
+        run: |
+          git clone --depth 1 --branch 7.2.5 https://github.com/redis/redis.git "$RUNNER_TEMP/redis-sentinel-source"
+          make -C "$RUNNER_TEMP/redis-sentinel-source/src" -j4 MALLOC=libc BUILD_TLS=no redis-server redis-cli
+      - name: Verify Sentinel discovery automatic failover rejoin and discovery ACL
+        run: python scripts/check-redis-sentinel.py --bin-dir "$RUNNER_TEMP/redis-sentinel-source/src"
+      - name: Upload Sentinel integration evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redis-sentinel-verification
+          path: learning/redis/sentinel-checks.json
   deploy:
     if: github.event_name != 'pull_request'
-    needs: [verify, verify-mysql]
+    needs: [verify, verify-mysql, verify-redis-sentinel]
     permissions:
       contents: read
       pages: write

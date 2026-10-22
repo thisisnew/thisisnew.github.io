@@ -1,0 +1,28 @@
+{
+  "scope": "Two data Redis processes and three Sentinel processes on one localhost; isolated test keys only",
+  "not_tested": [
+    "cross-host failure domains",
+    "network partitions",
+    "abrupt process or host crash",
+    "disk-loss durability",
+    "Spring or Lettuce reconnection",
+    "secret rotation",
+    "full production ACL policy",
+    "all failover candidate selection cases",
+    "performance"
+  ],
+  "checks": [
+    "initial_primary_replica_link_and_test_key_replication",
+    "three_sentinels_discover_peers_and_agree_on_initial_primary",
+    "ckquorum_succeeds_for_the_known_local_three_sentinel_group",
+    "automatic_failover_after_normal_primary_shutdown_and_new_primary_write",
+    "former_primary_rejoins_as_replica_and_receives_new_test_write",
+    "sentinel_discovery_acl_allows_address_lookup_and_denies_manual_failover"
+  ],
+  "status": "passed",
+  "redisVersion": "Redis server v=7.2.5 sha=f60370ce:0 malloc=libc bits=64 build=46e16f5bdd058a14",
+  "processesStopped": true,
+  "temporaryDataRemoved": true,
+  "scriptSha256": "b38c40cd36db1de40734348d725316d78320fd02d7b125d7e3d4749d0b06f8af",
+  "checkedAt": "2026-10-22T21:23:45.337391+00:00"
+}

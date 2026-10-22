@@ -44,7 +44,8 @@ report = {
     'sources': source_rows, 'executed': rows,
     'limits': [
         'Independent teaching models and checksum example only; not Redis integration tests',
-        'Spring GoodsNameCache and GoodsHashCache compiled but not executed against Redis',
+        'Spring GoodsNameCache, GoodsHashCache and SentinelClientConfiguration compiled only; no Spring integration runtime',
+        'Sentinel teaching models are not full voting, membership, failure detection or TILT implementations; see separate sentinel-checks.json for local server integration',
         'GoodsLookupPolicy compiled only',
         'AOF models do not simulate real filesystem, fsync or Redis implementation',
         'Replication models cover one compatible history and planning arithmetic, not full PSYNC',

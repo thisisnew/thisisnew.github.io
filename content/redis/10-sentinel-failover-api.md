@@ -4,6 +4,19 @@
 
 
 
+실행 검증 기록: [로컬 Sentinel 통합 시험](/learning/redis/sentinel-checks.json)은 Redis 7.2.5에서 정상 primary 종료 뒤 자동 승격, 이전 primary의 replica 재편입, 한 Sentinel의 발견 전용 계정에 대한 조회 허용·강제 전환 거부를 확인했다. 실제 호스트·네트워크 분할·전원 장애·Spring 클라이언트 재연결은 이 시험의 범위에 포함하지 않았다. [Java 예제 검사](/learning/redis/expansion-code-checks.json)는 본문의 완전한 클래스와 소스 파일 일치, 컴파일 및 독립 main 실행 범위를 따로 기록한다.
+
+## 처음 이해할 바탕. 감지했다는 말과 복구됐다는 말 사이에는 일이 많다
+
+자동 장애 전환을 처음 배우면 “원본이 죽으면 복제본이 원본이 된다”라고 외우기 쉽다. 틀린 출발점은 아니지만 그 사이의 판단과 작업을 생략한 문장이다. 실제로는 누군가 이상을 관찰하고, 다른 감시자의 의견을 확인하고, 전환할 권한을 얻고, 후보를 선택하고, 역할을 바꾸고, 클라이언트가 새 주소에 연결해야 한다. 이 과정의 여러 지점에서 시간이 걸리거나 실패할 수 있다.
+
+식당의 주문 접수 담당자가 자리를 비운 상황을 생각해 보자. 동료 한 명이 “연락이 안 된다”고 말한 것은 첫 관찰이다. 관리자들이 대체 담당자를 정하는 것은 다른 일이다. 새 담당자가 업무를 시작하는 것과 손님들이 새 창구를 찾아오는 것도 다르다. Sentinel에서 감지·승인·승격·발견·서비스 회복을 구별하는 이유가 여기에 있다.
+
+각 단계는 운영 지표의 질문을 만든다. SDOWN은 어떤 감시자가 무엇을 보았는가를 묻게 한다. ODOWN은 필요한 공동 판단이 이루어졌는가를 묻게 한다. 역할 변경은 어떤 데이터 노드가 쓰기를 맡았는가를 묻게 한다. 첫 성공 요청은 애플리케이션이 실제로 그 노드에 도착했는가를 보여 준다. 이름이 다른 사건을 하나의 완료 시각으로 합치지 않는다.
+
+이 구별이 있으면 장애가 오래 지속될 때 조사 방향도 달라진다. 서버 승격은 빨리 끝났는데 클라이언트가 예전 주소를 계속 사용했을 수 있다. 주소 발견은 성공했는데 인증이나 네트워크 때문에 새 연결이 실패했을 수도 있다. 서버 설정 하나를 바꾸기 전에 어느 단계가 길었는지 확인하는 것이 먼저다.
+
+
 ## 1. 장애 전환은 한 번의 명령이 아니라 상태 변화다
 
 출고 조회 서비스에서 primary 연결이 끊겼다고 가정하자. Sentinel 하나가 즉시 새 서버를 만드는 것이 아니다. 각 Sentinel이 일정 시간 유효한 응답을 받지 못하면 SDOWN을 표시하고, 충분한 감시자가 primary 장애에 동의하면 ODOWN에 도달한다. 이후 한 Sentinel이 해당 전환을 실행할 권한을 얻고, 적절한 replica를 고르고, 승격 명령을 보내고, 실제 역할 변경을 확인한다. 다른 replica의 복제 대상과 클라이언트 경로도 따라 바뀌어야 한다.
@@ -184,6 +197,191 @@ Sentinel 지원 클라이언트는 알려진 Sentinel에서 현재 primary를 �
 
 완료 선언에는 세 증거가 필요하다. 첫째, 여러 Sentinel의 현재 primary 조회가 같은 역할 변경을 반영한다. 둘째, 애플리케이션이 새 경로에서 실제 명령을 성공시킨다. 셋째, 의도한 replica 수가 새 primary를 정상 복제한다. 첫 번째만 충족하면 제어 평면은 회복했지만 고객 경로는 미확인이고, 두 번째만 충족하면 다음 장애를 버틸 보호 수준이 부족할 수 있다.
 
+## 상태 변화 해설. 로그 한 줄씩을 어느 단계의 증거로 읽을까
+
+Sentinel 로그에는 상태 변화와 시도, 결과를 나타내는 여러 이벤트가 남을 수 있다. 초보자에게는 많은 기호가 한꺼번에 보여 어렵다. 우선 이벤트 이름을 모두 외우기보다 **관찰·판단·실행·확인·안내**라는 종류로 묶어 보자. 같은 실패에도 어느 지점까지 갔는지 구별할 수 있으면 충분한 출발이다.
+
+| 종류 | 이 단계의 질문 | 증거의 예 | 이것만으로 완료라 할 수 없는 것 |
+|---|---|---|---|
+| 관찰 | 유효 응답이 사라졌는가? | 특정 Sentinel의 SDOWN·응답 기록 | 공동 판단과 승격 |
+| 판단 | 장애 판단·수행 권한이 충족됐는가? | ODOWN·선출 관련 로그 | 적격 후보의 실제 승격 |
+| 실행 | 후보에 역할 변경을 요청했는가? | 후보 선택·전환 시도 | 요청이 적용됐는가 |
+| 확인 | 새 노드가 primary로 동작하는가? | INFO·ROLE·전환 상태 | 애플리케이션의 새 연결 |
+| 안내·서비스 | 새 주소를 발견하고 요청이 성공하는가? | 주소 질의·클라이언트 로그·업무 결과 | 복제 여유와 모든 기능의 정상 |
+
+특정 이벤트의 세부 순서와 이름은 버전과 경로에 따라 확인한다. 여기서 중요한 습관은 한 줄의 로그를 전체 시스템의 최종 상태로 확대하지 않는 것이다. `switch-master`를 보았더라도 다른 replica의 재구성이 끝나지 않았을 수 있다. 사용자 요청이 성공해도 원하는 복제 대수가 다시 확보됐는지는 별도로 본다.
+
+같은 사건을 여러 Sentinel이 서로 다른 시점에 기록할 수도 있다. 로그를 모을 때 호스트와 프로세스, 감시 그룹, 시각을 함께 보관해야 한다. 한 파일의 마지막 줄만 보고 모든 감시자가 같은 상태라고 생각하지 않는다. 시계가 어긋나면 단순 시간 정렬에도 오차가 생기므로 이벤트의 원인과 결과 관계도 함께 읽는다.
+
+
+## 시간 예산 해설. down-after를 줄인 만큼 RTO가 줄어들까
+
+`down-after-milliseconds`는 감시자의 유효 응답 관찰과 관련된 입력이다. 전체 복구 시간을 직접 지정하는 값은 아니다. 감지 뒤 승인과 후보 선택, 역할 변경, 발견과 재연결이 필요하다. 그중 어느 단계가 병목인지 모른 채 감지 시간만 줄이면 잘못된 판단과 불필요한 전환을 늘릴 수도 있다.
+
+다음은 설명용 시간선이다. 0초에 사용자 요청이 실패하기 시작했고, 5초에 감지 조건이 충족되고, 7초에 전환 수행 권한을 얻고, 9초에 새 primary가 확인되었다고 하자. 클라이언트는 12초에 새 주소를 찾고 14초에 첫 쓰기를 성공시켰다. 복제 여유는 30초에 회복됐다. 이 경우 5초와 9초, 14초, 30초는 모두 다른 질문의 답이다.
+
+| 가상 시각 | 사건 | 줄일 시간을 찾는 관점 |
+|---:|---|---|
+| 0초 | 첫 사용자 실패 | 실제 영향 시작을 어떻게 관측했나 |
+| 5초 | 장애 감지 | 응답 기준과 관찰 간격은 어떤가 |
+| 7초 | 수행 권한 확보 | 감시자 통신과 승인 조건은 충분한가 |
+| 9초 | primary 역할 확인 | 후보의 준비와 제어 명령은 정상인가 |
+| 12초 | 클라이언트 새 주소 발견 | 재발견 주기와 실패 처리 경로는 어떤가 |
+| 14초 | 첫 업무 쓰기 성공 | 새 연결·인증·요청 재개는 정상인가 |
+| 30초 | 필요한 복제 여유 회복 | 재동기화와 자원 여유는 충분한가 |
+
+실제 단계가 항상 이렇게 고정 길이로 순차 실행되는 것은 아니다. 일부 작업은 겹칠 수 있고 실패와 재시도가 추가될 수 있다. 표는 시간 구간의 의미를 나누는 모델이다. 관측한 실제 시각이 있다면 각 차이를 계산해 병목 후보를 찾고, 측정하지 못한 구간은 추정이라고 표시한다.
+
+
+## Java 시간선 예제. 역할 회복과 사용자 회복을 따로 계산하기
+
+아래 코드는 가상 사건의 시각을 밀리초로 받아 구간을 출력한다. Sentinel 내부 타이머와 클라이언트를 실행하지 않는다. Java 21에서 독립 실행할 수 있는 계산 모델이다. 순서가 잘못된 입력을 거절해, 모순된 시간 기록으로 그럴듯한 숫자를 만드는 실수를 줄인다.
+
+```java
+public final class SentinelFailoverTimelineLesson {
+    record Timeline(long impactStart, long detected, long authorized,
+                    long promoted, long discovered, long firstWrite,
+                    long redundancyRestored) {
+        Timeline {
+            long[] times = {impactStart, detected, authorized, promoted,
+                    discovered, firstWrite, redundancyRestored};
+            for (int i = 0; i < times.length; i++) {
+                if (times[i] < 0 || (i > 0 && times[i] < times[i - 1])) {
+                    throw new IllegalArgumentException("non-monotonic teaching timeline");
+                }
+            }
+        }
+        long serverRoleRecoveryMillis() { return promoted - impactStart; }
+        long userWriteRecoveryMillis() { return firstWrite - impactStart; }
+        long discoveryAndReconnectMillis() { return firstWrite - promoted; }
+        long redundancyGapAfterServiceMillis() { return redundancyRestored - firstWrite; }
+    }
+
+    public static void main(String[] args) {
+        Timeline t = new Timeline(0, 5000, 7000, 9000, 12000, 14000, 30000);
+        if (t.serverRoleRecoveryMillis() != 9000) throw new AssertionError("server");
+        if (t.userWriteRecoveryMillis() != 14000) throw new AssertionError("user");
+        if (t.discoveryAndReconnectMillis() != 5000) throw new AssertionError("client");
+        if (t.redundancyGapAfterServiceMillis() != 16000) throw new AssertionError("replicas");
+        boolean rejected = false;
+        try {
+            new Timeline(0, 5000, 4000, 9000, 12000, 14000, 30000);
+        } catch (IllegalArgumentException expected) {
+            rejected = true;
+        }
+        if (!rejected) throw new AssertionError("contradictory sequence accepted");
+        System.out.println("server role recovery ms=" + t.serverRoleRecoveryMillis());
+        System.out.println("first user write ms=" + t.userWriteRecoveryMillis());
+        System.out.println("replica redundancy ms=" + t.redundancyRestored());
+    }
+}
+```
+
+이 클래스는 설명상 모든 사건이 지정한 순서로 발생한다고 가정한다. 실제 측정 도구는 분산된 시계 오차와 동시 사건, 누락된 로그도 다뤄야 한다. 따라서 계산이 통과했다고 실제 RTO를 측정한 것은 아니다. 확인한 것은 같은 시간선에서 서버 역할 회복과 사용자 쓰기 회복, 복제 여유 회복이 다른 숫자가 된다는 관계다.
+
+특히 첫 성공 한 건이 전체 서비스 안정화를 뜻하지는 않는다. 일부 인스턴스만 새 주소를 찾았거나 특정 기능만 성공했을 수 있다. 실제 완료 기준에는 오류율과 지연, 여러 애플리케이션 인스턴스의 연결, 업무 정합성 검사가 필요할 수 있다. 그 기준을 추가하면 최종 완료 시각도 달라진다.
+
+
+## API 읽기 연습. 조회 결과를 질문과 연결하기
+
+Sentinel 운영 API를 배울 때는 명령 목록을 암기하기보다 질문을 먼저 쓰는 편이 쉽다. “현재 쓰기 주소는 어디인가?”에는 GET-MASTER-ADDR-BY-NAME이 연결된다. “이 감시자가 어떤 상태로 알고 있는가?”에는 MASTER가 연결된다. “다른 감시자와 후보를 어떻게 발견했는가?”에는 SENTINELS와 REPLICAS가 연결된다. CKQUORUM은 현재 인식하는 조건에서 판단·승인에 필요한 감시자 상태를 점검하는 데 쓰인다.
+
+조회 하나가 모든 증거를 제공하지는 않는다. 주소를 얻었다면 실제 데이터 노드의 역할과 접근 가능성을 확인해야 한다. replica 목록에 나타나도 지금 승격 가능한 후보인지 따로 봐야 한다. CKQUORUM이 성공해도 새 primary가 감당할 자원과 애플리케이션의 인증까지 검사했다고 볼 수는 없다. API의 답과 업무의 질문 사이에 빠진 조건을 적어 보자.
+
+| 물어보려는 것 | 조회의 출발점 | 후속 확인 |
+|---|---|---|
+| 현재 primary 주소 | GET-MASTER-ADDR-BY-NAME | 반환 주소의 역할·접근·인증 |
+| 감시 그룹 상태 | MASTER | 플래그의 의미와 실제 노드 상태 |
+| 알려진 replica | REPLICAS | 적격성·자원·연결 상태 |
+| 감시자 구성 인식 | SENTINELS·CKQUORUM | 다른 관점과 통신·멤버십 가정 |
+| 실제 서비스 회복 | 애플리케이션 결과 | 여러 인스턴스와 업무 조건 |
+
+출력을 자동 수집할 때도 비밀이 섞일 수 있는 전체 구성을 무조건 공개하지 않는다. 필요한 상태 필드와 대상 식별자, 시각을 선택한다. 로그의 양보다 질문에 답할 수 있는 자료인지가 중요하다. 명령의 출력 순서나 사람이 보는 공백에 의존하는 임시 파서는 버전과 도구 표현 차이에도 취약할 수 있다.
+
+
+## 클라이언트 예제. 발견한 주소가 실제 primary인지 확인하기
+
+서비스 발견 결과는 연결할 후보를 알려 준다. 그러나 발견 직후에도 상태가 바뀔 수 있고 감시자마다 일시적으로 서로 다른 구성을 알 수 있다. 공식 클라이언트 지침은 연결한 데이터 노드의 역할 확인 같은 절차를 다룬다. 직접 구현한다면 전체 명세를 검토해야 하고, 일반 애플리케이션은 검증된 Sentinel 지원 드라이버를 사용하는 편이 이해하기 쉽다.
+
+아래는 이미 조회와 역할 확인을 수행했다고 가정한 후보 목록에서 올바른 역할을 선택하는 교육용 모델이다. 실제 네트워크와 인증, 재연결을 구현하지 않는다. **주소를 얻은 사건과 쓰기 역할을 확인한 사건이 다르다**는 관계만 검사한다.
+
+```java
+import java.util.List;
+
+public final class SentinelDiscoveryValidationLesson {
+    enum Role { PRIMARY, REPLICA, UNKNOWN }
+    record Endpoint(String host, int port) {}
+    record CheckedCandidate(Endpoint endpoint, boolean reachable, Role reportedRole) {}
+
+    static Endpoint firstVerifiedPrimary(List<CheckedCandidate> candidates) {
+        return candidates.stream()
+                .filter(CheckedCandidate::reachable)
+                .filter(candidate -> candidate.reportedRole() == Role.PRIMARY)
+                .map(CheckedCandidate::endpoint)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("no verified primary"));
+    }
+
+    public static void main(String[] args) {
+        Endpoint oldAddress = new Endpoint("127.0.0.1", 16390);
+        Endpoint newAddress = new Endpoint("127.0.0.1", 16391);
+        List<CheckedCandidate> observed = List.of(
+                new CheckedCandidate(oldAddress, true, Role.REPLICA),
+                new CheckedCandidate(newAddress, true, Role.PRIMARY));
+        if (!newAddress.equals(firstVerifiedPrimary(observed))) {
+            throw new AssertionError("stale discovered address was trusted");
+        }
+        boolean rejected = false;
+        try {
+            firstVerifiedPrimary(List.of(
+                    new CheckedCandidate(oldAddress, false, Role.PRIMARY),
+                    new CheckedCandidate(newAddress, true, Role.UNKNOWN)));
+        } catch (IllegalStateException expected) {
+            rejected = true;
+        }
+        if (!rejected) throw new AssertionError("unverified role accepted");
+        System.out.println("verified primary=" + firstVerifiedPrimary(observed));
+        System.out.println("unreachable and unknown candidates rejected");
+    }
+}
+```
+
+보고된 역할은 관찰 시점의 정보다. 함수가 반환한 뒤 실제 쓰기를 보내기 전에 역할이 바뀔 수도 있다. 그러므로 역할 확인은 실제 명령 오류와 재발견 처리까지 없애는 보장이 아니다. 이 모델을 완성된 클라이언트 알고리즘이라고 사용하지 않는다. 연결 수명과 시간 예산, 오류 분류는 드라이버의 실제 계약을 확인해야 한다.
+
+또한 PRIMARY라고 응답한 모든 서버 가운데 첫 번째를 고르면 분산 시스템 전체에서 정당한 서버가 보장된다는 뜻도 아니다. 후보 목록은 올바른 Sentinel 발견 경로와 감시 그룹에서 왔다고 가정했다. 출처가 임의인 서버들을 모아 역할 문자열만 비교하는 보안·리더 판단 도구가 아니다. 모델 입력의 전제를 명시하는 습관이 중요하다.
+
+
+## 변경 API 해설. 강제 전환 시험과 자동 판단 시험은 질문이 다르다
+
+운영자가 강제 전환을 요청해 성공했다면 후보를 승격하고 새 주소를 사용하게 하는 일부 경로를 확인할 수 있다. 그러나 원본이 응답하지 않는 상황에서 감시자들이 장애를 판단하고 필요한 승인을 얻는 경로를 같은 방식으로 검사한 것은 아니다. 자동 장애 전환 실패의 원인이 quorum이나 감시자 통신이라면 수동 요청의 성공만으로 그 원인이 해결됐다고 말할 수 없다.
+
+시험의 이름을 목적에 맞게 붙인다. “운영자 요청에 따른 역할 전환 시험”, “primary 연결 종료 뒤 자동 판단 시험”, “클라이언트 재발견 시험”처럼 어떤 계기가 있었는지 적는다. 서로 보완할 수 있지만 대체할 수 있는 것은 아니다. 같은 포트가 primary가 되었다는 최종 모양만 비교하면 경로의 차이를 놓친다.
+
+변경 명령은 조회 명령과 권한도 다를 수 있다. 발견만 하는 애플리케이션에 임의의 failover 권한을 줄 필요는 없다. 테스트를 편하게 하려고 광범위한 계정을 사용하면 운영의 최소 권한을 검증하지 못한다. 다음 인증 장의 허용·거부 검사와 연결해 실제 역할별 계정으로 시험한다.
+
+Sentinel의 정책 변경도 한 감시자에서 수행했다고 모든 곳에 같은 값이 적용되는지 추측하지 않는다. 발견한 새 구성이 퍼지는 것과 운영자가 바꾼 모든 정책을 배포하는 것은 다르다. 적용 대상과 버전을 확인하고, 필요한 인스턴스에서 다시 조회해 의도한 정책이 유지되는지 확인한다.
+
+
+## 이벤트 해설. 알림을 놓쳤을 때도 현재 상태를 알 수 있어야 한다
+
+Pub/Sub 알림은 사건을 빠르게 알아차리는 데 유용하다. 그러나 구독하지 않았던 동안의 메시지가 자동으로 쌓여 있다가 모두 재전달되는 영속 로그로 생각하면 안 된다. 알림 처리 프로그램을 재시작하는 동안 전환이 일어났다면 이벤트를 보지 못했을 수 있다. 그래서 이벤트 부재는 전환 부재의 증거가 아니다.
+
+모니터링은 이벤트와 상태 조회를 함께 쓸 수 있다. 이벤트를 받으면 관련 그룹의 상태를 다시 확인하고, 주기적인 조회로 놓친 변화가 있는지 점검한다. 이때 조회 결과의 시점과 출처를 기록한다. 알림 내용을 그대로 영구 진실로 저장하기보다 현재 상태와 대조해 갱신하는 편이 오해를 줄인다.
+
+외부 알림 실패와 데이터 서비스 실패도 분리한다. 웹훅이 늦거나 메시지 전송이 실패했다고 Redis의 역할 전환 자체가 실패했다고 결론 내릴 수는 없다. 반대로 알림이 성공했다고 애플리케이션 요청까지 정상이라는 뜻도 아니다. 각 도구의 상태를 적절한 질문에 연결한다.
+
+이벤트 기반 자동화가 상태를 변경한다면 재실행의 의미를 설계해야 한다. 같은 알림을 여러 번 처리해도 안전한지, 오래된 알림이 뒤늦게 도착했을 때 최신 상태를 덮어쓰지 않는지 확인한다. Sentinel의 감시와 외부 운영 자동화의 책임을 섞지 않아야 원인을 조사하기 쉽다.
+
+
+## 복구 관찰 연습. 돌아온 이전 primary를 특별 취급하지 않기
+
+이전 primary가 재시작하면 예전 역할을 자동으로 되찾아야 한다고 생각하기 쉽다. 그러나 이미 새 primary가 채택된 구성에서는 현재 결정을 따라 replica로 재구성되는 경로를 이해해야 한다. 과거에 쓰기를 받았다는 사실이 앞으로도 계속 리더일 권리를 뜻하지 않는다.
+
+이때 데이터의 복구도 중요하다. 이전 primary가 독자적으로 받은 쓰기를 새 primary와 업무 의미에 맞게 자동 병합한다고 기대하지 않는다. 복제와 재동기화는 현재 채택한 이력을 따라가는 방향으로 동작할 수 있다. 중요한 업무 상태는 독립적인 요청 이력과 권위 있는 근거를 통해 대조해야 한다. 다음 합의 장에서 이 분할 상황을 자세히 다룬다.
+
+실습에서는 돌아온 프로세스의 포트가 열렸다는 사실만 기록하지 않는다. ROLE과 상위 대상, 복제 링크와 초기 동기화, 데이터 샘플을 확인한다. 새 primary가 서비스를 계속하는 동안 재동기화 때문에 자원 피크가 발생할 수 있으므로 지연과 네트워크, 메모리도 관찰한다. 복귀한 노드는 단순 생존이 아니라 현재 구성에 정상 편입됐는지 확인해야 한다.
+
+
 ## 면접 질문과 깊이 있는 답변
 
 답을 펼치기 전에 원리, 장애 반례, 운영 확인 방법의 세 순서로 말해 보자. 짧은 정의만 외우기보다 어떤 조건에서 그 설명이 깨지는지를 덧붙이는 것이 중요하다.
@@ -236,6 +434,48 @@ Sentinel 지원 클라이언트는 알려진 Sentinel에서 현재 primary를 �
 
 </details>
 
+
+## 자동화 보충. 완료를 기다릴 때는 성공 조건과 마감 조건을 함께 둔다
+
+전환 요청 뒤 5초를 자고 다음 명령을 실행하는 스크립트는 작업 시간이 항상 같다고 가정한다. 빠른 환경에서는 불필요하게 기다리고 느린 환경에서는 아직 준비되지 않은 상태에서 다음 단계를 시작할 수 있다. 관찰할 역할과 주소, 필요한 동작의 조건을 정하고 제한된 시간 안에서 상태를 다시 읽는 방식이 더 명확하다.
+
+이때 대기 반복 자체도 설계가 필요하다. 마감 시간과 조회 간격, 연속 오류 처리, 실패 시 보존할 정보를 정한다. 응답을 파싱하지 못했거나 이름이 없다는 결과를 준비 완료로 바꾸지 않는다. 조회가 실패했다고 값이 바뀌었다는 뜻도 아니다. 관측 불가와 조건 불충족을 다른 상태로 기록하면 진단이 쉬워진다.
+
+자동화의 마지막 단계가 강제 전환을 다시 요청하는 것이라면 특히 주의해야 한다. 아직 진행 중인 작업을 실패로 오해해 반복 요청하면 관측을 더 복잡하게 만들 수 있다. 상태 조회와 상태 변경을 분리하고, 변경은 목적과 현재 상태를 확인한 제한된 경로로 수행한다. 복구 완료를 만들어 내는 것이 아니라 완료 조건을 확인하는 도구로 시작하는 편이 이해하기 쉽다.
+
+## 추가 면접 문답: 전환의 단계와 완료 기준을 말하기
+
+<details><summary>새 primary가 확인됐는데 사용자 오류가 계속되면 어디부터 볼까요?</summary>
+
+서버의 역할 전환과 클라이언트의 재발견·연결 교체를 나누어 본다. 실제 오류 대상 주소가 어디인지, 어느 인스턴스가 새 주소를 알았는지, 데이터 포트와 인증에 문제가 없는지 확인한다. 모든 애플리케이션이 같은 순간에 새 연결을 얻는다고 가정하지 않는다.
+
+첫 성공 한 건과 전체 안정화도 구분한다. 오류율과 지연, 여러 인스턴스의 연결, 필요한 업무 동작이 기준을 만족하는지 확인한다. down-after 값을 줄이는 조치는 이 구간의 원인을 확인한 뒤 검토해야 한다.
+
+</details>
+
+<details><summary>CKQUORUM은 통과했지만 모든 replica의 priority가 0이면 어떻게 되나요?</summary>
+
+감시자의 정족수 관련 조건을 만족해도 모든 replica가 승격 금지라면 적격 승격 후보가 없다. CKQUORUM은 후보 선택과 모든 서비스 복구 조건을 대신 검사하지 않는다. 적격 replica와 제어 명령 권한, 자원, 네트워크, 클라이언트의 새 연결이 필요하다. 결과를 전환 전체의 성공 보장으로 넓히지 않는다.
+
+배치 검토와 상태 점검, 실제 격리 전환 시험을 목적에 맞게 결합한다. 무엇을 확인했는지와 남은 조건을 함께 말하면 답변이 정확해진다.
+
+</details>
+
+<details><summary>점검용 강제 전환과 primary 종료 시험의 결과를 같은 항목으로 기록해도 되나요?</summary>
+
+시작 조건과 검증한 경로가 다르므로 기록을 구분해야 한다. 강제 요청 경로와 자동 장애 판단·승인 경로는 같은 질문의 시험이 아니다. 수동 전환은 일부 제어와 역할 변경 경로를 확인할 수 있어도 감시자들이 실제 장애 상황에서 필요한 판단과 승인을 얻는지를 대신 검증하지 않는다.
+
+시험의 시작 조건과 관찰한 단계를 구분해 기록한다. 자동 전환이 실패했다면 감시자 통신, 알려진 구성, quorum과 승인 조건, 후보 적격성을 단계별로 조사한다. 수동 명령으로 최종 모양을 만들었다고 원인이 사라진 것은 아니다.
+
+</details>
+
+<details><summary>알림 수집 프로그램을 재시작한 뒤 현재 primary를 어떻게 확인하나요?</summary>
+
+구독 연결이 없거나 처리 프로그램이 중단된 동안 알림을 놓칠 수 있으므로 그 결론은 부족하다. 현재 상태를 조회하고 각 노드의 역할과 관련 로그를 대조한다. 알림은 빠른 신호이고 상태 조회는 현재 사실을 확인하는 경로로 사용할 수 있다.
+
+반대로 알림 한 건을 받았다고 모든 replica와 클라이언트가 준비됐다고 선언하지 않는다. 그 알림이 어떤 단계의 사건을 뜻하는지 확인하고 서비스 완료 기준을 따로 검사해야 한다.
+
+</details>
 
 ## 원문과 공식 확인 자료
 

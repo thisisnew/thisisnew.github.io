@@ -1,8 +1,8 @@
 {
-  "checkedAt": "2026-10-22T15:28:10.824318+00:00",
+  "checkedAt": "2026-10-22T21:27:46.545886+00:00",
   "runtime": "openjdk version \"21.0.12.1\" 2026-08-18 LTS\nOpenJDK Runtime Environment Corretto-21.0.12.12.1 (build 21.0.12.1+12-LTS)\nOpenJDK 64-Bit Server VM Corretto-21.0.12.12.1 (build 21.0.12.1+12-LTS, mixed mode, sharing)",
-  "compiledClasses": 19,
-  "executedClasses": 16,
+  "compiledClasses": 28,
+  "executedClasses": 24,
   "compilation": "All complete classes compiled with --release 21; Spring examples against Spring Data Redis 3.2.0 and Spring Framework 6.1.1",
   "sources": [
     {
@@ -99,6 +99,51 @@
       "file": "RestoreBusinessLesson.java",
       "lesson": "06-backup-dr.md",
       "sha256": "e437b5a664137134e474102a29f19d9b4c7e322c62099156cd4a89ee31ab9941"
+    },
+    {
+      "file": "SentinelApprovalLesson.java",
+      "lesson": "12-sentinel-consensus-partition.md",
+      "sha256": "2c1da3c5e2873260b5a7cb0bba404162dc0893afc1f83dc35cb586ba24689b1c"
+    },
+    {
+      "file": "SentinelAuthorizationLesson.java",
+      "lesson": "11-sentinel-auth-detection.md",
+      "sha256": "38990c3e01e70e5181fe9dffc9c0956731114dc3813667694d599eba743cb3b4"
+    },
+    {
+      "file": "SentinelCandidateOrderingLesson.java",
+      "lesson": "11-sentinel-auth-detection.md",
+      "sha256": "a4c3d01c4d8368f406d36f4135e239a0d3ab3cba7b9749f70f13f4ff11d934f9"
+    },
+    {
+      "file": "SentinelClientConfiguration.java",
+      "lesson": "09-sentinel-topology.md",
+      "sha256": "10bd499b9e8a1aa95150409a500a411b16749a932532293f2ae67febfcd7d85d"
+    },
+    {
+      "file": "SentinelDiscoveryValidationLesson.java",
+      "lesson": "10-sentinel-failover-api.md",
+      "sha256": "f0485e6c2d8e414c5d8d10d3c171f922023960ed8200cec0a87c532144bebadb"
+    },
+    {
+      "file": "SentinelEpochLesson.java",
+      "lesson": "12-sentinel-consensus-partition.md",
+      "sha256": "afdc1fdc9cff165b6e987da07509741f8fcbd765a559cd084207ad122ea5909a"
+    },
+    {
+      "file": "SentinelFailoverTimelineLesson.java",
+      "lesson": "10-sentinel-failover-api.md",
+      "sha256": "dd45cad877a069e2b317d087a786ea17a4a9c3772b3131f7901505e4e2b97f0a"
+    },
+    {
+      "file": "SentinelPlacementLesson.java",
+      "lesson": "09-sentinel-topology.md",
+      "sha256": "1c1f060e996ec70eca0a01df360fb45457269d70fe5030d47c1d3ad78190c334"
+    },
+    {
+      "file": "SentinelTiltClockLesson.java",
+      "lesson": "12-sentinel-consensus-partition.md",
+      "sha256": "7936e63891907d647a712a43f0b20bfb87d7717cbd95269abca873ae953191f3"
     }
   ],
   "executed": [
@@ -181,11 +226,52 @@
       "class": "RestoreBusinessLesson",
       "status": "passed",
       "stdout": "same count, different content: detected\ninvalid completion and quantity: detected"
+    },
+    {
+      "class": "SentinelApprovalLesson",
+      "status": "passed",
+      "stdout": "quorum and approval boundary cases passed"
+    },
+    {
+      "class": "SentinelAuthorizationLesson",
+      "status": "passed",
+      "stdout": "3 required permissions and 3 required denials checked"
+    },
+    {
+      "class": "SentinelCandidateOrderingLesson",
+      "status": "passed",
+      "stdout": "priority, offset, tie and exclusion cases passed"
+    },
+    {
+      "class": "SentinelDiscoveryValidationLesson",
+      "status": "passed",
+      "stdout": "verified primary=Endpoint[host=127.0.0.1, port=16391]\nunreachable and unknown candidates rejected"
+    },
+    {
+      "class": "SentinelEpochLesson",
+      "status": "passed",
+      "stdout": "chosen epoch=12\nchosen writes=[W1, W3]\nold-only write W2 is not automatically merged"
+    },
+    {
+      "class": "SentinelFailoverTimelineLesson",
+      "status": "passed",
+      "stdout": "server role recovery ms=9000\nfirst user write ms=14000\nreplica redundancy ms=30000"
+    },
+    {
+      "class": "SentinelPlacementLesson",
+      "status": "passed",
+      "stdout": "lost A: Remaining[sentinels=2, requiredMajority=2, candidates=2]\nlost B: Remaining[sentinels=2, requiredMajority=2, candidates=1]\nlost C: Remaining[sentinels=2, requiredMajority=2, candidates=1]\ncorrelated loss cases detected"
+    },
+    {
+      "class": "SentinelTiltClockLesson",
+      "status": "passed",
+      "stdout": "long pause, stable recovery and backward time checked"
     }
   ],
   "limits": [
     "Independent teaching models and checksum example only; not Redis integration tests",
-    "Spring GoodsNameCache and GoodsHashCache compiled but not executed against Redis",
+    "Spring GoodsNameCache, GoodsHashCache and SentinelClientConfiguration compiled only; no Spring integration runtime",
+    "Sentinel teaching models are not full voting, membership, failure detection or TILT implementations; see separate sentinel-checks.json for local server integration",
     "GoodsLookupPolicy compiled only",
     "AOF models do not simulate real filesystem, fsync or Redis implementation",
     "Replication models cover one compatible history and planning arithmetic, not full PSYNC",

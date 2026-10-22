@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-10-22T15:28:08.195797+00:00",
+  "checkedAt": "2026-10-22T21:26:44.035968+00:00",
   "scope": "31 Redis pages: metadata, internal links, anchors, minimum content structure, Q&A and pixel skin; length thresholds are only omission guards, not quality scores",
   "errors": [],
   "lessons": [
@@ -59,27 +59,27 @@
     },
     {
       "n": 9,
-      "sourceCharacters": 12034,
-      "questions": 8,
-      "sections": 9
+      "sourceCharacters": 24543,
+      "questions": 12,
+      "sections": 19
     },
     {
       "n": 10,
-      "sourceCharacters": 12647,
-      "questions": 8,
-      "sections": 9
+      "sourceCharacters": 25731,
+      "questions": 12,
+      "sections": 20
     },
     {
       "n": 11,
-      "sourceCharacters": 13102,
-      "questions": 8,
-      "sections": 9
+      "sourceCharacters": 26581,
+      "questions": 12,
+      "sections": 21
     },
     {
       "n": 12,
-      "sourceCharacters": 12897,
-      "questions": 8,
-      "sections": 10
+      "sourceCharacters": 26318,
+      "questions": 12,
+      "sections": 21
     },
     {
       "n": 13,
@@ -190,8 +190,8 @@
       "sections": 13
     }
   ],
-  "questions": 301,
-  "sourceCharacters": 568066,
+  "questions": 317,
+  "sourceCharacters": 620559,
   "runtimeValidation": "not assessed by this structural checker; consult separate runtime records",
   "browserValidation": "not assessed by this structural checker; consult browser-checks.json if present",
   "externalLinks": "presence only; not HTTP or semantic verification"

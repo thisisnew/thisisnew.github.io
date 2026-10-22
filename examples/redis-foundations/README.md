@@ -1,6 +1,6 @@
 # Redis 기초 확장판 Java 예제
 
-00~08편의 완전한 클래스를 본문에서 추출했다. Java 21 기준이다.
+00~12편의 완전한 클래스를 본문에서 추출했다. Java 21 기준이다.
 
 ## 독립 실행 모델
 
@@ -58,3 +58,28 @@ python scripts/check-redis-foundations.py \
 - `ReadFreshnessLesson`: 업무 최소 버전과 후보 준비 상태에 따른 읽기 경로 선택을 여섯 조건으로 확인한다. 실제 Redis 라우터가 아니다.
 - `ReplicaWriteGateLesson`: 최근 ACK 기반의 교육용 수락 조건과 개별 쓰기의 전달 완료를 구분한다. Redis의 내부 검사 주기와 전체 설정 의미를 구현하지 않는다.
 - `PromotionReadinessLesson`: 팀이 정한 메모리·정책·AOF·광고 주소 계약과 후보 상태의 차이를 확인한다. Sentinel 선출이나 자동 승격 도구가 아니다.
+
+
+## 09~12편 Sentinel 예제
+
+- `SentinelPlacementLesson`: 고정된 감시자 집합에서 단일 호스트 상실 뒤 남는 과반·후보 조건.
+- `SentinelClientConfiguration`: Spring Data Redis 3.2.0의 Sentinel 연결 구성. 컴파일 검사이며 실제 Spring 재연결 시험은 아니다.
+- `SentinelFailoverTimelineLesson`: 서버 역할·첫 사용자 쓰기·복제 여유 회복 시각 구분.
+- `SentinelDiscoveryValidationLesson`: 발견 주소와 실제 역할 확인의 차이.
+- `SentinelAuthorizationLesson`: 교육용 역할별 허용·거부 표. Redis ACL 명령 집합 전체를 구현하지 않는다.
+- `SentinelCandidateOrderingLesson`: 이미 적격성을 계산한 후보의 priority·offset·식별자 비교.
+- `SentinelApprovalLesson`: 고정된 알려진 감시자 집합의 정족수와 과반 승인 경계.
+- `SentinelEpochLesson`: 구성 최신성과 업무 쓰기 집합의 독립성.
+- `SentinelTiltClockLesson`: 시간 관측 이상과 안정 구간의 단순 보호 모델.
+
+실제 로컬 Sentinel 시험은 저장소 루트에서 `python scripts/check-redis-sentinel.py --bin-dir /path/to/redis/src`로 실행한다. 이 시험은 자체 임시 경로와 빈 루프백 포트 다섯 개를 사용하며 정상 primary 종료 뒤 자동 승격·이전 primary 재편입·발견 전용 계정의 허용/거부만 확인한다. 네트워크 분할·전원 장애·Spring 재연결은 확인하지 않는다. 실제 범위와 결과는 `learning/redis/sentinel-checks.json`에 기록한다.
+
+
+Spring 의존성의 버전을 맞추어 전체 클래스의 검사 경로를 만들려면 Maven 프로젝트도 사용할 수 있다.
+
+```bash
+mvn -B -f examples/redis-foundations/pom.xml dependency:build-classpath -Dmdep.outputFile=target/classpath.txt
+python scripts/check-redis-foundations.py --java-home "$JAVA_HOME" --spring-classpath "$(cat examples/redis-foundations/target/classpath.txt)"
+```
+
+Maven 경로는 Spring Boot 3.2.0의 의존성 관리를 사용한다. Sentinel 서버 통합 시험과 Java 교육 모델 검사는 CI에서 별도 실행되며, 배포는 두 검사와 기존 브라우저 검사 통과를 요구한다. 전편의 두 배 확장이 완료됐다는 뜻은 아니며 `expansion-progress.json`의 complete 값을 확인한다.
