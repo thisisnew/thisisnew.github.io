@@ -167,7 +167,7 @@ done
 </tbody></table>
 <p>첫 줄과 둘째 줄의 차이를 설명할 수 있어야 한다. primary 프로세스만 죽는 시험에서는 같은 호스트의 S1이 살아 있다. 이 시험만 성공했다고 서울 호스트 전체 장애를 검증한 것이 아니다. 셋째 줄은 더 까다롭다. S3가 양쪽과 통신할 수 있는지, 어느 방향으로 패킷이 통과하는지에 따라 결과가 달라진다. “망이 끊겼다”는 말보다 출발지·목적지·포트·방향을 기록하는 편이 정확하다.</p>
 <h3>Spring 애플리케이션의 연결 설정 검토표</h3>
-<p>Spring 애플리케이션이 필요한 논리 정보는 <code>logistics-main</code>이라는 primary 그룹 이름, 여러 Sentinel의 접근 주소, Sentinel 인증 정보, 데이터 Redis 인증 정보다. 연결 팩토리가 Sentinel 모드로 초기화되는지 확인하고 단일 호스트 설정이 우연히 우선 적용되지 않는지도 검사한다.</p>
+<p>Spring 앱에는 <code>logistics-main</code>이라는 primary 그룹 이름이 필요하다. 여러 Sentinel의 접속 주소와 Sentinel 인증 정보도 설정해야 한다. 데이터 Redis에 접속할 인증 정보는 이와 별도로 준비한다. 연결 팩토리가 Sentinel 모드로 초기화되는지 확인하고 단일 호스트 설정이 우연히 우선 적용되지 않는지도 검사한다.</p>
 <p>프레임워크 버전에 따라 설정 속성의 접두사와 username 지원이 달라질 수 있으므로 이 장은 특정 Spring Boot 버전의 YAML을 보편적인 정답으로 제시하지 않는다.</p>
 <p>예를 들어 배포 설정에 Sentinel 목록을 넣었지만 직접 만든 <code>RedisConnectionFactory</code> bean이 6379를 고정해서 사용한다면, 설정 파일을 읽는 사람은 HA라고 생각해도 실제 애플리케이션은 단일 주소로 동작할 수 있다. 테스트에서는 단순 <code>PING</code> 대신 <strong>현재 연결 대상이 전환 후 바뀌는지</strong> 확인한다. 자격 증명은 별도로 마스킹하고 서버 주소와 연결 모드만 진단한다. 개발 환경에서 성공한 주소가 운영 컨테이너 내부에서도 해석되는지 검사한다.</p>
 <h3>메모리와 유지보수도 실패 행렬에 넣는다</h3>
@@ -175,7 +175,7 @@ done
 <p>Sentinel이 세 개라도 유지보수로 하나를 내린 동안 다른 하나가 실패하면 과반이 사라진다. 따라서 감시자 업그레이드는 한 번에 하나씩 수행하고 재합류·발견을 확인한 뒤 다음 인스턴스로 넘어간다. 데이터 노드 유지보수와 감시자 유지보수를 같은 시간에 겹치지 않는 것이 안전한 출발점이다. 자동 배포 시스템이 모든 replica와 Sentinel을 같은 업데이트 그룹에 넣지 않았는지 확인한다.</p>
 <h3>설계 승인 기준을 문장으로 쓴다</h3>
 <p>좋은 기준은 “Sentinel 세 대 구축 완료”가 아니라 “임의의 한 장애 도메인을 잃어도 남은 감시자가 승인 가능하며, 적격 replica에 애플리케이션이 재연결하여 정해진 시간 안에 배송 조회를 회복한다”다. 여기에 데이터 조건을 붙인다. 배송 상태는 원장의 이벤트로 재구성 가능한 캐시이며 전환 후 마지막 갱신이 빠졌으면 원장을 읽어 보완한다. Redis가 유일한 출고 원장이라면 같은 배치라도 손실 허용 기준이 달라져 추가 설계가 필요하다.</p>
-<p>마지막으로 설계 문서에 아직 시험하지 않은 고장을 명시한다. 프로세스 종료는 시험했지만 호스트 정지, 비대칭 분할, DNS 장애, 자격 증명 회전은 미시험이라고 쓰는 것이 정확하다. 미시험 항목을 숨기지 않아야 다음 검증의 우선순위를 정할 수 있다. 고가용성은 제품 이름이 아니라 구체적인 장애 모델에 대해 확보한 증거의 집합이다.</p>
+<p>마지막으로 설계 문서에 아직 시험하지 않은 고장을 명시한다. 프로세스 종료를 시험했어도 호스트 정지와 비대칭 분할까지 검증한 것은 아니다. DNS 장애와 자격 증명 회전도 시험하지 않았다면 미시험으로 기록해야 정확하다. 미시험 항목을 숨기지 않아야 다음 검증의 우선순위를 정할 수 있다. 고가용성은 제품 이름이 아니라 구체적인 장애 모델에 대해 확보한 증거의 집합이다.</p>
 <h2 id="section-9">요청 경로 해설. 애플리케이션은 Sentinel을 거쳐 데이터를 읽는가</h2>
 <p>Sentinel의 주소 안내를 택시 안내소에 비유해 보자. 안내소는 지금 어느 승강장으로 가야 하는지 알려 준다. 승객의 모든 이동을 안내소 건물 안으로 통과시키는 것은 아니다. 일반적인 Sentinel 사용에서도 클라이언트는 Sentinel에 현재 primary를 묻고, 얻은 데이터 노드에 직접 연결해 GET이나 SET을 보낸다.</p>
 <p>따라서 네트워크 경로가 두 종류다. 하나는 서비스 발견을 위한 경로이고 다른 하나는 실제 데이터를 읽고 쓰는 경로다. 애플리케이션이 Sentinel에 연결됐다는 사실은 새 primary의 데이터 포트에도 접근할 수 있다는 뜻이 아니다. 반대로 Redis 데이터 연결이 잘되더라도 Sentinel 주소 발견 경로가 막혀 있으면 장애 전환 뒤 새 주소를 찾지 못할 수 있다.</p>
@@ -355,7 +355,7 @@ public class SentinelClientConfiguration {
 <p>답을 펼치기 전에 원리, 장애 반례, 운영 확인 방법의 세 순서로 말해 보자. 짧은 정의만 외우기보다 어떤 조건에서 그 설명이 깨지는지를 덧붙이는 것이 중요하다.</p>
 <details class="question"><summary>Sentinel과 replica는 어떻게 다른가요?</summary><div class="answer">
 
-<p>replica는 데이터의 복사본을 유지하는 데이터 노드이고 Sentinel은 감시·전환·주소 발견을 담당하는 제어 프로세스입니다. Sentinel을 세 개 추가해도 데이터 복사본이 세 개 늘지 않습니다. 설계도에는 두 종류를 별도 기호로 그리고 각 장애 때 무엇이 남는지 확인해야 합니다.</p>
+<p>replica는 데이터 사본을 보관하는 데이터 노드입니다. Sentinel은 데이터를 복사하는 대신 상태를 감시하고 전환을 결정하며 주소를 찾도록 돕는 제어 프로세스입니다. Sentinel을 세 개 추가해도 데이터 복사본이 세 개 늘지 않습니다. 설계도에는 두 종류를 별도 기호로 그리고 각 장애 때 무엇이 남는지 확인해야 합니다.</p>
 </div></details>
 
 <details class="question"><summary>왜 Sentinel 두 개에 quorum 1이면 부족한가요?</summary><div class="answer">
@@ -390,7 +390,7 @@ public class SentinelClientConfiguration {
 
 <details class="question"><summary>배치 검토에서 가장 먼저 그릴 것은 무엇인가요?</summary><div class="answer">
 
-<p>서버 개수보다 장애 도메인과 통신 경로입니다. 한 도메인을 지웠을 때 남은 감시자 승인 수, 승격 후보, 애플리케이션 접근 경로를 계산합니다. 그다음 실제 장애 시험으로 감지·전환·재연결·업무 대조 시간을 나누어 검증하면 설계와 운영이 연결됩니다.</p>
+<p>서버 개수보다 어떤 장애를 함께 겪는지와 통신 경로를 먼저 봐야 합니다. 장애 도메인 하나가 사라졌을 때 남은 감시자가 전환을 승인할 수 있는지 계산합니다. 승격 후보가 남는지, 앱이 그 후보에 접근할 수 있는지도 확인합니다. 그다음 실제 장애 시험에서 감지·전환·재연결·업무 결과 대조에 걸리는 시간을 각각 측정하면 설계를 운영에서 검증할 수 있습니다.</p>
 </div></details>
 
 
@@ -430,4 +430,4 @@ public class SentinelClientConfiguration {
 <li><a href="https://redis.io/docs/latest/develop/reference/sentinel-clients/">Sentinel 클라이언트 구현 지침</a>: 발견과 재연결을 검토할 때 참고.</li>
 <li><a href="https://redis.io/docs/latest/commands/wait/">WAIT 명령의 보장 범위</a>: 복제 확인과 강한 일관성을 구분할 때 참고.</li>
 </ul>
-</article><nav aria-label="연재 이동"><a href="/posts/redis-study-08.html">← 복제 운영과 쓰기 제한: 연결됨과 안전함을 구별하기</a><a href="/posts/redis-study-10.html">Sentinel 장애 전환과 운영 API →</a></nav><footer>Redis 학습 연재 · <a href="/learning/redis/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>
+</article><nav aria-label="연재 이동"><a href="/posts/redis-study-08.html">← 복제 운영과 쓰기 제한 — 연결됨과 안전함을 구별하기</a><a href="/posts/redis-study-10.html">Sentinel 장애 전환과 운영 API →</a></nav><footer>Redis 학습 연재 · <a href="/learning/redis/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

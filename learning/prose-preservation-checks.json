@@ -1,7 +1,7 @@
 {
-  "baseCommit": "c230c0a61ba5fe57b6e175a1703c68313c9f4306",
+  "baseCommit": "2a47808b51f240b82182f9fb50b0b5cd0f06b65b",
   "posts": 118,
-  "changedPosts": 17,
+  "changedPosts": 31,
   "markdownSources": 71,
   "questions": 1880,
   "errors": [],
@@ -309,7 +309,7 @@
     },
     {
       "file": "posts/jvm-study-00.html",
-      "changed": true,
+      "changed": false,
       "questions": 0,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -322,7 +322,7 @@
     },
     {
       "file": "posts/jvm-study-01.html",
-      "changed": true,
+      "changed": false,
       "questions": 10,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -335,7 +335,7 @@
     },
     {
       "file": "posts/jvm-study-02.html",
-      "changed": true,
+      "changed": false,
       "questions": 10,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -348,7 +348,7 @@
     },
     {
       "file": "posts/jvm-study-03.html",
-      "changed": true,
+      "changed": false,
       "questions": 10,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -361,7 +361,7 @@
     },
     {
       "file": "posts/jvm-study-04.html",
-      "changed": true,
+      "changed": false,
       "questions": 10,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -374,7 +374,7 @@
     },
     {
       "file": "posts/jvm-study-05.html",
-      "changed": true,
+      "changed": false,
       "questions": 10,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -387,7 +387,7 @@
     },
     {
       "file": "posts/jvm-study-06.html",
-      "changed": true,
+      "changed": false,
       "questions": 10,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -400,7 +400,7 @@
     },
     {
       "file": "posts/jvm-study-07.html",
-      "changed": true,
+      "changed": false,
       "questions": 10,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -413,7 +413,7 @@
     },
     {
       "file": "posts/jvm-study-08.html",
-      "changed": true,
+      "changed": false,
       "questions": 10,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -426,7 +426,7 @@
     },
     {
       "file": "posts/jvm-study-09.html",
-      "changed": true,
+      "changed": false,
       "questions": 10,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -439,7 +439,7 @@
     },
     {
       "file": "posts/jvm-study-10.html",
-      "changed": true,
+      "changed": false,
       "questions": 10,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -452,7 +452,7 @@
     },
     {
       "file": "posts/jvm-study-11.html",
-      "changed": true,
+      "changed": false,
       "questions": 10,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -465,7 +465,7 @@
     },
     {
       "file": "posts/jvm-study-12.html",
-      "changed": true,
+      "changed": false,
       "questions": 10,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -478,7 +478,7 @@
     },
     {
       "file": "posts/jvm-study-13.html",
-      "changed": true,
+      "changed": false,
       "questions": 10,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -491,7 +491,7 @@
     },
     {
       "file": "posts/jvm-study-14.html",
-      "changed": true,
+      "changed": false,
       "questions": 10,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -504,7 +504,7 @@
     },
     {
       "file": "posts/jvm-study-15.html",
-      "changed": true,
+      "changed": false,
       "questions": 10,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -517,7 +517,7 @@
     },
     {
       "file": "posts/jvm-study-16.html",
-      "changed": true,
+      "changed": false,
       "questions": 12,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1141,7 +1141,7 @@
     },
     {
       "file": "posts/redis-study-00.html",
-      "changed": false,
+      "changed": true,
       "questions": 15,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1154,7 +1154,7 @@
     },
     {
       "file": "posts/redis-study-01.html",
-      "changed": false,
+      "changed": true,
       "questions": 13,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1167,7 +1167,7 @@
     },
     {
       "file": "posts/redis-study-02.html",
-      "changed": false,
+      "changed": true,
       "questions": 13,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1180,7 +1180,7 @@
     },
     {
       "file": "posts/redis-study-03.html",
-      "changed": false,
+      "changed": true,
       "questions": 13,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1193,7 +1193,7 @@
     },
     {
       "file": "posts/redis-study-04.html",
-      "changed": false,
+      "changed": true,
       "questions": 13,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1206,7 +1206,7 @@
     },
     {
       "file": "posts/redis-study-05.html",
-      "changed": false,
+      "changed": true,
       "questions": 13,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1219,7 +1219,7 @@
     },
     {
       "file": "posts/redis-study-06.html",
-      "changed": false,
+      "changed": true,
       "questions": 14,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1232,7 +1232,7 @@
     },
     {
       "file": "posts/redis-study-07.html",
-      "changed": false,
+      "changed": true,
       "questions": 14,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1245,7 +1245,7 @@
     },
     {
       "file": "posts/redis-study-08.html",
-      "changed": false,
+      "changed": true,
       "questions": 14,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1258,7 +1258,7 @@
     },
     {
       "file": "posts/redis-study-09.html",
-      "changed": false,
+      "changed": true,
       "questions": 12,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1271,7 +1271,7 @@
     },
     {
       "file": "posts/redis-study-10.html",
-      "changed": false,
+      "changed": true,
       "questions": 12,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1284,7 +1284,7 @@
     },
     {
       "file": "posts/redis-study-11.html",
-      "changed": false,
+      "changed": true,
       "questions": 12,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1297,7 +1297,7 @@
     },
     {
       "file": "posts/redis-study-12.html",
-      "changed": false,
+      "changed": true,
       "questions": 12,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1310,7 +1310,7 @@
     },
     {
       "file": "posts/redis-study-13.html",
-      "changed": false,
+      "changed": true,
       "questions": 12,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1323,7 +1323,7 @@
     },
     {
       "file": "posts/redis-study-14.html",
-      "changed": false,
+      "changed": true,
       "questions": 12,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1336,7 +1336,7 @@
     },
     {
       "file": "posts/redis-study-15.html",
-      "changed": false,
+      "changed": true,
       "questions": 12,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1349,7 +1349,7 @@
     },
     {
       "file": "posts/redis-study-16.html",
-      "changed": false,
+      "changed": true,
       "questions": 8,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1362,7 +1362,7 @@
     },
     {
       "file": "posts/redis-study-17.html",
-      "changed": false,
+      "changed": true,
       "questions": 8,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1375,7 +1375,7 @@
     },
     {
       "file": "posts/redis-study-18.html",
-      "changed": false,
+      "changed": true,
       "questions": 8,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1388,7 +1388,7 @@
     },
     {
       "file": "posts/redis-study-19.html",
-      "changed": false,
+      "changed": true,
       "questions": 8,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1401,7 +1401,7 @@
     },
     {
       "file": "posts/redis-study-20.html",
-      "changed": false,
+      "changed": true,
       "questions": 8,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1414,7 +1414,7 @@
     },
     {
       "file": "posts/redis-study-21.html",
-      "changed": false,
+      "changed": true,
       "questions": 8,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1427,7 +1427,7 @@
     },
     {
       "file": "posts/redis-study-22.html",
-      "changed": false,
+      "changed": true,
       "questions": 9,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1440,7 +1440,7 @@
     },
     {
       "file": "posts/redis-study-23.html",
-      "changed": false,
+      "changed": true,
       "questions": 10,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1453,7 +1453,7 @@
     },
     {
       "file": "posts/redis-study-24.html",
-      "changed": false,
+      "changed": true,
       "questions": 8,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1466,7 +1466,7 @@
     },
     {
       "file": "posts/redis-study-25.html",
-      "changed": false,
+      "changed": true,
       "questions": 8,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1479,7 +1479,7 @@
     },
     {
       "file": "posts/redis-study-26.html",
-      "changed": false,
+      "changed": true,
       "questions": 8,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1492,7 +1492,7 @@
     },
     {
       "file": "posts/redis-study-27.html",
-      "changed": false,
+      "changed": true,
       "questions": 8,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1505,7 +1505,7 @@
     },
     {
       "file": "posts/redis-study-28.html",
-      "changed": false,
+      "changed": true,
       "questions": 8,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1518,7 +1518,7 @@
     },
     {
       "file": "posts/redis-study-29.html",
-      "changed": false,
+      "changed": true,
       "questions": 8,
       "checks": {
         "structureAttributesLinksAndTables": true,
@@ -1531,7 +1531,7 @@
     },
     {
       "file": "posts/redis-study-30.html",
-      "changed": false,
+      "changed": true,
       "questions": 8,
       "checks": {
         "structureAttributesLinksAndTables": true,
