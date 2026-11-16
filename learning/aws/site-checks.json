@@ -4,7 +4,7 @@
   "lessons": [
     {
       "n": 0,
-      "sourceCharacters": 9086,
+      "sourceCharacters": 9090,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -13,7 +13,7 @@
     },
     {
       "n": 1,
-      "sourceCharacters": 8927,
+      "sourceCharacters": 8939,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -22,7 +22,7 @@
     },
     {
       "n": 2,
-      "sourceCharacters": 8372,
+      "sourceCharacters": 8447,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -31,7 +31,7 @@
     },
     {
       "n": 3,
-      "sourceCharacters": 10212,
+      "sourceCharacters": 10209,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -40,7 +40,7 @@
     },
     {
       "n": 4,
-      "sourceCharacters": 10077,
+      "sourceCharacters": 10158,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -49,7 +49,7 @@
     },
     {
       "n": 5,
-      "sourceCharacters": 10379,
+      "sourceCharacters": 10429,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -58,7 +58,7 @@
     },
     {
       "n": 6,
-      "sourceCharacters": 9546,
+      "sourceCharacters": 9598,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -67,7 +67,7 @@
     },
     {
       "n": 7,
-      "sourceCharacters": 9639,
+      "sourceCharacters": 9671,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -76,7 +76,7 @@
     },
     {
       "n": 8,
-      "sourceCharacters": 9621,
+      "sourceCharacters": 9662,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -85,7 +85,7 @@
     },
     {
       "n": 9,
-      "sourceCharacters": 9201,
+      "sourceCharacters": 9272,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -94,7 +94,7 @@
     },
     {
       "n": 10,
-      "sourceCharacters": 8144,
+      "sourceCharacters": 8161,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -103,7 +103,7 @@
     },
     {
       "n": 11,
-      "sourceCharacters": 8884,
+      "sourceCharacters": 8916,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -112,7 +112,7 @@
     },
     {
       "n": 12,
-      "sourceCharacters": 9356,
+      "sourceCharacters": 9387,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -121,7 +121,7 @@
     },
     {
       "n": 13,
-      "sourceCharacters": 8564,
+      "sourceCharacters": 8632,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -130,7 +130,7 @@
     },
     {
       "n": 14,
-      "sourceCharacters": 9711,
+      "sourceCharacters": 9748,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -139,7 +139,7 @@
     },
     {
       "n": 15,
-      "sourceCharacters": 8597,
+      "sourceCharacters": 8615,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -148,7 +148,7 @@
     },
     {
       "n": 16,
-      "sourceCharacters": 8458,
+      "sourceCharacters": 8494,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -157,7 +157,7 @@
     },
     {
       "n": 17,
-      "sourceCharacters": 9729,
+      "sourceCharacters": 9738,
       "questions": 10,
       "interviewQuestions": 9,
       "workedExercises": 1,
@@ -166,7 +166,7 @@
     },
     {
       "n": 18,
-      "sourceCharacters": 9937,
+      "sourceCharacters": 9969,
       "questions": 10,
       "interviewQuestions": 9,
       "workedExercises": 1,
@@ -175,7 +175,7 @@
     },
     {
       "n": 19,
-      "sourceCharacters": 8457,
+      "sourceCharacters": 8501,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -184,7 +184,7 @@
     },
     {
       "n": 20,
-      "sourceCharacters": 8867,
+      "sourceCharacters": 8890,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -193,7 +193,7 @@
     },
     {
       "n": 21,
-      "sourceCharacters": 8108,
+      "sourceCharacters": 8143,
       "questions": 9,
       "interviewQuestions": 8,
       "workedExercises": 1,
@@ -202,7 +202,7 @@
     },
     {
       "n": 22,
-      "sourceCharacters": 9646,
+      "sourceCharacters": 9706,
       "questions": 10,
       "interviewQuestions": 9,
       "workedExercises": 1,
@@ -213,6 +213,6 @@
   "questions": 210,
   "interviewQuestions": 187,
   "workedExercises": 23,
-  "sourceCharacters": 211518,
+  "sourceCharacters": 212375,
   "awsIntegrationTests": "not run; no AWS credentials or resources used"
 }

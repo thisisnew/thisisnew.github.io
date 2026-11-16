@@ -1,13 +1,14 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="인증 경로를 분리하고 SDOWN·ODOWN·replica 선택 규칙을 운영 증거로 해석한다."><title>Redis 11 · Sentinel 인증과 장애 판단 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/redis-study-11.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><link rel="stylesheet" href="/assets/jvm-study.css"><link rel="stylesheet" href="/assets/redis-study.css"><script src="/assets/series-category.js" defer></script></head><body data-series="redis"><main><a href="/">← 전체 글</a> · <a href="/posts/redis-study-00.html">Redis 학습 지도</a><header><p class="meta">REDIS QUEST · 11 / 30 · DEEP STUDY</p><h1>Sentinel 인증과 장애 판단</h1><p class="subtitle">인증 경로를 분리하고 SDOWN·ODOWN·replica 선택 규칙을 운영 증거로 해석한다.</p><p class="note">첨부 Redis 학습 자료의 주제를 쉬운 설명과 공식 문서 근거로 재구성했습니다. 명령·설정의 버전 조건은 본문을 확인하세요. 장애 시나리오와 수치는 별도 표시가 없으면 학습용 가정이며, 코드가 실려 있다는 사실만으로 실행 검증을 의미하지 않습니다. <a href="/learning/redis/verification.html">검증 범위와 남은 한계</a></p></header><aside class="toc" aria-label="이 글의 목차"><h2>이번 퀘스트에서 배울 것</h2><ol><li><a href="#section-1">처음 이해할 바탕. 누구인지 확인하는 것과 무엇을 허용하는 것은 다르다</a></li><li><a href="#section-2">1. 인증은 하나의 비밀번호 문제가 아니다</a></li><li><a href="#section-3">2. ACL과 역할 전환을 함께 설계한다</a></li><li><a href="#section-4">3. SDOWN은 관점, ODOWN은 조건부 공동 판단이다</a></li><li><a href="#section-5">4. 가장 최신 replica가 무조건 선택되지는 않는다</a></li><li><a href="#section-6">5. 안전한 권한 실패 실험</a></li><li><a href="#section-7">실습 공통 토대: 감시망과 데이터망을 따로 확인하기</a></li><li><a href="#section-8">진단 워크숍: 새 primary에서만 로그인에 실패하는 이유</a></li><li><a href="#section-9">인증 지도. 다섯 연결을 출발 주체와 목적별로 읽기</a></li><li><a href="#section-10">역할 전환 해설. 지금의 replica는 미래의 primary다</a></li><li><a href="#section-11">Java 정책 모델. 허용 검사와 거부 검사를 한 표에 넣기</a></li><li><a href="#section-12">비밀 교체 연습. 연결이 살아 있는 동안에는 잘못된 새 설정이 숨을 수 있다</a></li><li><a href="#section-13">장애 판단 해설. 감시자가 보고 있는 것은 네트워크 너머의 응답이다</a></li><li><a href="#section-14">유효 응답 해설. 오류처럼 보이는 응답도 같은 뜻은 아니다</a></li><li><a href="#section-15">후보 선택 해설. 먼저 자격을 거르고 그 다음 순서를 매긴다</a></li><li><a href="#section-16">Java 후보 선택 예제. priority·offset·식별자를 차례로 비교하기</a></li><li><a href="#section-17">진단 워크숍. 주소는 바뀌었는데 WRONGPASS 또는 NOPERM이 나온다</a></li><li><a href="#section-18">면접 질문과 깊이 있는 답변</a></li><li><a href="#section-19">진단 표 보충. 실패의 위치를 먼저 쓰면 조치가 좁아진다</a></li><li><a href="#section-20">추가 면접 문답: 권한과 장애 판단을 연결해 설명하기</a></li><li><a href="#section-21">원문과 공식 확인 자료</a></li></ol></aside><article><p>실습을 먼저 따라 하려면 아래의 <strong>실습 공통 토대</strong>에서 격리된 환경을 준비하고 정상 상태를 확인한 뒤, 이 장의 개별 실험으로 돌아온다. 코드와 출력 설명은 별도 언급이 없는 한 실행 결과가 아니라 예제와 예상 관찰이다.</p>
-<p>실행 검증 기록: <a href="/learning/redis/sentinel-checks.json">로컬 Sentinel 통합 시험</a>은 Redis 7.2.5에서 정상 primary 종료 뒤 자동 승격, 이전 primary의 replica 재편입, 한 Sentinel의 발견 전용 계정에 대한 조회 허용·강제 전환 거부를 확인했다. 실제 호스트·네트워크 분할·전원 장애·Spring 클라이언트 재연결은 이 시험의 범위에 포함하지 않았다. <a href="/learning/redis/expansion-code-checks.json">Java 예제 검사</a>는 본문의 완전한 클래스와 소스 파일 일치, 컴파일 및 독립 main 실행 범위를 따로 기록한다.</p>
+<p>실행 검증 기록: <a href="/learning/redis/sentinel-checks.json">로컬 Sentinel 통합 시험</a>은 Redis 7.2.5에서 정상 primary를 종료한 뒤 자동 승격되는지 확인했다. 이전 primary가 replica로 다시 편입되는지도 확인했다. 한 Sentinel의 발견 전용 계정으로 조회는 가능하고 강제 전환은 거부되는지도 시험했다.</p>
+<p>실제 호스트·네트워크 분할·전원 장애·Spring 클라이언트 재연결은 이 시험의 범위에 포함하지 않았다. <a href="/learning/redis/expansion-code-checks.json">Java 예제 검사</a>는 본문의 완전한 클래스와 소스 파일 일치, 컴파일 및 독립 main 실행 범위를 따로 기록한다.</p>
 <h2 id="section-1">처음 이해할 바탕. 누구인지 확인하는 것과 무엇을 허용하는 것은 다르다</h2>
 <p>인증은 접속한 주체가 누구인지 확인하는 과정이고, 인가는 그 주체가 어떤 행동을 해도 되는지 정하는 과정이다. 회사 출입증이 유효하다고 모든 창고와 서버실에 들어갈 수 있는 것은 아니다. Redis에서도 비밀번호가 맞아 연결됐다는 사실과 필요한 명령·키·채널에 접근할 수 있다는 사실은 다르다.</p>
-<p>Sentinel 환경에서는 이 구분이 더 중요해진다. 애플리케이션이 현재 primary 주소를 묻는 연결과 상품 상태를 바꾸는 연결, Sentinel이 노드의 역할을 바꾸는 연결은 목적이 다르다. 같은 계정을 모두 사용하면 설정이 짧아 보일 수 있지만, 어떤 경로가 어떤 권한을 필요로 하는지 검토하기 어려워지고 불필요한 권한이 퍼질 수 있다.</p>
+<p>Sentinel 환경에서는 이 구분이 더 중요해진다. 애플리케이션이 현재 primary 주소를 묻는 연결과 상품 상태를 바꾸는 연결, Sentinel이 노드의 역할을 바꾸는 연결은 목적이 다르다. 같은 계정을 모두 사용하면 설정이 짧아 보일 수 있지만 어떤 경로가 어떤 권한을 필요로 하는지 검토하기 어려워지고 불필요한 권한이 퍼질 수 있다.</p>
 <p>또한 비밀번호는 암호화된 통신 자체를 의미하지 않는다. 인증서로 상대의 신원을 검증하는 TLS 조건은 또 다른 층이다. 연결 실패를 볼 때 주소와 포트, TLS, 인증, 명령 권한을 나누어 조사하면 원인을 좁힐 수 있다. “로그인이 안 된다”라는 한 문장만으로 모든 실패를 같은 것으로 처리하지 않는다.</p>
 <p>이 장의 또 다른 주제인 장애 판단도 같은 태도로 읽는다. 누군가 응답하지 않는다는 관측과 그 서버가 실제로 고장 났다는 사실은 다를 수 있다. 감시자는 네트워크와 권한, 프로세스의 실행 상태를 거쳐 응답을 받는다. 그 경로가 깨져도 데이터 서버 자체는 살아 있을 수 있다. 판단의 근거와 원인을 구별해야 한다.</p>
 <h2 id="section-2">1. 인증은 하나의 비밀번호 문제가 아니다</h2>
 <p>물류센터의 출입증을 떠올려 보자. 고객 상담원은 배송 상태를 조회할 수 있어야 하지만 출고 담당자를 교체할 권한은 필요 없다. 복제 담당자는 장부를 받아 적어야 하고 관리위원은 담당자 변경 명령을 내릴 수 있어야 한다. Redis의 인증·권한도 역할별로 나누어야 한다. <strong>인증</strong>은 누가 접속했는지 확인하는 것이고 <strong>인가</strong>는 그 사람이 어떤 명령과 키·채널을 사용할 수 있는지 정하는 것이다. TLS는 전송 경로의 암호화와 신원 검증을 다루며 비밀번호 설정만으로 대체되지 않는다.</p>
-<p>다섯 연결을 도식에 그린다. 애플리케이션에서 데이터 Redis로 가는 연결, 애플리케이션에서 Sentinel로 가는 연결, Sentinel에서 데이터 Redis로 가는 연결, Sentinel끼리의 연결, replica에서 primary로 가는 복제 연결이다. 각 화살표의 사용자·비밀번호·권한·TLS 설정을 따로 적는다. Sentinel 비밀번호를 Redis 비밀번호로 착각하면 주소 발견은 성공하는데 실제 데이터 접속은 실패하거나 그 반대가 된다.</p>
+<p>다섯 연결을 도식에 그린다. 연결은 각각 따로 살펴봐야 한다. 애플리케이션은 데이터 Redis와 Sentinel에 각각 연결한다. Sentinel도 데이터 Redis에 연결하고 다른 Sentinel과 통신한다. replica에서 primary로 이어지는 복제 연결도 있다. 각 화살표의 사용자·비밀번호·권한·TLS 설정을 따로 적는다. Sentinel 비밀번호를 Redis 비밀번호로 착각하면 주소 발견은 성공하는데 실제 데이터 접속은 실패하거나 그 반대가 된다.</p>
 <h2 id="section-3">2. ACL과 역할 전환을 함께 설계한다</h2>
 <p><strong>ACL</strong>은 Access Control List, 즉 접근 제어 목록이다. Redis 데이터 노드의 ACL은 Redis 6부터 제공되며 Sentinel 자체 ACL은 Redis 6.2부터 제공된다는 버전 차이가 있다. 설치 버전과 클라이언트의 username 지원 여부를 먼저 확인한다. Sentinel이 감시 대상 Redis에 접속할 계정은 <code>sentinel auth-user logistics-main 사용자</code>와 <code>sentinel auth-pass logistics-main 비밀번호</code>로 지정한다. Sentinel들끼리 사용할 계정은 <code>sentinel sentinel-user</code>, <code>sentinel sentinel-pass</code>이며 같은 대상이 아니다.</p>
 <table>
@@ -52,16 +53,19 @@
 <p>ODOWN은 primary에 대해 다른 Sentinel의 최근 판단을 수집하여 quorum을 충족한 상태다. replica와 다른 Sentinel에는 SDOWN이 표시될 수 있지만 같은 의미의 ODOWN 승격 절차를 적용하지 않는다. ODOWN에 도달해도 실제 전환 수행자 선출에 필요한 과반 승인과 적절한 replica가 있어야 한다. 인증 오류가 원인이라면 서버가 멀쩡해도 필요한 명령을 수행하지 못하므로 장애처럼 보이는 증상과 실제 원인을 분리한다.</p>
 <h2 id="section-5">4. 가장 최신 replica가 무조건 선택되지는 않는다</h2>
 <p>후보를 고를 때 먼저 너무 오랫동안 primary와 끊긴 replica나 SDOWN 상태 등 부적격 후보를 제외한다. 공식 설명의 연결 단절 한계는 대략 <code>down-after-milliseconds × 10 + primary가 SDOWN인 기간</code>이라는 조건으로 표현된다. 실제 필드의 단위와 구현 버전을 확인해야 하며, 숫자를 작은 지연 허용 정책처럼 임의로 해석하지 않는다. 이것은 후보 적격성을 위한 필터이지 모든 승인 쓰기를 보존했다는 증명이 아니다.</p>
-<p>적격 후보 사이에서는 낮은 <code>replica-priority</code> 값이 우선한다. 우선순위가 같으면 더 많이 복제한 offset이 유리하고, 그것까지 같으면 run ID의 사전식 순서를 사용하여 결정을 안정적으로 만든다. <code>replica-priority 0</code>은 가장 높은 우선순위가 아니라 <strong>승격 금지</strong>다. 이 값의 replica도 새 primary를 따라 재구성될 수 있고 읽기 용도로 쓸 수 있지만 새 primary 후보가 되지 않는다.</p>
+<p>적격 후보 사이에서는 낮은 <code>replica-priority</code> 값이 우선한다. 우선순위가 같으면 더 많이 복제한 offset이 유리하고 그것까지 같으면 run ID의 사전식 순서를 사용해 결정을 안정적으로 만든다. <code>replica-priority 0</code>은 가장 높은 우선순위가 아니라 <strong>승격 금지</strong>다. 이 값의 replica도 새 primary를 따라 재구성될 수 있고 읽기 용도로 쓸 수 있지만 새 primary 후보가 되지 않는다.</p>
 <p>예를 들어 R1의 priority가 50이고 offset이 9000, R2의 priority가 100이고 offset이 10000이라면 둘 다 적격일 때 priority가 앞선 R1을 우선할 수 있다. “offset이 큰 서버를 늘 뽑는다”는 설명은 틀린다. 특정 센터를 선호하려고 priority를 바꾸면 데이터 최신성과 가용성에 어떤 영향을 주는지 분석한다. 현재 primary도 나중에 replica가 될 수 있으므로 역할별 설정을 한쪽에만 적용하지 않는다.</p>
 <h2 id="section-6">5. 안전한 권한 실패 실험</h2>
 <p>운영 계정을 잠그지 말고 별도 로컬 ACL 실습 환경을 준비한다. 읽기 전용 애플리케이션 사용자로 <code>GET</code>은 허용하고 제어 명령은 거부되는지 확인한다. Sentinel 발견 사용자로 현재 primary 주소 조회는 가능하지만 강제 전환은 거부되는지 확인한다. 비밀번호를 명령행에 직접 적으면 셸 기록과 프로세스 목록에 남을 수 있으므로 비밀 입력을 지원하는 클라이언트 방식을 사용한다. <code>ACL LOG</code>를 지원하는 환경에서는 거부 사유와 대상을 확인하되 로그 접근 권한도 제한한다.</p>
 <p>권한 검증표의 각 칸에 “성공해야 함”과 “실패해야 함”을 함께 적는다. 보안 시험은 정상 작업이 되는지만 보는 시험이 아니다. 불필요한 제어 명령과 내부 채널 접근이 실패한다는 증거도 필요하다. 마지막에는 실제 역할 전환 후 같은 표를 다시 검사한다. 전환 전 테스트만 통과한 ACL은 HA 보안 설정의 완성이 아니다.</p>
 <h2 id="section-7">실습 공통 토대: 감시망과 데이터망을 따로 확인하기</h2>
-<p>이 절은 09~12장을 각각 독립적으로 읽어도 실습 전제를 놓치지 않도록 제공하는 복습이다. Sentinel은 데이터를 저장하는 Redis의 다른 이름이 아니다. 데이터 Redis는 주문 상태를 읽고 쓰는 <strong>데이터 평면</strong>이고, Sentinel은 현재 쓰기를 받을 주 서버를 알려 주고 장애 전환을 조정하는 <strong>제어 평면</strong>이다. 운영자는 두 평면의 정상 여부를 각각 확인해야 한다. 감시가 정상이어도 Redis의 디스크가 가득 찰 수 있고, 데이터 읽기가 정상이어도 Sentinel 사이의 연결이 끊어져 다음 장애를 처리하지 못할 수 있다.</p>
-<p>물류센터에 비유하면 Redis primary는 출고 장부를 수정하는 현재 담당자, replica는 그 장부를 받아 적는 대기 담당자, Sentinel은 담당자 교체를 결정하는 관리위원이다. 장부 복사는 비동기다. 원 담당자가 출고 승인 도장을 찍은 순간 대기 담당자가 마지막 줄까지 받아 적었다는 뜻은 아니다. 관리위원 세 명이 교체에 동의해도 복사되지 않은 장부 한 줄을 복원할 수는 없다. 이 비유의 한계도 분명하다. Redis는 사람처럼 빠진 주문의 의미를 추론하거나 장부 두 권을 자동 병합하지 않는다. 어느 서버를 기준으로 삼을지 결정하고 나면 이전 서버는 새 기준의 데이터를 복제하게 된다.</p>
+<p>이 절은 09~12장을 각각 독립적으로 읽어도 실습 전제를 놓치지 않도록 제공하는 복습이다. Sentinel은 데이터를 저장하는 Redis의 다른 이름이 아니다. 데이터 Redis는 주문 상태를 읽고 쓰는 <strong>데이터 평면</strong>이고, Sentinel은 현재 쓰기를 받을 주 서버를 알려 주고 장애 전환을 조정하는 <strong>제어 평면</strong>이다.</p>
+<p>운영자는 두 평면의 정상 여부를 각각 확인해야 한다. 감시가 정상이어도 Redis의 디스크가 가득 찰 수 있고 데이터 읽기가 정상이어도 Sentinel 사이의 연결이 끊어져 다음 장애를 처리하지 못할 수 있다.</p>
+<p>물류센터에 비유하면 Redis primary는 출고 장부를 수정하는 현재 담당자, replica는 그 장부를 받아 적는 대기 담당자, Sentinel은 담당자 교체를 결정하는 관리위원이다. 장부 복사는 비동기다. 원 담당자가 출고 승인 도장을 찍은 순간 대기 담당자가 마지막 줄까지 받아 적었다는 뜻은 아니다.</p>
+<p>관리위원 세 명이 교체에 동의해도 복사되지 않은 장부 한 줄을 복원할 수는 없다. 이 비유의 한계도 분명하다. Redis는 사람처럼 빠진 주문의 의미를 추론하거나 장부 두 권을 자동 병합하지 않는다. 어느 서버를 기준으로 삼을지 결정하고 나면 이전 서버는 새 기준의 데이터를 복제하게 된다.</p>
 <h3>격리된 실습 환경 만들기</h3>
-<p>아래는 로컬의 일회용 테스트 환경을 만드는 예제다. 이 교재에서 실행한 결과가 아니며 명령 뒤의 관찰 설명은 <strong>예상되는 관찰</strong>이다. 이미 같은 포트를 쓰는 서비스가 있으면 중단하고 빈 포트로 바꾼다. 인증을 생략하는 이유는 오직 loopback 실습의 복잡도를 낮추기 위해서다. 공유 호스트, 외부 공개 VM, 운영 서버에서는 그대로 사용하지 않는다. 방화벽으로 외부 접근을 차단하고 로컬 사용자에게도 민감한 데이터가 없는 환경을 쓴다. 운영 도입에는 인증, TLS, 비밀 관리, 독립 장애 도메인 배치가 추가로 필요하다.</p>
+<p>아래는 로컬의 일회용 테스트 환경을 만드는 예제다. 이 교재에서 실행한 결과가 아니며 명령 뒤의 관찰 설명은 <strong>예상되는 관찰</strong>이다. 이미 같은 포트를 쓰는 서비스가 있으면 중단하고 빈 포트로 바꾼다. 인증을 생략하는 이유는 오직 loopback 실습의 복잡도를 낮추기 위해서다. 공유 호스트, 외부 공개 VM, 운영 서버에서는 그대로 사용하지 않는다.</p>
+<p>방화벽으로 외부 접근을 차단하고 로컬 사용자에게도 민감한 데이터가 없는 환경을 쓴다. 운영 도입에는 인증, TLS, 비밀 관리, 독립 장애 도메인 배치가 추가로 필요하다.</p>
 <pre><code class="language-bash"># 필요한 프로그램이 설치되어 있는지와 실제 버전을 먼저 기록한다.
 redis-server --version
 redis-cli --version
@@ -105,7 +109,8 @@ EOF
   redis-server &quot;$LAB/$p/sentinel.conf&quot; --sentinel
 done
 </code></pre>
-<p>여기서 <code>save &quot;&quot;</code>와 <code>appendonly no</code>는 실습을 단순화하기 위한 <strong>영속성 비활성화</strong>다. 재시작하면 데이터가 남는다고 기대하지 않는다. 운영에 이 설정을 복사해서는 안 된다. 세 Redis와 세 Sentinel이 한 컴퓨터에서 실행되므로 프로토콜은 관찰할 수 있지만 실제 고가용성은 제공하지 않는다. 컴퓨터 하나가 멈추면 여섯 프로세스가 동시에 사라진다. <code>daemonize</code>를 지원하지 않는 배포 환경이라면 각 프로세스를 별도 터미널에서 foreground로 시작하고 종료할 대상을 직접 추적한다.</p>
+<p>여기서 <code>save &quot;&quot;</code>와 <code>appendonly no</code>는 실습을 단순화하기 위한 <strong>영속성 비활성화</strong>다. 재시작하면 데이터가 남는다고 기대하지 않는다. 운영에 이 설정을 복사해서는 안 된다. 세 Redis와 세 Sentinel이 한 컴퓨터에서 실행되므로 프로토콜은 관찰할 수 있지만 실제 고가용성은 제공하지 않는다.</p>
+<p>컴퓨터 하나가 멈추면 여섯 프로세스가 동시에 사라진다. <code>daemonize</code>를 지원하지 않는 배포 환경이라면 각 프로세스를 별도 터미널에서 foreground로 시작하고 종료할 대상을 직접 추적한다.</p>
 <h3>정상 상태를 숫자와 관계로 기록하기</h3>
 <pre><code class="language-bash">redis-cli -p 6379 INFO replication
 redis-cli -p 6380 INFO replication
@@ -115,10 +120,12 @@ redis-cli -p 26379 SENTINEL SENTINELS logistics-main
 redis-cli -p 26379 SENTINEL CKQUORUM logistics-main
 redis-cli -p 26379 SENTINEL GET-MASTER-ADDR-BY-NAME logistics-main
 </code></pre>
-<p>처음에는 6379가 master이고 다른 두 인스턴스가 그 서버를 복제하는 관계가 예상된다. 일부 출력 필드에는 호환성 때문에 과거 용어 <code>slave</code>가 남아 있다. 단어보다 역할과 연결 대상 주소를 읽는다. <code>master_link_status:up</code>은 복제 링크가 연결되었다는 뜻이지 데이터 유실 가능성이 없다는 증명은 아니다. <code>SENTINEL SENTINELS</code>는 요청받은 Sentinel 자신을 제외한 다른 감시자를 보여 주므로 정상적인 세 감시자 구성에서 목록의 두 항목을 보고 한 대가 사라졌다고 오해하지 않는다.</p>
-<p><code>CKQUORUM</code>은 현재 관점에서 장애 판단 정족수와 장애 전환 승인을 받을 수 있는지 검사하는 운영 진단이다. 이 결과가 정상이라고 미래의 복제 지연, 데이터 노드 장애, 클라이언트의 재연결 실패까지 검증되지는 않는다. 따라서 관찰 기록에는 Sentinel 응답만 쓰지 말고 Redis 역할, replica 연결, 애플리케이션 성공률을 함께 적는다. 서로 다른 Sentinel에 같은 조회를 반복해 인식이 일치하는지도 비교한다. 발견 정보가 전파되는 동안 짧은 차이가 있을 수 있으므로 한 번의 서로 다른 응답만으로 영구 분할을 선언하지 않는다.</p>
+<p>처음에는 6379가 master이고 다른 두 인스턴스가 그 서버를 복제하는 관계가 예상된다. 일부 출력 필드에는 호환성 때문에 과거 용어 <code>slave</code>가 남아 있다. 단어보다 역할과 연결 대상 주소를 읽는다. <code>master_link_status:up</code>은 복제 링크가 연결되었다는 뜻이지 데이터 유실 가능성이 없다는 증명은 아니다.</p>
+<p><code>SENTINEL SENTINELS</code>는 요청받은 Sentinel 자신을 제외한 다른 감시자를 보여 주므로 정상적인 세 감시자 구성에서 목록의 두 항목을 보고 한 대가 사라졌다고 오해하지 않는다.</p>
+<p><code>CKQUORUM</code>은 현재 관점에서 장애 판단 정족수와 장애 전환 승인을 받을 수 있는지 검사하는 운영 진단이다. 이 결과가 정상이라고 미래의 복제 지연, 데이터 노드 장애, 클라이언트의 재연결 실패까지 검증되지는 않는다. 따라서 관찰 기록에는 Sentinel 응답만 쓰지 말고 Redis 역할, replica 연결, 애플리케이션 성공률을 함께 적는다.</p>
+<p>서로 다른 Sentinel에 같은 조회를 반복해 인식이 일치하는지도 비교한다. 발견 정보가 전파되는 동안 짧은 차이가 있을 수 있으므로 한 번의 서로 다른 응답만으로 영구 분할을 선언하지 않는다.</p>
 <h3>실습을 마친 뒤의 정리</h3>
-<p>실습 전 포트가 비어 있었고 이 절에서만 생성한 인스턴스라는 것을 확인한 뒤, 테스트 데이터가 필요 없을 때만 각 포트를 종료한다. <code>killall redis-server</code>처럼 호스트의 모든 Redis를 종료하는 명령은 쓰지 않는다. 아래 종료 명령도 운영 포트에 그대로 실행하면 장애를 만들므로 현재 실습 대상임을 다시 확인한다.</p>
+<p>실습 전 포트가 비어 있었고 이 절에서만 생성한 인스턴스라는 사실을 확인한 뒤, 테스트 데이터가 필요 없을 때만 각 포트를 종료한다. <code>killall redis-server</code>처럼 호스트의 모든 Redis를 종료하는 명령은 쓰지 않는다. 아래 종료 명령도 운영 포트에 그대로 실행하면 장애를 만들므로 현재 실습 대상임을 다시 확인한다.</p>
 <pre><code class="language-bash"># 일회용 실습 인스턴스만 대상으로 한다.
 for p in 26379 26380 26381 6379 6380 6381; do
   redis-cli -h 127.0.0.1 -p &quot;$p&quot; SHUTDOWN NOSAVE
@@ -301,7 +308,7 @@ public final class SentinelAuthorizationLesson {
 <p>이 과정에서 계정의 명령·키·채널 범위를 의도치 않게 넓히지 않았는지도 본다. 비밀 교체가 권한 확대를 뜻하지는 않는다. 오류를 급하게 없애려고 광범위한 관리자 권한을 부여하면 인증 문제를 해결하면서 다른 위험을 만들 수 있다. 사용자 식별, 비밀 값, 명령 권한, 대상 노드, TLS 조건을 나누어 비교한다.</p>
 <p>로그에도 비밀 자체 대신 대상과 계정 식별자, 오류 종류, 시각을 남기는 것이 유용하다. 전체 설정을 채팅이나 공개 문서에 붙여 넣지 않아도 많은 진단은 가능하다. 필요한 증거를 남기는 것과 비밀을 복제하는 것은 다르다.</p>
 <h2 id="section-13">장애 판단 해설. 감시자가 보고 있는 것은 네트워크 너머의 응답이다</h2>
-<p>Sentinel은 서버 내부의 모든 상태를 직접 보는 전지적 관찰자가 아니다. 명령을 보내고 응답과 역할 정보를 관찰한다. 네트워크 지연과 인증, 명령 권한, 대상의 부하가 그 관측에 영향을 준다. 서버가 살아 있어도 필요한 응답을 받지 못할 수 있고, 서버가 응답해도 사용자 요청의 지연 목표를 만족하지 않을 수 있다.</p>
+<p>Sentinel은 서버 내부의 모든 상태를 직접 보는 전지적 관찰자가 아니다. 명령을 보내고 응답과 역할 정보를 관찰한다. 네트워크 지연과 인증, 명령 권한, 대상의 부하가 그 관측에 영향을 준다. 서버가 살아 있어도 필요한 응답을 받지 못할 수 있고 서버가 응답해도 사용자 요청의 지연 목표를 만족하지 않을 수 있다.</p>
 <p>SDOWN을 주관적 판단이라고 부르는 이유가 여기에 있다. 한 Sentinel의 관점에서 정한 시간 동안 유효 응답을 받지 못했다는 상태다. 다른 위치의 Sentinel은 다른 네트워크 경로를 통해 정상 응답을 받을 수 있다. 관점이 다르다는 것은 어느 하나가 반드시 거짓말한다는 뜻이 아니다. 네트워크가 갈라졌거나 지연이 비대칭일 수 있다.</p>
 <p>ODOWN은 primary에 대해 필요한 다른 감시자의 최근 판단을 모아 정족수 조건을 만족하는 상태로 이해한다. 이것도 모든 장애 전환 작업의 완료를 뜻하지 않는다. 수행 권한과 적격 후보, 실제 제어가 남는다. 주관적 관찰에서 공동 판단, 실행 권한, 실제 역할 변경으로 질문이 이동한다.</p>
 <table>
@@ -392,12 +399,12 @@ public final class SentinelCandidateOrderingLesson {
 }
 </code></pre>
 <p>첫 검사는 offset이 더 큰 r2보다 priority가 앞선 r1이 선택될 수 있음을 보인다. 두 번째는 priority가 같아야 offset 비교가 결정적일 수 있음을 보인다. 세 번째는 완전한 동률에서 식별 순서를 사용하는 단순 규칙을 확인한다. 마지막은 승격 금지와 부적격 후보만 있을 때 선택하지 않는 경우다.</p>
-<p>이 결과는 실제 Redis 노드의 최신성을 측정한 것이 아니다. eligible을 입력으로 주입했고 네트워크와 failover 과정도 없다. 모델이 맡은 한 관계를 정확히 이해하고, 실제 후보 제외 이유는 상태·로그·버전별 규칙으로 조사해야 한다. 코드의 정렬 결과와 전체 시스템의 데이터 안전성을 같은 보장으로 말하지 않는다.</p>
+<p>이 결과는 실제 Redis 노드의 최신성을 측정한 것이 아니다. eligible을 입력으로 주입했고 네트워크와 failover 과정도 없다. 모델이 맡은 한 관계를 정확히 이해하고 실제 후보 제외 이유는 상태·로그·버전별 규칙으로 조사해야 한다. 코드의 정렬 결과와 전체 시스템의 데이터 안전성을 같은 보장으로 말하지 않는다.</p>
 <h2 id="section-17">진단 워크숍. 주소는 바뀌었는데 WRONGPASS 또는 NOPERM이 나온다</h2>
 <p>새 primary 주소를 발견했고 네트워크 연결도 됐는데 오류가 난다고 하자. WRONGPASS 계열은 사용자와 비밀의 조합, 대상 노드의 사용자 상태 등을 조사하는 방향으로 이어진다. NOPERM 계열은 인증된 주체가 요청한 명령이나 키·채널에 허용되지 않았을 가능성을 살피게 한다. 정확한 오류 의미는 클라이언트와 서버 기록을 함께 확인한다.</p>
 <p>먼저 실패한 연결의 출발 주체와 목적을 적는다. 앱이 Sentinel에 로그인하다 실패한 것인지, 앱이 새 데이터 노드에 연결하다 실패한 것인지, Sentinel이 제어 명령을 수행하다 실패한 것인지 다르다. 같은 시간의 인증 오류라도 고쳐야 할 설정 위치가 다를 수 있다.</p>
 <p>다음에는 현재 primary와 이전 primary, 다른 후보의 정책을 비교한다. 사용자 존재와 활성 상태, 인증 방식, 필요한 명령과 키 패턴, TLS 조건이 같은 의도인지 확인한다. 전체 비밀 값을 로그에 덤프하는 대신 승인된 경로로 비교한다. 복제된 업무 데이터와 운영 계정의 준비를 자동으로 같다고 가정하지 않는다.</p>
-<p>마지막으로 실패한 작업만 허용되는지 확인한다. 오류를 없애기 위해 모든 명령과 채널을 열면 필요한 최소 변경을 알 수 없게 된다. 정상 업무와 금지 업무의 표를 전환 후 실제 계정으로 재실행하고, 재연결까지 포함한 결과를 남긴다. 목표는 오류 메시지를 없애는 것이 아니라 의도한 권한으로 서비스를 회복하는 것이다.</p>
+<p>마지막으로 실패한 작업만 허용되는지 확인한다. 오류를 없애기 위해 모든 명령과 채널을 열면 필요한 최소 변경을 알 수 없게 된다. 정상 업무와 금지 업무의 표를 전환 후 실제 계정으로 재실행하고 재연결까지 포함한 결과를 남긴다. 목표는 오류 메시지를 없애는 것이 아니라 의도한 권한으로 서비스를 회복하는 것이다.</p>
 <h2 id="section-18">면접 질문과 깊이 있는 답변</h2>
 <p>답을 펼치기 전에 원리, 장애 반례, 운영 확인 방법의 세 순서로 말해 보자. 짧은 정의만 외우기보다 어떤 조건에서 그 설명이 깨지는지를 덧붙이는 것이 중요하다.</p>
 <details class="question"><summary>Sentinel 인증과 Redis 인증을 왜 분리하나요?</summary><div class="answer">
@@ -407,7 +414,7 @@ public final class SentinelCandidateOrderingLesson {
 
 <details class="question"><summary>현재 primary에만 ACL을 설정하면 되나요?</summary><div class="answer">
 
-<p>안 됩니다. 승격된 replica가 새 primary가 되므로 필요한 사용자가 모든 잠재적 primary에 준비되어야 합니다. 이전 primary도 replica가 될 수 있어 복제 인증까지 고려해야 합니다. 전환 전후 동일한 허용·거부 테스트를 수행해야 HA 조건에서의 권한 설계가 완성됩니다.</p>
+<p>안 됩니다. 승격된 replica가 새 primary가 되므로 필요한 사용자가 모든 잠재적 primary에 준비되어야 합니다. 이전 primary도 replica가 될 수 있어 복제 인증까지 고려해야 합니다. 전환 전후 동일한 허용·거부 테스트하해야 HA 조건에서의 권한 설계가 완성됩니다.</p>
 </div></details>
 
 <details class="question"><summary>SDOWN과 ODOWN을 한 문장씩 설명해 보세요.</summary><div class="answer">
@@ -422,7 +429,7 @@ public final class SentinelCandidateOrderingLesson {
 
 <details class="question"><summary>가장 큰 replication offset의 replica가 항상 승격되나요?</summary><div class="answer">
 
-<p>아닙니다. 먼저 부적격 후보를 제외하고, 적격 후보에서는 replica-priority가 앞섭니다. 같은 우선순위에서 offset을 비교하고 그마저 같으면 run ID 순으로 결정합니다. 특정 위치 선호를 위해 우선순위를 조정하면 더 최신 후보보다 덜 최신 후보가 선호될 가능성을 검토해야 합니다.</p>
+<p>아닙니다. 먼저 부적격 후보를 제외하고 적격 후보에서는 replica-priority가 앞섭니다. 같은 우선순위에서 offset을 비교하고 그마저 같으면 run ID 순으로 결정합니다. 특정 위치 선호를 위해 우선순위를 조정하면 더 최신 후보보다 덜 최신 후보가 선호될 가능성을 검토해야 합니다.</p>
 </div></details>
 
 <details class="question"><summary>replica-priority 0은 가장 높은 우선순위인가요?</summary><div class="answer">
@@ -495,7 +502,7 @@ public final class SentinelCandidateOrderingLesson {
 <details class="question"><summary>앱은 1초마다 실패하는데 Sentinel은 정상이라고 할 수 있나요?</summary><div class="answer">
 
 <p>가능하다. 앱의 요청 시간 예산과 감시자의 유효 응답 조건이 다르기 때문이다. 감시가 정상이라는 말이 모든 업무 명령의 지연 목표를 만족한다는 뜻은 아니다. 사용자 영향과 감시 판정을 따로 관측해야 한다.</p>
-<p>느린 명령·자원 압력·네트워크와 연결 경로를 조사하고, 어떤 설정을 바꾸면 어떤 부작용이 생길지 판단한다. 감시 임계값을 사용자 SLO와 같은 숫자로 단순 맞추는 것이 항상 답은 아니다.</p>
+<p>느린 명령·자원 압력·네트워크와 연결 경로를 조사하고 어떤 설정을 바꾸면 어떤 부작용이 생길지 판단한다. 감시 임계값을 사용자 SLO와 같은 숫자로 단순 맞추는 것이 항상 답은 아니다.</p>
 </div></details>
 
 <details class="question"><summary>발견 계정이 GET-MASTER-ADDR를 실행할 수 있으면 권한 검사가 끝났나요?</summary><div class="answer">
@@ -507,8 +514,8 @@ public final class SentinelCandidateOrderingLesson {
 <h2 id="section-21">원문과 공식 확인 자료</h2>
 <p>이 장은 제공된 <code>Redis_Senior_Study/chapters/11_</code> 원문의 해당 주제를 한국어로 재구성하고 독립적인 학습 예제와 판단 절차를 추가했다. 제공 원문은 최신 버전 보증 자료가 아니므로 운영 적용 전 실제 Redis와 클라이언트 버전을 확인한다. 공식 링크는 2026-10-21 집필 시 확인했으며 이 장의 실습 명령을 실행했다는 뜻은 아니다.</p>
 <ul>
-<li><a href="https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/">Redis 공식 Sentinel 문서</a> — 배치·전환·인증·정족수·epoch의 기준.</li>
-<li><a href="https://redis.io/docs/latest/develop/reference/sentinel-clients/">Sentinel 클라이언트 구현 지침</a> — 발견과 재연결을 검토할 때 참고.</li>
-<li><a href="https://redis.io/docs/latest/commands/wait/">WAIT 명령의 보장 범위</a> — 복제 확인과 강한 일관성을 구분할 때 참고.</li>
+<li><a href="https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/">Redis 공식 Sentinel 문서</a>: 배치·전환·인증·정족수·epoch의 기준.</li>
+<li><a href="https://redis.io/docs/latest/develop/reference/sentinel-clients/">Sentinel 클라이언트 구현 지침</a>: 발견과 재연결을 검토할 때 참고.</li>
+<li><a href="https://redis.io/docs/latest/commands/wait/">WAIT 명령의 보장 범위</a>: 복제 확인과 강한 일관성을 구분할 때 참고.</li>
 </ul>
 </article><nav aria-label="연재 이동"><a href="/posts/redis-study-10.html">← Sentinel 장애 전환과 운영 API</a><a href="/posts/redis-study-12.html">Sentinel 합의와 네트워크 분할 →</a></nav><footer>Redis 학습 연재 · <a href="/learning/redis/verification.html">출처·범위·검증 기록</a></footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

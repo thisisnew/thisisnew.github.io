@@ -1,5 +1,5 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="C1·C2·계층형 컴파일·OSR·Code Cache와 마이크로벤치마크의 함정을 이해한다"><title>JVM 14 · 인터프리터와 JIT: 워밍업·인라이닝·역최적화 | thisisnew</title><link rel="canonical" href="https://thisisnew.github.io/posts/jvm-study-14.html"><link rel="stylesheet" href="/assets/pixel-quest.css"><script src="/assets/series-category.js" defer></script><link rel="stylesheet" href="/assets/jvm-study.css"></head><body><main><a href="/">← 전체 글</a> · <a href="/posts/jvm-study-00.html">JVM 학습 지도</a><header><p class="meta">JVM QUEST · 14 / 16 · JAVA 21 · 2026-10-21</p><h1>인터프리터와 JIT: 워밍업·인라이닝·역최적화</h1><p class="subtitle">C1·C2·계층형 컴파일·OSR·Code Cache와 마이크로벤치마크의 함정을 이해한다</p><p class="note">기준: Java SE 21 사양과 HotSpot JDK 21. 첨부 자료의 JVMS 23·JDK 17 발췌는 이 기준으로 대조했습니다. 설명 속 장애 상황은 학습용 가상 사례입니다. 예제는 외부 라이브러리 없이 실행할 수 있습니다.</p></header><aside class="toc" aria-label="이 글의 목차"><h2>이 글에서 배울 것</h2><ol><li><a href="#section-1">시작 전에: 이 편에서 쓰는 말</a></li><li><a href="#section-2">1. 처음부터 모든 길을 고속도로로 만들지 않는다</a></li><li><a href="#section-3">2. C1·C2와 Tiered Compilation</a></li><li><a href="#section-4">3. 인라이닝은 호출 비용만 줄이는 것이 아니다</a></li><li><a href="#section-5">4. 추측 최적화와 Deoptimization</a></li><li><a href="#section-6">5. JIT를 관찰하는 실행 예제</a></li><li><a href="#section-7">6. Code Cache와 Compiler Control</a></li><li><a href="#section-8">7. 손으로 잰 벤치마크가 거짓말하는 다섯 이유</a></li><li><a href="#section-9">8. 장애 사례: 배포 직후 CPU가 높고 곧 안정됨</a></li><li><a href="#section-10">더 깊이: 워밍업을 측정 설계에 반영하기</a></li><li><a href="#section-11">차근차근 이해하기: 자주 쓰는 길에서 얻은 정보로 최적화한다</a></li><li><a href="#section-12">심화 실험실: 같은 인터페이스 호출이 실행 중 달라지는 이유</a></li><li><a href="#section-13">9. 상세 면접 Q&amp;A</a></li><li><a href="#section-14">10. 공식 문서와 복습</a></li></ol></aside><article><h2 id="section-1">시작 전에: 이 편에서 쓰는 말</h2>
-<p>처음 읽는다면 아래 용어의 뜻만 확인한 뒤 본문으로 넘어가세요. 먼저 예제의 결과를 예상하고, 실행 과정을 따라간 다음, 면접 답변을 펼쳐 자신의 설명과 비교하면 좋습니다.</p>
+<p>처음 읽을 때는 아래 용어의 뜻만 확인한 뒤 본문으로 넘어가세요. 먼저 예제의 결과를 예상하고 실행 과정을 따라간 다음, 면접 답변을 펼쳐 자신의 설명과 비교하면 좋습니다.</p>
 <table>
 <thead>
 <tr>
@@ -63,8 +63,8 @@
 <p>작은 메서드를 호출하는 대신 그 동작을 호출자의 최적화 범위에 넣는 것이 인라이닝입니다. 호출 경계가 없어지면 상수 전파·불필요 분기 제거·탈출 분석 등을 더 넓게 수행할 수 있습니다. 결과적으로 객체 할당까지 사라질 수 있습니다.</p>
 <p>반면 모든 메서드를 무한히 인라이닝하면 코드 크기가 커지고 컴파일 비용과 명령 캐시 부담이 생깁니다. 메서드 크기, 호출 빈도, 타입 프로파일 등 판단 요소가 있습니다. “private면 무조건 인라이닝”이나 “메서드가 한 줄이면 반드시 인라이닝” 같은 규칙은 보장이 아닙니다.</p>
 <h2 id="section-5">4. 추측 최적화와 Deoptimization</h2>
-<p>인터페이스 호출이 지금까지 한 구현체로만 들어왔다면 JIT는 그 패턴을 활용할 수 있습니다. 하지만 나중에 다른 타입이 들어올 수 있으므로 가드와 대체 경로, 필요 시 **역최적화(Deoptimization)**가 필요합니다. 더 이상 유효하지 않은 코드에서 안전한 실행 상태로 되돌아가고 재컴파일할 수 있습니다.</p>
-<p>따라서 실행 중 인터페이스를 쓰면 항상 느리다거나 final을 붙이면 항상 빨라진다고 단정할 수 없습니다. 실제 타입 분포와 인라이닝 결과가 중요합니다. 구현을 두 개에서 여러 개로 바꿨을 때 프로파일이 달라져 성능이 변할 수 있지만, 그 크기는 측정해야 합니다.</p>
+<p>인터페이스 호출이 지금까지 한 구현체로만 들어왔다면 JIT는 그 패턴을 사용할 수 있습니다. 하지만 나중에 다른 타입이 들어올 수 있으므로 가드와 대체 경로, 필요 시 **역최적화(Deoptimization)**가 필요합니다. 더 이상 유효하지 않은 코드에서 안전한 실행 상태로 되돌아가고 재컴파일할 수 있습니다.</p>
+<p>따라서 실행 중 인터페이스를 쓰면 항상 느리다거나 final을 붙이면 항상 빨라진다고 단정할 수 없습니다. 실제 타입 분포와 인라이닝 결과가 중요합니다. 구현을 두 개에서 여러 개로 바꿨을 때 프로파일이 달라져 성능이 변할 수 있지만 그 크기는 측정해야 합니다.</p>
 <h2 id="section-6">5. JIT를 관찰하는 실행 예제</h2>
 <pre><code class="language-java">// file: Lesson14.java
 public class Lesson14 {
@@ -106,13 +106,13 @@ java -Xint Lesson14
 <p>클래스 로딩과 초기화, 캐시 적재, 커넥션 생성, JIT 컴파일이 기동 근처에 몰릴 수 있습니다. Compiler Thread가 CPU를 쓴다고 무조건 오류는 아닙니다. 그러나 작은 CPU 제한 아래 반복 재시작이 발생하면 워밍업을 끝내지 못하는 악순환이 생길 수 있습니다.</p>
 <p>JFR에서 실행 표본·컴파일·할당·GC를 나눠 보고 readiness와 트래픽 유입 시점을 비교합니다. 무조건 대기 시간을 길게 고정하기보다 실제 준비 조건과 대표 경로 예열을 검증합니다. 스케일아웃 직후 p99와 CPU를 안정 상태와 따로 측정하면 이 효과를 놓치지 않을 수 있습니다.</p>
 <h2 id="section-10">더 깊이: 워밍업을 측정 설계에 반영하기</h2>
-<p>워밍업 전 결과와 안정 상태 결과는 서로 다른 질문에 답합니다. 단발성 명령 도구나 짧은 배치에서는 기동·초기 실행 비용이 중요할 수 있고, 장시간 서버에서는 안정 상태 처리량이 중요할 수 있습니다. 무조건 워밍업을 길게 해 기동 비용을 지우는 것도 목적에 따라 잘못된 측정입니다.</p>
-<p>JMH에서 warmup·measurement·fork를 정할 때는 어떤 상태를 측정하는지 먼저 적습니다. 입력을 한 값으로 고정하지 않고 실제 범위에 맞추며 결과를 소비하고, 실험 대상 밖에서 데이터를 준비할지 여부도 의도해야 합니다. 측정 구간 안에서 매번 데이터를 만들면 자료구조 연산과 할당 비용이 섞일 수 있습니다.</p>
+<p>워밍업 전 결과와 안정 상태 결과는 서로 다른 질문에 답합니다. 단발성 명령 도구나 짧은 배치에서는 기동·초기 실행 비용이 중요할 수 있고 장시간 서버에서는 안정 상태 처리량이 중요할 수 있습니다. 무조건 워밍업을 길게 해 기동 비용을 지우는 것도 목적에 따라 잘못된 측정입니다.</p>
+<p>JMH에서 warmup·measurement·fork를 정할 때는 어떤 상태를 측정하는지 먼저 적습니다. 입력을 한 값으로 고정하지 않고 실제 범위에 맞추며 결과를 소비하고 실험 대상 밖에서 데이터를 준비할지 여부도 의도해야 합니다. 측정 구간 안에서 매번 데이터를 만들면 자료구조 연산과 할당 비용이 섞일 수 있습니다.</p>
 <p>성능 차이가 보여도 &#39;왜&#39;는 별도 증거가 필요합니다. 컴파일 로그·인라이닝·할당·GC·CPU 표본을 통해 가설을 확인하세요. 결과를 소비하는 코드와 volatile 접근 같은 측정 장치 자체가 성능을 지배하는지도 점검합니다. 수치 하나보다 실험 조건과 재현 가능성이 더 중요한 경우가 많습니다.</p>
-<details class="question"><summary>심화 Q. 운영 서버를 오래 켜면 언제나 더 빨라지나요?</summary><div class="answer"><p>워밍업과 캐시 적재로 좋아질 수 있지만 누수·커진 live set·Code Cache·프로파일 변화·외부 자원 상태 때문에 나빠질 수도 있습니다. 시간 경과 자체를 성능 향상의 보장으로 보지 않습니다.</p><p>기동 직후와 안정 구간, 장기 실행 구간을 따로 관측하고 각각 어떤 비용이 변하는지 확인해야 합니다.</p></div></details>
+<details class="question"><summary>심화 Q. 운영 서버를 오래 켜면 언제나 더 빨라지나요?</summary><div class="answer"><p>워밍업과 캐시 적재 덕분에 성능이 좋아질 수 있습니다. 반대로 누수나 커진 live set, Code Cache, 프로파일 변화, 외부 자원 상태 때문에 나빠질 수도 있습니다. 시간 경과 자체를 성능 향상의 보장으로 보지 않습니다.</p><p>기동 직후와 안정 구간, 장기 실행 구간을 따로 관측하고 각각 어떤 비용이 변하는지 확인해야 합니다.</p></div></details>
 
 <h2 id="section-11">차근차근 이해하기: 자주 쓰는 길에서 얻은 정보로 최적화한다</h2>
-<p>인터프리터는 바이트코드의 의미를 수행하고, JIT는 선택된 코드를 기계 코드로 컴파일합니다. Tiered Compilation은 빠르게 컴파일하는 단계와 더 많은 정보를 이용해 최적화하는 단계를 연결합니다. 초반에는 실행 정보를 모으고, 반복되는 경로를 더 적극적으로 최적화할 수 있습니다. 다만 모든 메서드가 반드시 같은 단계를 같은 순서와 횟수로 거치는 고정 수업 과정은 아닙니다.</p>
+<p>인터프리터는 바이트코드의 의미를 수행하고 JIT는 선택된 코드를 기계 코드로 컴파일합니다. Tiered Compilation은 빠르게 컴파일하는 단계와 더 많은 정보를 이용해 최적화하는 단계를 연결합니다. 초반에는 실행 정보를 모으고, 반복되는 경로를 더 적극적으로 최적화할 수 있습니다. 다만 모든 메서드가 반드시 같은 단계를 같은 순서와 횟수로 거치는 고정 수업 과정은 아닙니다.</p>
 <p>여기서 <strong>프로파일</strong>은 “이 호출 지점에 주로 어떤 타입이 왔는가”, “어떤 분기가 자주 선택되었는가” 같은 실행 관찰 정보입니다. 소스의 타입 선언만으로 확정할 수 없는 정보가 최적화에 도움이 됩니다. 하지만 관찰한 과거가 미래를 항상 보장하지 않으므로, 최적화에 사용한 가정이 깨졌을 때 올바른 실행으로 돌아갈 장치가 필요합니다.</p>
 <h3>인터페이스 호출에서 무슨 추측을 할 수 있을까</h3>
 <p>기존 Price 예제에서 한 호출 지점에 오랫동안 PlusOne만 전달되었다고 가정합시다. JIT는 실제 타입이 거의 하나라는 정보를 이용해 호출을 인라인하는 등 최적화할 수 있습니다. 나중에 PlusTwo가 들어오면 다른 경로를 사용하거나 재컴파일·역최적화가 관련될 수 있습니다. 어떤 일이 실제로 발생했는지는 로그로 확인해야 합니다. 코드에 구현체가 두 개 있다는 사실만으로 역최적화가 반드시 발생했다고 말할 수는 없습니다.</p>
@@ -157,7 +157,7 @@ java -Xint Lesson14
 
 <h2 id="section-12">심화 실험실: 같은 인터페이스 호출이 실행 중 달라지는 이유</h2>
 <h3>대부분 같은 손님이 온다는 관측은 영구적인 약속이 아니다</h3>
-<p>매일 같은 배송사가 오는 창구라면 자주 쓰는 처리 절차를 빠르게 만들 수 있습니다. 하지만 새 배송사가 오면 기존 가정이 여전히 맞는지 확인해야 합니다. JIT의 프로파일 기반 최적화도 실제 관측한 타입과 실행 빈도를 활용할 수 있지만, 관측을 Java 언어의 영구 보장으로 바꾸지는 못합니다.</p>
+<p>매일 같은 배송사가 오는 창구라면 자주 쓰는 처리 절차를 빠르게 만들 수 있습니다. 하지만 새 배송사가 오면 기존 가정이 여전히 맞는지 확인해야 합니다. JIT의 프로파일 기반 최적화도 실제 관측한 타입과 실행 빈도를 사용할 수 있지만 관측을 Java 언어의 영구 보장으로 바꾸지는 못합니다.</p>
 <pre><code class="language-java">// file: Deep14.java
 public class Deep14 {
     interface Fee { int apply(int quantity); }
@@ -221,7 +221,7 @@ java -XX:+UnlockDiagnosticVMOptions -XX:+PrintCompilation -XX:+PrintInlining Dee
 <p>또한 작은 메서드만 빠르게 만든 결과가 서비스 처리량 개선으로 바로 이어지는 것은 아닙니다. 대부분의 시간이 DB 대기라면 계산 메서드의 20% 개선은 전체 응답에서 매우 작을 수 있습니다. 전체 시간 중 그 코드가 차지하는 비중을 먼저 프로파일링하는 것이 우선입니다.</p>
 <h3>새 인스턴스가 느릴 때 확인할 순서</h3>
 <p>배포 직후 CPU가 높다는 이유만으로 JIT를 끄지 않습니다. 클래스 로딩과 초기화, JIT 컴파일, 캐시 구축, 트래픽 집중을 분리합니다. compiler thread 활동과 코드 캐시 상태, 애플리케이션 CPU 스택을 확인하고 이전 인스턴스와 동일한 트래픽·자원 조건에서 비교합니다. 워밍업 트래픽도 실제 유형을 반영하지 않으면 다른 타입 분포로 준비되어 효과가 제한될 수 있습니다.</p>
-<details class="question"><summary>심화 면접. JIT가 이미 인터페이스 구현체를 인라인했는데 다른 구현체가 들어오면 오답이 나오나요?</summary><div class="answer"><p><strong>답변:</strong> 올바른 JVM 구현은 Java의 의미를 유지해야 합니다. 관측한 타입을 전제로 최적화했다면 그 전제가 유효한지 검사하거나 관련 의존성을 관리하고, 달라질 때 올바른 실행 경로로 복귀해야 합니다.</p><p><strong>주의:</strong> 모든 경우가 반드시 deoptimization 하나로만 처리되는 것은 아닙니다. 타입 검사와 느린 경로, 여러 타입의 인라이닝 등 실제 컴파일 결과에 따라 다릅니다.</p><p><strong>실무:</strong> 타입 분포가 다른 마이크로벤치마크 하나로 운영 성능을 단정하지 않고 실제 호출 지점의 프로파일과 워밍업 이후 성능을 확인하겠습니다.</p></div></details>
+<details class="question"><summary>심화 면접. JIT가 이미 인터페이스 구현체를 인라인했는데 다른 구현체가 들어오면 오답이 나오나요?</summary><div class="answer"><p><strong>답변:</strong> 올바른 JVM 구현은 Java의 의미를 유지해야 합니다. 관측한 타입을 전제로 최적화했다면 그 전제가 유효한지 검사하거나 관련 의존성을 관리하고 달라질 때 올바른 실행 경로로 복귀해야 합니다.</p><p><strong>주의:</strong> 모든 경우가 반드시 deoptimization 하나로만 처리되는 것은 아닙니다. 타입 검사와 느린 경로, 여러 타입의 인라이닝 등 실제 컴파일 결과에 따라 다릅니다.</p><p><strong>실무:</strong> 타입 분포가 다른 마이크로벤치마크 하나로 운영 성능을 단정하지 않고 실제 호출 지점의 프로파일과 워밍업 이후 성능을 확인하겠습니다.</p></div></details>
 
 <p>추가 근거: <a href="https://docs.oracle.com/en/java/javase/21/vm/java-hotspot-virtual-machine-performance-enhancements.html">HotSpot 성능 개선과 계층형 컴파일</a>, <a href="https://github.com/openjdk/jmh">OpenJDK JMH</a>.</p>
 <h2 id="section-13">9. 상세 면접 Q&amp;A</h2>
@@ -240,4 +240,4 @@ java -XX:+UnlockDiagnosticVMOptions -XX:+PrintCompilation -XX:+PrintInlining Dee
 <li><a href="https://github.com/openjdk/jmh/tree/master/jmh-samples">OpenJDK JMH 및 예제</a>.</li>
 </ul>
 <p>PlusOne만 반복하는 경우와 두 구현을 번갈아 호출하는 경우를 비교하세요. 실행 시간 숫자보다 인라이닝 로그와 실제 타입 분포가 어떻게 연결되는지 먼저 설명해 보세요.</p>
-<!-- JVM-DEEP-DIVE-20261020-14 --><section class="jvm-depth-expansion"><h2>심화 교재: JIT 최적화와 역최적화</h2><h3>비유를 통해 개념 잡기</h3><p>동네 지리에 익숙해진 배달기사가 자주 가는 길을 최적화하지만, 공사로 길이 바뀌면 새 경로로 돌아가는 것과 비슷하다.</p><h3>HotSpot JDK 21과 JVM 사양을 구별하며 깊게 보기</h3><p>JIT는 실행 중 얻은 타입과 분기 빈도 정보를 바탕으로 인라이닝과 추측 최적화를 적용할 수 있다. 추측이 틀리면 deoptimization이 일어나 인터프리터 또는 덜 최적화된 코드로 돌아갈 수 있다. 따라서 단순 반복 측정으로 JIT 성능을 단정하기 어렵다.</p><h3>직접 실험하기</h3><pre><code class="language-bash">java -XX:+PrintCompilation Main</code></pre><p>Java 21에서 본문 실습 파일을 컴파일한 다음 실행하고, 관측값이 일정하지 않은 경우 JVM 옵션과 실행 환경을 기록한다.</p><h3>운영 관점의 검증 순서</h3><ol><li>재현 입력과 실행 환경을 기록한다.</li><li>현상이 JVM 사양이 보장하는 규칙인지 HotSpot의 최적화·휴리스틱인지 구분한다.</li><li>명령 출력·바이트코드·로그를 비교하고 하나의 조건씩 바꿔 반증한다.</li></ol><h3>추가 심화 면접 Q&amp;A</h3><details><summary>인라이닝하면 Java 클래스 파일이 바뀌나요?</summary><p>아니다. JIT가 만든 기계어에 호출 경계를 합치는 최적화이며 원본 소스와 클래스 파일은 그대로다. 어떤 호출이 인라인되는지는 실행 프로파일·코드 크기·컴파일러 판단 등에 달려 있다.</p></details></section></article><nav aria-label="연재 이동"><a href="/posts/jvm-study-13.html">← G1 GC 내부 동작: Region부터 Mixed와 Full GC까지</a><a href="/posts/jvm-study-15.html">스레드·모니터·Safepoint: 대기와 정지를 구분하기 →</a></nav><footer>thisisnew · JVM 학습 연재 · 공식 사양과 구현을 구분해 읽기</footer></main><script src="/assets/jvm-study.js" defer></script></body></html>
+<!-- JVM-DEEP-DIVE-20261020-14 --><section class="jvm-depth-expansion"><h2>심화 교재: JIT 최적화와 역최적화</h2><h3>비유를 통해 개념 잡기</h3><p>동네 지리에 익숙해진 배달기사가 자주 가는 길을 최적화하지만 공사로 길이 바뀌면 새 경로로 돌아가는 것과 비슷하다.</p><h3>HotSpot JDK 21과 JVM 사양을 구별하며 깊게 보기</h3><p>JIT는 실행 중 얻은 타입과 분기 빈도 정보를 바탕으로 인라이닝과 추측 최적화를 적용할 수 있다. 추측이 틀리면 deoptimization이 일어나 인터프리터 또는 덜 최적화된 코드로 돌아갈 수 있다. 따라서 단순 반복 측정으로 JIT 성능을 단정하기 어렵다.</p><h3>직접 실험하기</h3><pre><code class="language-bash">java -XX:+PrintCompilation Main</code></pre><p>Java 21에서 본문 실습 파일을 컴파일한 다음 실행하고 관측값이 일정하지 않은 경우 JVM 옵션과 실행 환경을 기록한다.</p><h3>운영 관점의 검증 순서</h3><ol><li>재현 입력과 실행 환경을 기록한다.</li><li>현상이 JVM 사양이 보장하는 규칙인지 HotSpot의 최적화·휴리스틱인지 구분한다.</li><li>명령 출력·바이트코드·로그를 비교하고 하나의 조건씩 바꿔 반증한다.</li></ol><h3>추가 심화 면접 Q&amp;A</h3><details><summary>인라이닝하면 Java 클래스 파일이 바뀌나요?</summary><p>아니다. JIT가 만든 기계어에 호출 경계를 합치는 최적화이며 원본 소스와 클래스 파일은 그대로다. 어떤 호출이 인라인되는지는 실행 프로파일·코드 크기·컴파일러 판단 등에 달려 있다.</p></details></section></article><nav aria-label="연재 이동"><a href="/posts/jvm-study-13.html">← G1 GC 내부 동작: Region부터 Mixed와 Full GC까지</a><a href="/posts/jvm-study-15.html">스레드·모니터·Safepoint: 대기와 정지를 구분하기 →</a></nav><footer>thisisnew · JVM 학습 연재 · 공식 사양과 구현을 구분해 읽기</footer></main><script src="/assets/jvm-study.js" defer></script></body></html>

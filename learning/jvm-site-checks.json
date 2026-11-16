@@ -1,99 +1,109 @@
 {
   "pages": 17,
-  "questions": 130,
+  "questions": 162,
   "errors": [],
   "lessons": [
     {
       "lesson": 0,
-      "text_chars": 5031,
+      "text_chars": 6218,
       "questions": 0
     },
     {
       "lesson": 1,
-      "text_chars": 10405,
-      "questions": 8
+      "text_chars": 13642,
+      "questions": 10
     },
     {
       "lesson": 2,
-      "text_chars": 9553,
-      "questions": 8
+      "text_chars": 12986,
+      "questions": 10
     },
     {
       "lesson": 3,
-      "text_chars": 9894,
-      "questions": 8
+      "text_chars": 13674,
+      "questions": 10
     },
     {
       "lesson": 4,
-      "text_chars": 9938,
-      "questions": 8
+      "text_chars": 13283,
+      "questions": 10
     },
     {
       "lesson": 5,
-      "text_chars": 9417,
-      "questions": 8
+      "text_chars": 12673,
+      "questions": 10
     },
     {
       "lesson": 6,
-      "text_chars": 9464,
-      "questions": 8
+      "text_chars": 12722,
+      "questions": 10
     },
     {
       "lesson": 7,
-      "text_chars": 9936,
-      "questions": 8
+      "text_chars": 13109,
+      "questions": 10
     },
     {
       "lesson": 8,
-      "text_chars": 9834,
-      "questions": 8
+      "text_chars": 13296,
+      "questions": 10
     },
     {
       "lesson": 9,
-      "text_chars": 9852,
-      "questions": 8
+      "text_chars": 13282,
+      "questions": 10
     },
     {
       "lesson": 10,
-      "text_chars": 9808,
-      "questions": 8
+      "text_chars": 13282,
+      "questions": 10
     },
     {
       "lesson": 11,
-      "text_chars": 9744,
-      "questions": 8
+      "text_chars": 13132,
+      "questions": 10
     },
     {
       "lesson": 12,
-      "text_chars": 9503,
-      "questions": 8
+      "text_chars": 12715,
+      "questions": 10
     },
     {
       "lesson": 13,
-      "text_chars": 10616,
-      "questions": 8
+      "text_chars": 14256,
+      "questions": 10
     },
     {
       "lesson": 14,
-      "text_chars": 10049,
-      "questions": 8
+      "text_chars": 13521,
+      "questions": 10
     },
     {
       "lesson": 15,
-      "text_chars": 11228,
-      "questions": 8
+      "text_chars": 15168,
+      "questions": 10
     },
     {
       "lesson": 16,
-      "text_chars": 13452,
-      "questions": 10
+      "text_chars": 18086,
+      "questions": 12
     }
   ],
   "sources": [
+    "https://docs.oracle.com/en/java/javase/21/core/virtual-threads.html",
     "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Class.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Class.html#forName(java.lang.String,boolean,java.lang.ClassLoader)",
     "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/ClassLoader.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/ClassLoader.html#loadClass(java.lang.String,boolean)",
+    "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Math.html#multiplyExact(int,int)",
     "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/System.html#gc()",
+    "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/ThreadLocal.html",
     "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/ref/WeakReference.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/List.html#copyOf(java.util.Collection)",
+    "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/List.html#getFirst()",
+    "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ServiceLoader.html",
+    "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/atomic/AtomicInteger.html#compareAndSet(int,int)",
+    "https://docs.oracle.com/en/java/javase/21/docs/api/java.management/java/lang/management/BufferPoolMXBean.html",
     "https://docs.oracle.com/en/java/javase/21/docs/specs/man/index.html",
     "https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html",
     "https://docs.oracle.com/en/java/javase/21/docs/specs/man/javac.html",
@@ -116,8 +126,12 @@
     "https://docs.oracle.com/javase/specs/jls/se21/html/jls-12.html#jls-12.2",
     "https://docs.oracle.com/javase/specs/jls/se21/html/jls-12.html#jls-12.4",
     "https://docs.oracle.com/javase/specs/jls/se21/html/jls-12.html#jls-12.4.1",
+    "https://docs.oracle.com/javase/specs/jls/se21/html/jls-12.html#jls-12.4.2",
+    "https://docs.oracle.com/javase/specs/jls/se21/html/jls-14.html#jls-14.20.2",
     "https://docs.oracle.com/javase/specs/jls/se21/html/jls-17.html",
     "https://docs.oracle.com/javase/specs/jls/se21/html/jls-17.html#jls-17.4.5",
+    "https://docs.oracle.com/javase/specs/jls/se21/html/jls-4.html#jls-4.12.4",
+    "https://docs.oracle.com/javase/specs/jls/se21/html/jls-4.html#jls-4.6",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/index.html",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-1.html#jvms-1.2",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.1",
@@ -129,6 +143,7 @@
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.5.3",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.6",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.6.2",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.6.4",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.7",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-3.html#jvms-3.14",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-3.html#jvms-3.3",
@@ -138,8 +153,10 @@
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.10",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.3",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.4",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.6",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.2",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.3",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-4.html#jvms-4.7.9",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.1",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.2",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.3",
@@ -149,6 +166,7 @@
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.iadd",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.iload",
+    "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.imul",
     "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-6.html#jvms-6.5.new",
     "https://openjdk.org/jeps/312",
     "https://openjdk.org/jeps/439",

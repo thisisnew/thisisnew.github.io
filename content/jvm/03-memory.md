@@ -2,7 +2,7 @@
 
 ## 시작 전에: 이 편에서 쓰는 말
 
-처음 읽는다면 아래 용어의 뜻만 확인한 뒤 본문으로 넘어가세요. 먼저 예제의 결과를 예상하고, 실행 과정을 따라간 다음, 면접 답변을 펼쳐 자신의 설명과 비교하면 좋습니다.
+처음 읽을 때는 아래 용어의 뜻만 확인한 뒤 본문으로 넘어가세요. 먼저 예제의 결과를 예상하고 실행 과정을 따라간 다음, 면접 답변을 펼쳐 자신의 설명과 비교하면 좋습니다.
 
 | 용어 | 이 글에서의 뜻 |
 |---|---|
@@ -67,7 +67,7 @@ Metaspace가 무한하다는 표현도 부정확합니다. 명시적 상한을 �
 
 ## 5. Xmx는 전체 프로세스 한도가 아니다
 
-`-Xmx`는 최대 Java Heap 크기를 설정합니다. 프로세스에는 Heap 외에도 플랫폼 스레드 스택, Metaspace, Code Cache, GC 자료구조, 직접 버퍼, 네이티브 라이브러리 등의 메모리가 필요합니다. 따라서 컨테이너 한도가 2GiB일 때 `-Xmx2g`를 넣으면 전체 예산을 맞춘 것이 아닙니다.
+`-Xmx`는 최대 Java Heap 크기를 설정합니다. 프로세스가 쓰는 메모리는 Heap만이 아닙니다. 플랫폼 스레드 스택, Metaspace, Code Cache에도 메모리가 필요합니다. GC 자료구조와 직접 버퍼, 네이티브 라이브러리도 메모리를 사용합니다. 따라서 컨테이너 한도가 2GiB일 때 `-Xmx2g`를 넣으면 전체 예산을 맞춘 것이 아닙니다.
 
 스레드 수와 `-Xss`를 곱한 값은 스택의 예약 규모를 이해하는 거친 출발점입니다. 예를 들어 플랫폼 스레드 500개에 스택 1MiB라면 약 500MiB의 주소 공간 예약을 생각할 수 있습니다. 실제 RSS가 반드시 그만큼 즉시 늘어나는 것은 아닙니다. reserved, committed, resident는 서로 다른 관측값입니다.
 
@@ -105,7 +105,7 @@ javap -c -v Lesson03
 
 초보자가 가장 많이 막히는 문장은 “기본형은 스택, 참조형은 Heap”입니다. 이 문장으로 외우면 객체 안의 `int` 필드를 설명하기 어렵습니다. 먼저 **값의 종류**를 묻고, 다음으로 **그 값을 담은 변수의 역할**을 물어보세요. `int`는 정수 값을 저장하고 참조형 변수는 객체를 가리키는 참조 값을 저장합니다. 그 변수가 지역변수인지, 객체 필드인지, 배열 원소인지는 별개의 질문입니다.
 
-예를 들어 `Box box = new Box();`에서 `box`와 `new Box()`는 같은 것이 아닙니다. 전자는 참조 값을 담는 지역변수이고 후자는 객체를 만드는 표현식입니다. 객체 안에 `int quantity`가 있다면 정수 값은 그 객체 상태의 일부입니다. 두 스레드가 서로 다른 지역변수에 같은 Box의 참조를 가지고 있으면, 각자의 호출 상태는 분리되어도 Box의 상태는 공유될 수 있습니다.
+예를 들어 `Box box = new Box();`에서 `box`와 `new Box()`는 같은 것이 아닙니다. 전자는 참조 값을 담는 지역변수이고 후자는 객체를 만드는 표현식입니다. 객체 안에 `int quantity`가 있다면 정수 값은 그 객체 상태의 일부입니다. 두 스레드가 서로 다른 지역변수에 같은 Box의 참조를 갖고 있으면, 각자의 호출 상태는 분리되어도 Box의 상태는 공유될 수 있습니다.
 
 | 표현 | 무엇을 담는가 | 논리적으로 연결되는 위치 |
 |---|---|---|
@@ -186,7 +186,7 @@ java -Xmx32m -XX:MaxDirectMemorySize=16m Deep03
 
 ### 잘못된 처방을 피하는 순서
 
-Heap이 안정적이면 먼저 “관측한 Heap 그래프가 무엇인가?”를 확인합니다. GC 직후 used인지, committed인지부터 구분하세요. 다음으로 direct buffer 용량, 플랫폼 스레드 수, 로드된 클래스 수의 증가 추세를 봅니다. JVM에 NMT를 켜 두었다면 baseline과 diff를 비교하지만, NMT가 모든 외부 네이티브 라이브러리 할당을 완전히 추적하는 것은 아닙니다. Heap dump에 큰 배열이 없다는 사실만으로 프로세스 전체 누수를 배제하지 않습니다.
+Heap이 안정적이면 먼저 “관측한 Heap 그래프가 무엇인가?”를 확인합니다. GC 직후 used인지, committed인지부터 구분하세요. 다음으로 direct buffer 용량, 플랫폼 스레드 수, 로드된 클래스 수의 증가 추세를 봅니다. JVM에 NMT를 켜 두었다면 baseline과 diff를 비교하지만 NMT가 모든 외부 네이티브 라이브러리 할당을 완전히 추적하는 것은 아닙니다. Heap dump에 큰 배열이 없다는 사실만으로 프로세스 전체 누수를 배제하지 않습니다.
 
 <details class="question"><summary>심화 면접. Heap이 500 MiB인데 RSS가 1.5 GiB라면 1 GiB가 누수인가요?</summary><div class="answer"><p><strong>답변:</strong> 그 차이만으로 누수라고 판단하지 않습니다. 두 지표의 정의가 다르고, JVM에는 Heap 밖의 정상적인 메모리 사용도 존재합니다.</p><p><strong>조사:</strong> 동일한 부하를 반복하면서 Heap의 수집 후 생존량, native memory 범주, direct buffer, 스레드 및 클래스 수를 비교하겠습니다. 증가가 작업 종료 후에도 계속되는지, 그 영역이 정상적인 캐시 또는 예약 공간인지 확인해야 합니다.</p><p><strong>한계:</strong> Xss 곱셈이나 NMT total을 RSS와 정확히 일치시키려 하지 않겠습니다. 가상 주소 공간, committed와 상주 페이지의 차이를 먼저 설명하겠습니다.</p></div></details>
 
@@ -195,10 +195,10 @@ Heap이 안정적이면 먼저 “관측한 Heap 그래프가 무엇인가?”�
 ## 8. 상세 면접 Q&A
 
 <details class="question"><summary>Q1. 지역변수는 스택, 객체는 Heap이라고 말하면 항상 정확한가요?</summary><div class="answer"><p>학습용 논리 모델로는 유용합니다. 다만 참조 변수와 객체를 구분해야 하며, HotSpot 최적화로 지역값이 레지스터에 놓이거나 객체 할당이 제거될 수 있습니다. JVMS의 실행 의미와 실제 최적화된 메모리 배치를 나누어 설명합니다.</p><p><strong>구체적으로:</strong> 객체의 int 필드는 기본형이지만 Heap 객체의 상태에 속합니다. 지역변수인 참조 값과 그 값이 가리키는 객체도 서로 다른 대상입니다.</p><p><strong>꼬리질문까지:</strong> JIT가 값을 레지스터에 두거나 객체 할당을 없애는 경우를 설명하려면 논리 모델과 실제 배치를 나누어 답하세요.</p></div></details>
-<details class="question"><summary>Q2. Method Area는 곧 Metaspace인가요?</summary><div class="answer"><p>같은 수준의 개념이 아닙니다. Method Area는 사양의 책임 구분이고 Metaspace는 HotSpot의 클래스 메타데이터 관리 영역입니다. Class 객체·static 필드·문자열·JIT 코드를 모두 Metaspace에 넣는 그림은 피해야 합니다.</p><p><strong>구체적으로:</strong> 메서드 정보와 클래스 메타데이터를 설명하는 사양의 영역이 있고, HotSpot이 이를 구현하는 여러 메모리 구조가 있습니다. static 참조가 가리키는 객체나 JIT 코드까지 모두 Metaspace라고 부르면 틀립니다.</p><p><strong>꼬리질문까지:</strong> 메모리 장애에서 영역 이름을 정할 때는 사양 용어인지 해당 구현의 측정 범주인지 먼저 확인하세요.</p></div></details>
+<details class="question"><summary>Q2. Method Area는 곧 Metaspace인가요?</summary><div class="answer"><p>같은 수준의 개념이 아닙니다. Method Area는 사양의 책임 구분이고 Metaspace는 HotSpot의 클래스 메타데이터 관리 영역입니다. Class 객체·static 필드·문자열·JIT 코드를 모두 Metaspace에 넣는 그림은 피해야 합니다.</p><p><strong>구체적으로:</strong> 메서드 정보와 클래스 메타데이터를 설명하는 사양의 영역이 있고 HotSpot이 이를 구현하는 여러 메모리 구조가 있습니다. static 참조가 가리키는 객체나 JIT 코드까지 모두 Metaspace라고 부르면 틀립니다.</p><p><strong>꼬리질문까지:</strong> 메모리 장애에서 영역 이름을 정할 때는 사양 용어인지 해당 구현의 측정 범주인지 먼저 확인하세요.</p></div></details>
 <details class="question"><summary>Q3. Xmx를 늘리면 모든 OutOfMemoryError가 해결되나요?</summary><div class="answer"><p>아닙니다. Heap 부족에는 도움이 될 수 있어도 Metaspace 부족, 스레드 생성 실패, Native 자원 부족은 원인이 다릅니다. 전체 메모리 한도 안에서 Heap을 늘리면 다른 영역의 여유가 줄어 오히려 프로세스 종료가 쉬워질 수도 있습니다.</p><p><strong>구체적으로:</strong> 스레드를 만들 Native 여유가 부족하거나 메타데이터가 계속 늘어나는 문제라면 Heap 한도 확대가 원인을 해결하지 못할 수 있습니다. 컨테이너 한도 안에서는 다른 영역의 여유가 더 줄 수도 있습니다.</p><p><strong>꼬리질문까지:</strong> 오류 메시지·Heap 추세·스레드 수·Native 지표를 확인한 뒤 어떤 예산을 바꿀지 결정합니다.</p></div></details>
-<details class="question"><summary>Q4. 스택의 참조를 다른 스레드가 직접 읽을 수 없는데 왜 공유 문제가 생기나요?</summary><div class="answer"><p>각 스레드는 자기 지역변수에 별도의 참조 값을 가질 수 있고, 그 두 값이 같은 Heap 객체를 가리킬 수 있습니다. 프레임의 소유권과 객체의 공유 여부는 다릅니다. 예제의 Box를 두 스레드에 전달하면 이 차이를 확인할 수 있습니다.</p><p><strong>구체적으로:</strong> A 스레드의 지역변수 a와 B 스레드의 지역변수 b가 같은 Box를 가리키면 각자 자신의 프레임으로 접근하면서도 같은 quantity 필드를 수정할 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 공유 여부는 변수 이름이 아니라 최종적으로 같은 가변 객체에 도달하는지로 판단합니다.</p></div></details>
-<details class="question"><summary>Q5. reserved와 committed는 무엇이 다른가요?</summary><div class="answer"><p>예약은 주소 공간을 확보하는 범위이고 committed는 JVM이 사용할 수 있도록 확보한 메모리의 범위입니다. OS가 실제로 상주시킨 물리 페이지를 나타내는 RSS와도 같지 않습니다. 도구 간 숫자를 비교할 때 먼저 측정 범위를 맞춥니다.</p><p><strong>구체적으로:</strong> 큰 주소 구간을 미리 예약해 두어도 실제로 사용하는 페이지는 일부일 수 있습니다. committed도 OS에서 관찰하는 현재 RSS와 언제나 같은 값은 아닙니다.</p><p><strong>꼬리질문까지:</strong> NMT 숫자와 OS 숫자가 다르면 먼저 지표 정의와 집계 범위를 비교하고, 차이 자체를 누수라고 결론 내리지 않습니다.</p></div></details>
+<details class="question"><summary>Q4. 스택의 참조를 다른 스레드가 직접 읽을 수 없는데 왜 공유 문제가 생기나요?</summary><div class="answer"><p>각 스레드는 자기 지역변수에 별도의 참조 값을 가질 수 있고 그 두 값이 같은 Heap 객체를 가리킬 수 있습니다. 프레임의 소유권과 객체의 공유 여부는 다릅니다. 예제의 Box를 두 스레드에 전달하면 이 차이를 확인할 수 있습니다.</p><p><strong>구체적으로:</strong> A 스레드의 지역변수 a와 B 스레드의 지역변수 b가 같은 Box를 가리키면 각자 자신의 프레임으로 접근하면서도 같은 quantity 필드를 수정할 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 공유 여부는 변수 이름이 아니라 최종적으로 같은 가변 객체에 도달하는지로 판단합니다.</p></div></details>
+<details class="question"><summary>Q5. reserved와 committed는 무엇이 다른가요?</summary><div class="answer"><p>예약은 주소 공간을 확보하는 범위이고 committed는 JVM이 사용할 수 있도록 확보한 메모리의 범위입니다. OS가 실제로 상주시킨 물리 페이지를 나타내는 RSS와도 같지 않습니다. 도구 간 숫자를 비교할 때 먼저 측정 범위를 맞춥니다.</p><p><strong>구체적으로:</strong> 큰 주소 구간을 미리 예약해 두어도 실제로 사용하는 페이지는 일부일 수 있습니다. committed도 OS에서 관찰하는 현재 RSS와 언제나 같은 값은 아닙니다.</p><p><strong>꼬리질문까지:</strong> NMT 숫자와 OS 숫자가 다르면 먼저 지표 정의와 집계 범위를 비교하고 차이 자체를 누수라고 결론 내리지 않습니다.</p></div></details>
 <details class="question"><summary>Q6. 스레드 수가 급증하면 어떤 메모리를 봐야 하나요?</summary><div class="answer"><p>플랫폼 스레드라면 네이티브 스택과 OS 스레드 자원, 각 스레드가 보관하는 객체와 ThreadLocal 등을 봅니다. 대기 요청 증가가 Heap 객체 유지도 늘릴 수 있습니다. 스택만의 문제로 단정하지 말고 스레드 수·대기 원인·전체 메모리를 연결합니다.</p><p><strong>구체적으로:</strong> 플랫폼 스레드별 스택과 VM 관리 구조, 각 스레드가 붙잡는 요청 데이터도 함께 늘 수 있습니다. 스레드 수 증가는 Native와 Heap 양쪽에 영향을 줄 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 스레드 수를 줄였을 때 큐가 다른 곳으로 이동하는지도 확인해야 합니다. 작업량과 대기 데이터를 함께 통제해야 합니다.</p></div></details>
 
 ## 9. 공식 근거와 복습

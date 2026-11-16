@@ -3,64 +3,64 @@
   "errors": [],
   "pages": [
     {
-      "file": "posts/mysql-study-06.html",
+      "file": "posts/mysql-study-02.html",
       "questions": 12,
-      "text_chars": 12948
+      "text_chars": 13447
     },
     {
       "file": "posts/mysql-study-11.html",
       "questions": 12,
-      "text_chars": 12863
-    },
-    {
-      "file": "posts/mysql-study-09.html",
-      "questions": 12,
-      "text_chars": 13330
-    },
-    {
-      "file": "posts/mysql-study-10.html",
-      "questions": 12,
-      "text_chars": 12983
-    },
-    {
-      "file": "posts/mysql-study-05.html",
-      "questions": 12,
-      "text_chars": 13213
+      "text_chars": 12915
     },
     {
       "file": "posts/mysql-study-04.html",
       "questions": 12,
-      "text_chars": 13401
-    },
-    {
-      "file": "posts/mysql-study-03.html",
-      "questions": 12,
-      "text_chars": 13319
+      "text_chars": 13426
     },
     {
       "file": "posts/mysql-study-12.html",
       "questions": 12,
-      "text_chars": 14167
+      "text_chars": 14216
     },
     {
-      "file": "posts/mysql-study-07.html",
+      "file": "posts/mysql-study-09.html",
       "questions": 12,
-      "text_chars": 12873
+      "text_chars": 13398
+    },
+    {
+      "file": "posts/mysql-study-06.html",
+      "questions": 12,
+      "text_chars": 12980
     },
     {
       "file": "posts/mysql-study-01.html",
       "questions": 12,
-      "text_chars": 13765
+      "text_chars": 13799
+    },
+    {
+      "file": "posts/mysql-study-07.html",
+      "questions": 12,
+      "text_chars": 12916
+    },
+    {
+      "file": "posts/mysql-study-10.html",
+      "questions": 12,
+      "text_chars": 13026
+    },
+    {
+      "file": "posts/mysql-study-05.html",
+      "questions": 12,
+      "text_chars": 13244
+    },
+    {
+      "file": "posts/mysql-study-03.html",
+      "questions": 12,
+      "text_chars": 13374
     },
     {
       "file": "posts/mysql-study-08.html",
       "questions": 12,
-      "text_chars": 13785
-    },
-    {
-      "file": "posts/mysql-study-02.html",
-      "questions": 12,
-      "text_chars": 13428
+      "text_chars": 13812
     },
     {
       "file": "learning/mysql/index.html",
