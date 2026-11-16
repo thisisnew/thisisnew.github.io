@@ -5,246 +5,246 @@
   "lessons_detail": [
     {
       "lesson": 1,
-      "bytes": 132670,
-      "text_chars": 65916,
+      "bytes": 132826,
+      "text_chars": 65980,
       "questions": 39,
       "code_blocks": 28
     },
     {
       "lesson": 2,
-      "bytes": 93106,
-      "text_chars": 47006,
+      "bytes": 93342,
+      "text_chars": 47096,
       "questions": 37,
       "code_blocks": 13
     },
     {
       "lesson": 3,
-      "bytes": 81384,
-      "text_chars": 42007,
+      "bytes": 81689,
+      "text_chars": 42123,
       "questions": 30,
       "code_blocks": 13
     },
     {
       "lesson": 4,
-      "bytes": 82270,
-      "text_chars": 42723,
+      "bytes": 82602,
+      "text_chars": 42852,
       "questions": 33,
       "code_blocks": 13
     },
     {
       "lesson": 5,
-      "bytes": 81836,
-      "text_chars": 42651,
+      "bytes": 82138,
+      "text_chars": 42765,
       "questions": 33,
       "code_blocks": 13
     },
     {
       "lesson": 6,
-      "bytes": 80155,
-      "text_chars": 41549,
+      "bytes": 80349,
+      "text_chars": 41626,
       "questions": 32,
       "code_blocks": 13
     },
     {
       "lesson": 7,
-      "bytes": 78152,
-      "text_chars": 40609,
+      "bytes": 78557,
+      "text_chars": 40760,
       "questions": 30,
       "code_blocks": 13
     },
     {
       "lesson": 8,
-      "bytes": 77997,
-      "text_chars": 40652,
+      "bytes": 78153,
+      "text_chars": 40715,
       "questions": 30,
       "code_blocks": 13
     },
     {
       "lesson": 9,
-      "bytes": 77468,
-      "text_chars": 40594,
+      "bytes": 77689,
+      "text_chars": 40679,
       "questions": 30,
       "code_blocks": 13
     },
     {
       "lesson": 10,
-      "bytes": 78265,
-      "text_chars": 40521,
+      "bytes": 78481,
+      "text_chars": 40604,
       "questions": 30,
       "code_blocks": 13
     },
     {
       "lesson": 11,
-      "bytes": 87678,
-      "text_chars": 44992,
+      "bytes": 88027,
+      "text_chars": 45128,
       "questions": 38,
       "code_blocks": 12
     },
     {
       "lesson": 12,
-      "bytes": 81727,
-      "text_chars": 43245,
+      "bytes": 81874,
+      "text_chars": 43294,
       "questions": 33,
       "code_blocks": 12
     },
     {
       "lesson": 13,
-      "bytes": 80747,
-      "text_chars": 41928,
+      "bytes": 80946,
+      "text_chars": 42014,
       "questions": 33,
       "code_blocks": 21
     },
     {
       "lesson": 14,
-      "bytes": 83221,
-      "text_chars": 43571,
+      "bytes": 83405,
+      "text_chars": 43650,
       "questions": 34,
       "code_blocks": 13
     },
     {
       "lesson": 15,
-      "bytes": 82111,
-      "text_chars": 42613,
+      "bytes": 82386,
+      "text_chars": 42715,
       "questions": 37,
       "code_blocks": 14
     },
     {
       "lesson": 16,
-      "bytes": 76105,
-      "text_chars": 40050,
+      "bytes": 76236,
+      "text_chars": 40102,
       "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 17,
-      "bytes": 75284,
-      "text_chars": 39067,
+      "bytes": 75410,
+      "text_chars": 39115,
       "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 18,
-      "bytes": 74956,
-      "text_chars": 39248,
+      "bytes": 75045,
+      "text_chars": 39286,
       "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 19,
-      "bytes": 74514,
-      "text_chars": 39241,
+      "bytes": 74709,
+      "text_chars": 39316,
       "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 20,
-      "bytes": 74639,
-      "text_chars": 39328,
+      "bytes": 74862,
+      "text_chars": 39408,
       "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 21,
-      "bytes": 73972,
-      "text_chars": 38718,
+      "bytes": 74095,
+      "text_chars": 38770,
       "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 22,
-      "bytes": 74027,
-      "text_chars": 38930,
+      "bytes": 74210,
+      "text_chars": 39002,
       "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 23,
-      "bytes": 74067,
-      "text_chars": 38781,
+      "bytes": 74574,
+      "text_chars": 38966,
       "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 24,
-      "bytes": 73839,
-      "text_chars": 38817,
+      "bytes": 74011,
+      "text_chars": 38885,
       "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 25,
-      "bytes": 73823,
-      "text_chars": 38913,
+      "bytes": 74063,
+      "text_chars": 39007,
       "questions": 24,
       "code_blocks": 12
     },
     {
       "lesson": 26,
-      "bytes": 81894,
-      "text_chars": 42907,
+      "bytes": 82155,
+      "text_chars": 42998,
       "questions": 30,
       "code_blocks": 14
     },
     {
       "lesson": 27,
-      "bytes": 79316,
-      "text_chars": 41522,
+      "bytes": 79579,
+      "text_chars": 41615,
       "questions": 30,
       "code_blocks": 12
     },
     {
       "lesson": 28,
-      "bytes": 78908,
-      "text_chars": 41174,
+      "bytes": 79107,
+      "text_chars": 41250,
       "questions": 30,
       "code_blocks": 12
     },
     {
       "lesson": 29,
-      "bytes": 77040,
-      "text_chars": 40041,
+      "bytes": 77317,
+      "text_chars": 40149,
       "questions": 30,
       "code_blocks": 12
     },
     {
       "lesson": 30,
-      "bytes": 76058,
-      "text_chars": 38973,
+      "bytes": 76271,
+      "text_chars": 39050,
       "questions": 29,
       "code_blocks": 13
     },
     {
       "lesson": 31,
-      "bytes": 75828,
-      "text_chars": 39327,
+      "bytes": 75956,
+      "text_chars": 39380,
       "questions": 29,
       "code_blocks": 13
     },
     {
       "lesson": 32,
-      "bytes": 81582,
-      "text_chars": 41884,
+      "bytes": 81744,
+      "text_chars": 41937,
       "questions": 31,
       "code_blocks": 15
     },
     {
       "lesson": 33,
-      "bytes": 75839,
-      "text_chars": 39254,
+      "bytes": 76061,
+      "text_chars": 39339,
       "questions": 29,
       "code_blocks": 13
     },
     {
       "lesson": 34,
-      "bytes": 75505,
-      "text_chars": 38666,
+      "bytes": 75818,
+      "text_chars": 38786,
       "questions": 29,
       "code_blocks": 13
     },
     {
       "lesson": 35,
-      "bytes": 75828,
-      "text_chars": 39109,
+      "bytes": 75965,
+      "text_chars": 39161,
       "questions": 29,
       "code_blocks": 13
     }
