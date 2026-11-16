@@ -5,87 +5,87 @@
   "lessons": [
     {
       "lesson": 0,
-      "text_chars": 6218,
+      "text_chars": 6345,
       "questions": 0
     },
     {
       "lesson": 1,
-      "text_chars": 13642,
+      "text_chars": 13905,
       "questions": 10
     },
     {
       "lesson": 2,
-      "text_chars": 12986,
+      "text_chars": 13137,
       "questions": 10
     },
     {
       "lesson": 3,
-      "text_chars": 13674,
+      "text_chars": 13879,
       "questions": 10
     },
     {
       "lesson": 4,
-      "text_chars": 13283,
+      "text_chars": 13511,
       "questions": 10
     },
     {
       "lesson": 5,
-      "text_chars": 12673,
+      "text_chars": 12861,
       "questions": 10
     },
     {
       "lesson": 6,
-      "text_chars": 12722,
+      "text_chars": 12850,
       "questions": 10
     },
     {
       "lesson": 7,
-      "text_chars": 13109,
+      "text_chars": 13225,
       "questions": 10
     },
     {
       "lesson": 8,
-      "text_chars": 13296,
+      "text_chars": 13502,
       "questions": 10
     },
     {
       "lesson": 9,
-      "text_chars": 13282,
+      "text_chars": 13429,
       "questions": 10
     },
     {
       "lesson": 10,
-      "text_chars": 13282,
+      "text_chars": 13465,
       "questions": 10
     },
     {
       "lesson": 11,
-      "text_chars": 13132,
+      "text_chars": 13295,
       "questions": 10
     },
     {
       "lesson": 12,
-      "text_chars": 12715,
+      "text_chars": 12859,
       "questions": 10
     },
     {
       "lesson": 13,
-      "text_chars": 14256,
+      "text_chars": 14474,
       "questions": 10
     },
     {
       "lesson": 14,
-      "text_chars": 13521,
+      "text_chars": 13720,
       "questions": 10
     },
     {
       "lesson": 15,
-      "text_chars": 15168,
+      "text_chars": 15370,
       "questions": 10
     },
     {
       "lesson": 16,
-      "text_chars": 18086,
+      "text_chars": 18300,
       "questions": 12
     }
   ],
