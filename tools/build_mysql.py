@@ -27,7 +27,7 @@ for n,title in enumerate(TITLES,1):
  nav=f'<a href="/learning/mysql/">전체 12편 학습 지도</a>'
  if n>1:nav+=f'<a href="/posts/mysql-study-{n-1:02}.html">← 이전 편</a>'
  if n<12:nav+=f'<a href="/posts/mysql-study-{n+1:02}.html">다음 편 →</a>'
- intro=f'<p class="meta">MYSQL DEEP STUDY · {n:02} / 12 · 2026-10-20</p><h1>{html.escape(title)}</h1><div class="callout"><strong>읽는 방법</strong><p>비유로 개념을 잡고 SQL을 실행하기 전 결과를 예상해 보세요. 이번 개정에서는 단계별 동작 추적에 더해, 전편에 네 가지 확장 수업과 심층 면접 답변을 추가했습니다. 본문의 수치 예시는 설명용이고, 실행 환경에 따라 달라지는 값은 따로 표시했습니다. 기준은 MySQL 8.0·InnoDB, 재현용 서버는 8.0.36입니다. 처음 시작한다면 <a href="/posts/mysql-study-01.html">1편의 서버 준비</a>만 먼저 진행하면 됩니다.</p><p><a href="/learning/mysql/">전체 학습 지도·검증 범위</a></p></div>'
+ intro=f'<p class="meta">MYSQL DEEP STUDY · {n:02} / 12 · 2026-10-20</p><h1>{html.escape(title)}</h1><div class="callout"><strong>읽는 방법</strong><p>비유로 개념을 익힌 뒤 SQL을 실행하기 전에 결과를 예상해 보세요. 각 편에서는 동작을 단계별로 따라갑니다. 이번 개정으로 전편에 네 가지 확장 수업과 심층 면접 답변도 추가했습니다. 본문의 수치는 설명을 위한 예시이며, 실행 환경에 따라 달라지는 값은 별도로 표시했습니다. 설명 기준은 MySQL 8.0·InnoDB이고, 실습을 재현할 서버 버전은 8.0.36입니다. 처음 시작한다면 <a href="/posts/mysql-study-01.html">1편의 서버 준비</a>만 먼저 따라 하면 됩니다.</p><p><a href="/learning/mysql/">전체 학습 지도·검증 범위</a></p></div>'
  (ROOT/f'posts/mysql-study-{n:02}.html').write_text(shell(title,intro+body+'<nav class="lesson-nav" aria-label="연재 이동">'+nav+'</nav>'))
  cards.append(f'<article class="series-card"><h2><a href="/posts/mysql-study-{n:02}.html">{n:02}. {html.escape(title)}</a></h2><p>개념과 비유 · 내부 원리 · 독립 SQL 실습 · 결과 해석 · 상세 면접 Q&amp;A 12개</p></article>')
  rows.append({'lesson':n,'title':title,'body_chars':len(re.sub('<[^>]+>','',body)),'questions':body.count('<details>'),'sources':re.findall(r'href="(https://dev.mysql.com/[^"]+)"',body)})

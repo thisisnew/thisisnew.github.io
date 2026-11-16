@@ -5,7 +5,7 @@
     {
       "lesson": 1,
       "title": "처음부터 이해하는 MySQL: 서버·연결·SQL의 여행",
-      "body_chars": 12554,
+      "body_chars": 12561,
       "questions": 12,
       "sources": [
         "https://dev.mysql.com/doc/refman/8.0/en/docker-mysql-getting-started.html",
@@ -18,7 +18,7 @@
     {
       "lesson": 2,
       "title": "계정과 권한: 접속 성공과 조회 허용은 다르다",
-      "body_chars": 12218,
+      "body_chars": 12210,
       "questions": 12,
       "sources": [
         "https://dev.mysql.com/doc/refman/8.0/en/account-names.html",
@@ -34,7 +34,7 @@
     {
       "lesson": 3,
       "title": "페이지와 버퍼 풀: 메모리·디스크·캐시의 실제 역할",
-      "body_chars": 12106,
+      "body_chars": 12134,
       "questions": 12,
       "sources": [
         "https://dev.mysql.com/doc/refman/8.0/en/innodb-buffer-pool.html",
@@ -49,7 +49,7 @@
     {
       "lesson": 4,
       "title": "저장 완료의 비밀: redo·undo·커밋·장애 복구",
-      "body_chars": 12183,
+      "body_chars": 12181,
       "questions": 12,
       "sources": [
         "https://dev.mysql.com/doc/refman/8.0/en/innodb-redo-log.html",
@@ -64,7 +64,7 @@
     {
       "lesson": 5,
       "title": "트랜잭션과 MVCC: 같은 데이터를 다르게 보는 이유",
-      "body_chars": 12010,
+      "body_chars": 12014,
       "questions": 12,
       "sources": [
         "https://dev.mysql.com/doc/refman/8.0/en/innodb-multi-versioning.html",
@@ -78,7 +78,7 @@
     {
       "lesson": 6,
       "title": "잠금과 데드락: 행·빈 공간·대기 관계를 직접 확인하기",
-      "body_chars": 11728,
+      "body_chars": 11733,
       "questions": 12,
       "sources": [
         "https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html",
@@ -93,7 +93,7 @@
     {
       "lesson": 7,
       "title": "B-tree와 InnoDB 인덱스: 기본 키가 저장 구조를 바꾼다",
-      "body_chars": 11641,
+      "body_chars": 11657,
       "questions": 12,
       "sources": [
         "https://dev.mysql.com/doc/refman/8.0/en/innodb-index-types.html",
@@ -122,7 +122,7 @@
     {
       "lesson": 9,
       "title": "옵티마이저: 통계·조인 순서·힌트가 계획을 만드는 과정",
-      "body_chars": 12113,
+      "body_chars": 12153,
       "questions": 12,
       "sources": [
         "https://dev.mysql.com/doc/refman/8.0/en/optimizer-statistics.html",
@@ -136,7 +136,7 @@
     {
       "lesson": 10,
       "title": "실행 계획 해독: EXPLAIN ANALYZE로 느린 이유 찾기",
-      "body_chars": 11756,
+      "body_chars": 11772,
       "questions": 12,
       "sources": [
         "https://dev.mysql.com/doc/refman/8.0/en/explain.html",
@@ -148,7 +148,7 @@
     {
       "lesson": 11,
       "title": "데이터 압축: 공간 절감과 CPU·쓰기 비용의 교환",
-      "body_chars": 11650,
+      "body_chars": 11675,
       "questions": 12,
       "sources": [
         "https://dev.mysql.com/doc/refman/8.0/en/innodb-table-compression.html",
@@ -163,7 +163,7 @@
     {
       "lesson": 12,
       "title": "암호화와 복구: 데이터·로그·키를 끝까지 보호하기",
-      "body_chars": 12962,
+      "body_chars": 12984,
       "questions": 12,
       "sources": [
         "https://dev.mysql.com/doc/refman/8.0/en/innodb-data-encryption.html",

@@ -1,0 +1,1546 @@
+{
+  "baseCommit": "1921d310e3f8be8fe15c6d7250c7742f28358a9a",
+  "posts": 118,
+  "changedPosts": 118,
+  "markdownSources": 71,
+  "questions": 1880,
+  "errors": [],
+  "scope": "Exact technical and structural preservation; paragraph breaks may change.",
+  "limitation": "Automatic checks do not prove semantic equivalence of prose.",
+  "lessons": [
+    {
+      "file": "posts/aws-study-00.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-01.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-02.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-03.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-04.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-05.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-06.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-07.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-08.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-09.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-10.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-11.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-12.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-13.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-14.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-15.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-16.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-17.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-18.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-19.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-20.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-21.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/aws-study-22.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/jvm-study-00.html",
+      "changed": true,
+      "questions": 0,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/jvm-study-01.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/jvm-study-02.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/jvm-study-03.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/jvm-study-04.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/jvm-study-05.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/jvm-study-06.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/jvm-study-07.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/jvm-study-08.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/jvm-study-09.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/jvm-study-10.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/jvm-study-11.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/jvm-study-12.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/jvm-study-13.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/jvm-study-14.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/jvm-study-15.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/jvm-study-16.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-01.html",
+      "changed": true,
+      "questions": 39,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-02.html",
+      "changed": true,
+      "questions": 37,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-03.html",
+      "changed": true,
+      "questions": 30,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-04.html",
+      "changed": true,
+      "questions": 33,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-05.html",
+      "changed": true,
+      "questions": 33,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-06.html",
+      "changed": true,
+      "questions": 32,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-07.html",
+      "changed": true,
+      "questions": 30,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-08.html",
+      "changed": true,
+      "questions": 30,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-09.html",
+      "changed": true,
+      "questions": 30,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-10.html",
+      "changed": true,
+      "questions": 30,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-11.html",
+      "changed": true,
+      "questions": 38,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-12.html",
+      "changed": true,
+      "questions": 33,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-13.html",
+      "changed": true,
+      "questions": 33,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-14.html",
+      "changed": true,
+      "questions": 34,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-15.html",
+      "changed": true,
+      "questions": 37,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-16.html",
+      "changed": true,
+      "questions": 24,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-17.html",
+      "changed": true,
+      "questions": 24,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-18.html",
+      "changed": true,
+      "questions": 24,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-19.html",
+      "changed": true,
+      "questions": 24,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-20.html",
+      "changed": true,
+      "questions": 24,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-21.html",
+      "changed": true,
+      "questions": 24,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-22.html",
+      "changed": true,
+      "questions": 24,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-23.html",
+      "changed": true,
+      "questions": 24,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-24.html",
+      "changed": true,
+      "questions": 24,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-25.html",
+      "changed": true,
+      "questions": 24,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-26.html",
+      "changed": true,
+      "questions": 30,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-27.html",
+      "changed": true,
+      "questions": 30,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-28.html",
+      "changed": true,
+      "questions": 30,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-29.html",
+      "changed": true,
+      "questions": 30,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-30.html",
+      "changed": true,
+      "questions": 29,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-31.html",
+      "changed": true,
+      "questions": 29,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-32.html",
+      "changed": true,
+      "questions": 31,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-33.html",
+      "changed": true,
+      "questions": 29,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-34.html",
+      "changed": true,
+      "questions": 29,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/kafka-study-35.html",
+      "changed": true,
+      "questions": 29,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/mysql-study-01.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/mysql-study-02.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/mysql-study-03.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/mysql-study-04.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/mysql-study-05.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/mysql-study-06.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/mysql-study-07.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/mysql-study-08.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/mysql-study-09.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/mysql-study-10.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/mysql-study-11.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/mysql-study-12.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-00.html",
+      "changed": true,
+      "questions": 15,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-01.html",
+      "changed": true,
+      "questions": 13,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-02.html",
+      "changed": true,
+      "questions": 13,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-03.html",
+      "changed": true,
+      "questions": 13,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-04.html",
+      "changed": true,
+      "questions": 13,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-05.html",
+      "changed": true,
+      "questions": 13,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-06.html",
+      "changed": true,
+      "questions": 14,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-07.html",
+      "changed": true,
+      "questions": 14,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-08.html",
+      "changed": true,
+      "questions": 14,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-09.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-10.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-11.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-12.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-13.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-14.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-15.html",
+      "changed": true,
+      "questions": 12,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-16.html",
+      "changed": true,
+      "questions": 8,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-17.html",
+      "changed": true,
+      "questions": 8,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-18.html",
+      "changed": true,
+      "questions": 8,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-19.html",
+      "changed": true,
+      "questions": 8,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-20.html",
+      "changed": true,
+      "questions": 8,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-21.html",
+      "changed": true,
+      "questions": 8,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-22.html",
+      "changed": true,
+      "questions": 9,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-23.html",
+      "changed": true,
+      "questions": 10,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-24.html",
+      "changed": true,
+      "questions": 8,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-25.html",
+      "changed": true,
+      "questions": 8,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-26.html",
+      "changed": true,
+      "questions": 8,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-27.html",
+      "changed": true,
+      "questions": 8,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-28.html",
+      "changed": true,
+      "questions": 8,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-29.html",
+      "changed": true,
+      "questions": 8,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    },
+    {
+      "file": "posts/redis-study-30.html",
+      "changed": true,
+      "questions": 8,
+      "checks": {
+        "structureAttributesLinksAndTables": true,
+        "codeScriptsAndStyles": true,
+        "numericValues": true,
+        "questionCount": true,
+        "quotedPhrases": true,
+        "nonempty": true
+      }
+    }
+  ]
+}

@@ -4,7 +4,7 @@
     "title": "AWS SAA 학습 지도: 서비스 이름을 설계 판단으로 바꾸는 23편",
     "source": "00_AWS_SAA_공부순서_로드맵.pdf",
     "pdfPages": 2,
-    "characters": 8968,
+    "characters": 8972,
     "sections": 11,
     "questions": 9,
     "officialLinks": [
@@ -17,7 +17,7 @@
     "title": "SAA-C03 시험 가이드: 긴 문제에서 설계 조건을 추출하는 법",
     "source": "01_SAA-C03_공식_시험가이드.pdf",
     "pdfPages": 30,
-    "characters": 8816,
+    "characters": 8828,
     "sections": 11,
     "questions": 9,
     "officialLinks": [
@@ -29,7 +29,7 @@
     "title": "클라우드와 글로벌 인프라: 계정·리전·AZ를 처음부터 구분하기",
     "source": "02_AWS_기초_클라우드_글로벌인프라.pdf",
     "pdfPages": 8,
-    "characters": 8268,
+    "characters": 8343,
     "sections": 11,
     "questions": 9,
     "officialLinks": [
@@ -43,7 +43,7 @@
     "title": "컴퓨팅 선택: EC2·Auto Scaling·Lambda·컨테이너의 동작과 책임",
     "source": "03_컴퓨팅_EC2_AutoScaling_Lambda_Containers.pdf",
     "pdfPages": 14,
-    "characters": 10088,
+    "characters": 10084,
     "sections": 12,
     "questions": 9,
     "officialLinks": [
@@ -60,7 +60,7 @@
     "title": "스토리지: S3·EBS·EFS를 데이터 접근 방식부터 이해하기",
     "source": "04_스토리지_S3_EBS_EFS_Backup.pdf",
     "pdfPages": 7,
-    "characters": 9969,
+    "characters": 10050,
     "sections": 12,
     "questions": 9,
     "officialLinks": [
@@ -79,7 +79,7 @@
     "title": "VPC와 네트워크: 요청 한 건이 DNS에서 DB까지 가는 길",
     "source": "05_네트워크_VPC_ELB_Route53_CloudFront.pdf",
     "pdfPages": 7,
-    "characters": 10259,
+    "characters": 10309,
     "sections": 13,
     "questions": 9,
     "officialLinks": [
@@ -98,7 +98,7 @@
     "title": "데이터베이스 선택: RDS·Aurora·DynamoDB·캐시와 정합성",
     "source": "06_데이터베이스_RDS_Aurora_DynamoDB_ElastiCache.pdf",
     "pdfPages": 8,
-    "characters": 9440,
+    "characters": 9492,
     "sections": 13,
     "questions": 9,
     "officialLinks": [
@@ -115,7 +115,7 @@
     "title": "메시징과 통합: SQS·SNS·EventBridge·Step Functions를 구분하기",
     "source": "07_메시징_통합_SQS_SNS_EventBridge_StepFunctions.pdf",
     "pdfPages": 3,
-    "characters": 9517,
+    "characters": 9549,
     "sections": 12,
     "questions": 9,
     "officialLinks": [
@@ -131,7 +131,7 @@
     "title": "AWS 보안 서비스 지도: IAM·KMS·Secrets·WAF의 서로 다른 역할",
     "source": "08_보안_IAM_KMS_Secrets_WAF_Shield.pdf",
     "pdfPages": 13,
-    "characters": 9509,
+    "characters": 9550,
     "sections": 12,
     "questions": 9,
     "officialLinks": [
@@ -149,7 +149,7 @@
     "title": "운영과 관찰성: CloudWatch·CloudTrail·Config에서 조직 관리까지",
     "source": "09_운영_관찰성_CloudWatch_CloudTrail_Config_Organizations.pdf",
     "pdfPages": 10,
-    "characters": 9075,
+    "characters": 9146,
     "sections": 13,
     "questions": 9,
     "officialLinks": [
@@ -167,7 +167,7 @@
     "title": "비용 관리: Cost Explorer·Budgets·Savings Plans를 제대로 읽기",
     "source": "10_비용관리_CostExplorer_Budgets_SavingsPlans.pdf",
     "pdfPages": 3,
-    "characters": 8024,
+    "characters": 8041,
     "sections": 12,
     "questions": 9,
     "officialLinks": [
@@ -183,7 +183,7 @@
     "title": "마이그레이션과 하이브리드: 서버·DB·파일은 다르게 옮긴다",
     "source": "11_마이그레이션_하이브리드_DMS_DataSync_Snow.pdf",
     "pdfPages": 6,
-    "characters": 8759,
+    "characters": 8791,
     "sections": 13,
     "questions": 9,
     "officialLinks": [
@@ -201,7 +201,7 @@
     "title": "데이터 분석 흐름: Kinesis·Firehose·Flink·Athena·Glue·Redshift·MSK",
     "source": "12_분석_데이터_Kinesis_Athena_Glue_Redshift_MSK.pdf",
     "pdfPages": 10,
-    "characters": 9231,
+    "characters": 9262,
     "sections": 12,
     "questions": 9,
     "officialLinks": [
@@ -219,7 +219,7 @@
     "title": "Well-Architected 여섯 원칙: 좋은 설계를 질문으로 검증하기",
     "source": "13_Well-Architected_핵심요약_6대원칙.pdf",
     "pdfPages": 59,
-    "characters": 8451,
+    "characters": 8519,
     "sections": 13,
     "questions": 9,
     "officialLinks": [
@@ -233,7 +233,7 @@
     "title": "보안 심화 1: 계정 경계·임시 자격 증명·최소 권한의 실제 설계",
     "source": "D01_보안_기초_IAM_권한관리.pdf",
     "pdfPages": 76,
-    "characters": 9598,
+    "characters": 9635,
     "sections": 11,
     "questions": 9,
     "officialLinks": [
@@ -250,7 +250,7 @@
     "title": "보안 심화 2: 탐지에서 네트워크·컴퓨팅 보호까지",
     "source": "D02_보안_탐지_인프라보호.pdf",
     "pdfPages": 38,
-    "characters": 8494,
+    "characters": 8510,
     "sections": 11,
     "questions": 9,
     "officialLinks": [
@@ -265,7 +265,7 @@
     "title": "보안 심화 3: 데이터 보호·사고 대응·개발 파이프라인 보안",
     "source": "D03_보안_데이터보호_사고대응_앱보안.pdf",
     "pdfPages": 74,
-    "characters": 8349,
+    "characters": 8385,
     "sections": 12,
     "questions": 9,
     "officialLinks": [
@@ -279,7 +279,7 @@
     "title": "신뢰성 심화 1: 분산 시스템이 연쇄 장애를 막는 방법",
     "source": "D04_신뢰성_기초_워크로드아키텍처.pdf",
     "pdfPages": 84,
-    "characters": 9619,
+    "characters": 9628,
     "sections": 14,
     "questions": 10,
     "officialLinks": [
@@ -293,7 +293,7 @@
     "title": "신뢰성 심화 2: 배포·백업·장애 격리·재해복구를 검증하기",
     "source": "D05_신뢰성_변경관리_장애관리_DR.pdf",
     "pdfPages": 137,
-    "characters": 9821,
+    "characters": 9853,
     "sections": 15,
     "questions": 10,
     "officialLinks": [
@@ -308,7 +308,7 @@
     "title": "성능 심화 1: 아키텍처와 컴퓨팅을 측정으로 선택하기",
     "source": "D06_성능효율_아키텍처선택_컴퓨팅.pdf",
     "pdfPages": 30,
-    "characters": 8354,
+    "characters": 8398,
     "sections": 13,
     "questions": 9,
     "officialLinks": [
@@ -322,7 +322,7 @@
     "title": "성능 심화 2: 데이터 접근과 네트워크 왕복을 줄이는 설계",
     "source": "D07_성능효율_데이터_네트워크.pdf",
     "pdfPages": 50,
-    "characters": 8757,
+    "characters": 8780,
     "sections": 13,
     "questions": 9,
     "officialLinks": [
@@ -337,7 +337,7 @@
     "title": "비용 심화 1: 팀이 비용을 소유하고 설명하는 체계 만들기",
     "source": "D08_비용최적화_재무관리_지출인식.pdf",
     "pdfPages": 60,
-    "characters": 7999,
+    "characters": 8034,
     "sections": 12,
     "questions": 9,
     "officialLinks": [
@@ -351,7 +351,7 @@
     "title": "비용 심화 2: 자원·약정·데이터 전송·수요를 함께 최적화하기",
     "source": "D09_비용최적화_리소스_수요관리_지속최적화.pdf",
     "pdfPages": 56,
-    "characters": 9522,
+    "characters": 9582,
     "sections": 14,
     "questions": 10,
     "officialLinks": [
