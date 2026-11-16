@@ -1,197 +1,197 @@
 {
-  "checkedAt": "2026-11-16T12:50:20.364372+00:00",
+  "checkedAt": "2026-11-16T13:54:23.352633+00:00",
   "scope": "31 Redis pages: metadata, internal links, anchors, minimum content structure, Q&A and pixel skin; length thresholds are only omission guards, not quality scores",
   "errors": [],
   "lessons": [
     {
       "n": 0,
-      "sourceCharacters": 34357,
+      "sourceCharacters": 34464,
       "questions": 15,
       "sections": 27
     },
     {
       "n": 1,
-      "sourceCharacters": 28682,
+      "sourceCharacters": 28832,
       "questions": 13,
       "sections": 21
     },
     {
       "n": 2,
-      "sourceCharacters": 27876,
+      "sourceCharacters": 27953,
       "questions": 13,
       "sections": 22
     },
     {
       "n": 3,
-      "sourceCharacters": 30480,
+      "sourceCharacters": 30554,
       "questions": 13,
       "sections": 25
     },
     {
       "n": 4,
-      "sourceCharacters": 26469,
+      "sourceCharacters": 26622,
       "questions": 13,
       "sections": 25
     },
     {
       "n": 5,
-      "sourceCharacters": 29603,
+      "sourceCharacters": 29711,
       "questions": 13,
       "sections": 27
     },
     {
       "n": 6,
-      "sourceCharacters": 31927,
+      "sourceCharacters": 32015,
       "questions": 14,
       "sections": 27
     },
     {
       "n": 7,
-      "sourceCharacters": 30002,
+      "sourceCharacters": 30085,
       "questions": 14,
       "sections": 30
     },
     {
       "n": 8,
-      "sourceCharacters": 35916,
+      "sourceCharacters": 36040,
       "questions": 14,
       "sections": 30
     },
     {
       "n": 9,
-      "sourceCharacters": 24593,
+      "sourceCharacters": 24715,
       "questions": 12,
       "sections": 19
     },
     {
       "n": 10,
-      "sourceCharacters": 25773,
+      "sourceCharacters": 25929,
       "questions": 12,
       "sections": 20
     },
     {
       "n": 11,
-      "sourceCharacters": 26609,
+      "sourceCharacters": 26660,
       "questions": 12,
       "sections": 21
     },
     {
       "n": 12,
-      "sourceCharacters": 26345,
+      "sourceCharacters": 26444,
       "questions": 12,
       "sections": 21
     },
     {
       "n": 13,
-      "sourceCharacters": 24697,
+      "sourceCharacters": 24831,
       "questions": 12,
       "sections": 19
     },
     {
       "n": 14,
-      "sourceCharacters": 25474,
+      "sourceCharacters": 25629,
       "questions": 12,
       "sections": 18
     },
     {
       "n": 15,
-      "sourceCharacters": 26486,
+      "sourceCharacters": 26620,
       "questions": 12,
       "sections": 21
     },
     {
       "n": 16,
-      "sourceCharacters": 13225,
+      "sourceCharacters": 13349,
       "questions": 8,
       "sections": 11
     },
     {
       "n": 17,
-      "sourceCharacters": 12793,
+      "sourceCharacters": 12908,
       "questions": 8,
       "sections": 14
     },
     {
       "n": 18,
-      "sourceCharacters": 13438,
+      "sourceCharacters": 13515,
       "questions": 8,
       "sections": 15
     },
     {
       "n": 19,
-      "sourceCharacters": 14311,
+      "sourceCharacters": 14406,
       "questions": 8,
       "sections": 17
     },
     {
       "n": 20,
-      "sourceCharacters": 14233,
+      "sourceCharacters": 14290,
       "questions": 8,
       "sections": 16
     },
     {
       "n": 21,
-      "sourceCharacters": 15648,
+      "sourceCharacters": 15775,
       "questions": 8,
       "sections": 19
     },
     {
       "n": 22,
-      "sourceCharacters": 16679,
+      "sourceCharacters": 16804,
       "questions": 9,
       "sections": 17
     },
     {
       "n": 23,
-      "sourceCharacters": 18696,
+      "sourceCharacters": 18772,
       "questions": 10,
       "sections": 21
     },
     {
       "n": 24,
-      "sourceCharacters": 12303,
+      "sourceCharacters": 12390,
       "questions": 8,
       "sections": 11
     },
     {
       "n": 25,
-      "sourceCharacters": 12148,
+      "sourceCharacters": 12247,
       "questions": 8,
       "sections": 10
     },
     {
       "n": 26,
-      "sourceCharacters": 12352,
+      "sourceCharacters": 12433,
       "questions": 8,
       "sections": 9
     },
     {
       "n": 27,
-      "sourceCharacters": 11980,
+      "sourceCharacters": 12066,
       "questions": 8,
       "sections": 11
     },
     {
       "n": 28,
-      "sourceCharacters": 11878,
+      "sourceCharacters": 12010,
       "questions": 8,
       "sections": 11
     },
     {
       "n": 29,
-      "sourceCharacters": 12070,
+      "sourceCharacters": 12152,
       "questions": 8,
       "sections": 13
     },
     {
       "n": 30,
-      "sourceCharacters": 13487,
+      "sourceCharacters": 13544,
       "questions": 8,
       "sections": 13
     }
   ],
   "questions": 329,
-  "sourceCharacters": 660530,
+  "sourceCharacters": 663765,
   "runtimeValidation": "not assessed by this structural checker; consult separate runtime records",
   "browserValidation": "not assessed by this structural checker; consult browser-checks.json if present",
   "externalLinks": "presence only; not HTTP or semantic verification"
