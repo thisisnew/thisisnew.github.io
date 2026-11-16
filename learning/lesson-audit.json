@@ -1,7 +1,7 @@
 [
   {
     "lesson": 1,
-    "bytes": 131862,
+    "bytes": 132826,
     "topic_chars": 1532,
     "worked_case_chars": 759,
     "source_urls": [
@@ -13,8 +13,8 @@
   },
   {
     "lesson": 2,
-    "bytes": 92595,
-    "topic_chars": 1417,
+    "bytes": 93342,
+    "topic_chars": 1428,
     "worked_case_chars": 729,
     "source_urls": [
       "https://kafka.apache.org/43/design/design/",
@@ -24,9 +24,9 @@
   },
   {
     "lesson": 3,
-    "bytes": 80800,
+    "bytes": 81689,
     "topic_chars": 1475,
-    "worked_case_chars": 690,
+    "worked_case_chars": 704,
     "source_urls": [
       "https://kafka.apache.org/43/implementation/network-layer/",
       "https://kafka.apache.org/43/implementation/message-format/",
@@ -36,8 +36,8 @@
   },
   {
     "lesson": 4,
-    "bytes": 81732,
-    "topic_chars": 1522,
+    "bytes": 82602,
+    "topic_chars": 1575,
     "worked_case_chars": 727,
     "source_urls": [
       "https://kafka.apache.org/43/configuration/producer-configs/",
@@ -46,9 +46,9 @@
   },
   {
     "lesson": 5,
-    "bytes": 81298,
-    "topic_chars": 1542,
-    "worked_case_chars": 748,
+    "bytes": 82138,
+    "topic_chars": 1557,
+    "worked_case_chars": 759,
     "source_urls": [
       "https://kafka.apache.org/43/configuration/consumer-configs/",
       "https://kafka.apache.org/43/operations/consumer-rebalance-protocol/",
@@ -57,9 +57,9 @@
   },
   {
     "lesson": 6,
-    "bytes": 79626,
+    "bytes": 80349,
     "topic_chars": 1375,
-    "worked_case_chars": 729,
+    "worked_case_chars": 760,
     "source_urls": [
       "https://kafka.apache.org/43/configuration/topic-configs/",
       "https://kafka.apache.org/43/configuration/group-configs/",
@@ -68,9 +68,9 @@
   },
   {
     "lesson": 7,
-    "bytes": 77568,
+    "bytes": 78557,
     "topic_chars": 1413,
-    "worked_case_chars": 677,
+    "worked_case_chars": 700,
     "source_urls": [
       "https://kafka.apache.org/43/operations/basic-kafka-operations/",
       "https://kafka.apache.org/43/operations/monitoring/",
@@ -79,9 +79,9 @@
   },
   {
     "lesson": 8,
-    "bytes": 77405,
-    "topic_chars": 1360,
-    "worked_case_chars": 631,
+    "bytes": 78153,
+    "topic_chars": 1361,
+    "worked_case_chars": 655,
     "source_urls": [
       "https://kafka.apache.org/43/operations/kraft/",
       "https://kafka.apache.org/43/operations/tiered-storage/",
@@ -91,8 +91,8 @@
   },
   {
     "lesson": 9,
-    "bytes": 76874,
-    "topic_chars": 1382,
+    "bytes": 77689,
+    "topic_chars": 1441,
     "worked_case_chars": 591,
     "source_urls": [
       "https://kafka.apache.org/43/operations/monitoring/",
@@ -102,9 +102,9 @@
   },
   {
     "lesson": 10,
-    "bytes": 77680,
-    "topic_chars": 1306,
-    "worked_case_chars": 602,
+    "bytes": 78481,
+    "topic_chars": 1332,
+    "worked_case_chars": 637,
     "source_urls": [
       "https://kafka.apache.org/43/operations/java-version/",
       "https://kafka.apache.org/43/operations/hardware-and-os/",
@@ -113,9 +113,9 @@
   },
   {
     "lesson": 11,
-    "bytes": 86852,
+    "bytes": 88027,
     "topic_chars": 1544,
-    "worked_case_chars": 683,
+    "worked_case_chars": 720,
     "source_urls": [
       "https://kafka.apache.org/43/getting-started/upgrade/",
       "https://kafka.apache.org/43/getting-started/zk2kraft/",
@@ -125,8 +125,8 @@
   },
   {
     "lesson": 12,
-    "bytes": 80895,
-    "topic_chars": 1491,
+    "bytes": 81874,
+    "topic_chars": 1503,
     "worked_case_chars": 735,
     "source_urls": [
       "https://kafka.apache.org/43/apis/",
@@ -137,8 +137,8 @@
   },
   {
     "lesson": 13,
-    "bytes": 79907,
-    "topic_chars": 1397,
+    "bytes": 80946,
+    "topic_chars": 1409,
     "worked_case_chars": 664,
     "source_urls": [
       "https://kafka.apache.org/43/configuration/broker-configs/",
@@ -148,8 +148,8 @@
   },
   {
     "lesson": 14,
-    "bytes": 82348,
-    "topic_chars": 1596,
+    "bytes": 83405,
+    "topic_chars": 1627,
     "worked_case_chars": 663,
     "source_urls": [
       "https://kafka.apache.org/43/configuration/kafka-connect-configs/",
@@ -159,8 +159,8 @@
   },
   {
     "lesson": 15,
-    "bytes": 81273,
-    "topic_chars": 1475,
+    "bytes": 82386,
+    "topic_chars": 1486,
     "worked_case_chars": 669,
     "source_urls": [
       "https://kafka.apache.org/43/configuration/kafka-streams-configs/",
@@ -170,8 +170,8 @@
   },
   {
     "lesson": 16,
-    "bytes": 75272,
-    "topic_chars": 1447,
+    "bytes": 76236,
+    "topic_chars": 1455,
     "worked_case_chars": 653,
     "source_urls": [
       "https://kafka.apache.org/43/configuration/admin-configs/",
@@ -182,9 +182,9 @@
   },
   {
     "lesson": 17,
-    "bytes": 74448,
-    "topic_chars": 1424,
-    "worked_case_chars": 650,
+    "bytes": 75410,
+    "topic_chars": 1460,
+    "worked_case_chars": 662,
     "source_urls": [
       "https://kafka.apache.org/43/operations/tiered-storage/",
       "https://kafka.apache.org/43/configuration/tiered-storage-configs/",
@@ -193,8 +193,8 @@
   },
   {
     "lesson": 18,
-    "bytes": 74121,
-    "topic_chars": 1423,
+    "bytes": 75045,
+    "topic_chars": 1437,
     "worked_case_chars": 619,
     "source_urls": [
       "https://kafka.apache.org/43/design/protocol/",
@@ -204,8 +204,8 @@
   },
   {
     "lesson": 19,
-    "bytes": 73679,
-    "topic_chars": 1492,
+    "bytes": 74709,
+    "topic_chars": 1519,
     "worked_case_chars": 668,
     "source_urls": [
       "https://kafka.apache.org/43/design/protocol/",
@@ -216,9 +216,9 @@
   },
   {
     "lesson": 20,
-    "bytes": 73805,
-    "topic_chars": 1530,
-    "worked_case_chars": 795,
+    "bytes": 74862,
+    "topic_chars": 1563,
+    "worked_case_chars": 815,
     "source_urls": [
       "https://kafka.apache.org/43/design/protocol/",
       "https://kafka.apache.org/43/operations/consumer-rebalance-protocol/",
@@ -228,8 +228,8 @@
   },
   {
     "lesson": 21,
-    "bytes": 73130,
-    "topic_chars": 1308,
+    "bytes": 74095,
+    "topic_chars": 1327,
     "worked_case_chars": 580,
     "source_urls": [
       "https://kafka.apache.org/43/design/protocol/",
@@ -239,8 +239,8 @@
   },
   {
     "lesson": 22,
-    "bytes": 73192,
-    "topic_chars": 1310,
+    "bytes": 74210,
+    "topic_chars": 1360,
     "worked_case_chars": 648,
     "source_urls": [
       "https://kafka.apache.org/43/design/protocol/",
@@ -250,8 +250,8 @@
   },
   {
     "lesson": 23,
-    "bytes": 73231,
-    "topic_chars": 1290,
+    "bytes": 74574,
+    "topic_chars": 1305,
     "worked_case_chars": 611,
     "source_urls": [
       "https://kafka.apache.org/43/operations/datacenters/",
@@ -262,8 +262,8 @@
   },
   {
     "lesson": 24,
-    "bytes": 72997,
-    "topic_chars": 1337,
+    "bytes": 74011,
+    "topic_chars": 1387,
     "worked_case_chars": 578,
     "source_urls": [
       "https://kafka.apache.org/43/security/listener-configuration/",
@@ -273,8 +273,8 @@
   },
   {
     "lesson": 25,
-    "bytes": 72982,
-    "topic_chars": 1321,
+    "bytes": 74063,
+    "topic_chars": 1337,
     "worked_case_chars": 612,
     "source_urls": [
       "https://kafka.apache.org/43/security/authentication-using-sasl/",
@@ -284,8 +284,8 @@
   },
   {
     "lesson": 26,
-    "bytes": 81030,
-    "topic_chars": 1382,
+    "bytes": 82155,
+    "topic_chars": 1407,
     "worked_case_chars": 605,
     "source_urls": [
       "https://kafka.apache.org/43/security/authorization-and-acls/",
@@ -294,7 +294,7 @@
   },
   {
     "lesson": 27,
-    "bytes": 78453,
+    "bytes": 79579,
     "topic_chars": 1440,
     "worked_case_chars": 629,
     "source_urls": [
@@ -305,9 +305,9 @@
   },
   {
     "lesson": 28,
-    "bytes": 78052,
+    "bytes": 79107,
     "topic_chars": 1382,
-    "worked_case_chars": 637,
+    "worked_case_chars": 651,
     "source_urls": [
       "https://kafka.apache.org/43/kafka-connect/connector-development-guide/",
       "https://kafka.apache.org/43/kafka-connect/user-guide/"
@@ -315,8 +315,8 @@
   },
   {
     "lesson": 29,
-    "bytes": 76216,
-    "topic_chars": 1287,
+    "bytes": 77317,
+    "topic_chars": 1312,
     "worked_case_chars": 610,
     "source_urls": [
       "https://kafka.apache.org/43/kafka-connect/administration/",
@@ -326,9 +326,9 @@
   },
   {
     "lesson": 30,
-    "bytes": 75226,
-    "topic_chars": 1408,
-    "worked_case_chars": 602,
+    "bytes": 76271,
+    "topic_chars": 1438,
+    "worked_case_chars": 617,
     "source_urls": [
       "https://kafka.apache.org/43/streams/core-concepts/",
       "https://kafka.apache.org/43/streams/architecture/",
@@ -337,9 +337,9 @@
   },
   {
     "lesson": 31,
-    "bytes": 74980,
-    "topic_chars": 1498,
-    "worked_case_chars": 632,
+    "bytes": 75956,
+    "topic_chars": 1505,
+    "worked_case_chars": 650,
     "source_urls": [
       "https://kafka.apache.org/43/streams/developer-guide/write-streams-app/",
       "https://kafka.apache.org/43/streams/developer-guide/config-streams/",
@@ -348,7 +348,7 @@
   },
   {
     "lesson": 32,
-    "bytes": 80732,
+    "bytes": 81744,
     "topic_chars": 1385,
     "worked_case_chars": 658,
     "source_urls": [
@@ -359,9 +359,9 @@
   },
   {
     "lesson": 33,
-    "bytes": 74990,
-    "topic_chars": 1476,
-    "worked_case_chars": 676,
+    "bytes": 76061,
+    "topic_chars": 1479,
+    "worked_case_chars": 692,
     "source_urls": [
       "https://kafka.apache.org/43/streams/developer-guide/processor-api/",
       "https://kafka.apache.org/43/streams/developer-guide/datatypes/",
@@ -370,8 +370,8 @@
   },
   {
     "lesson": 34,
-    "bytes": 74681,
-    "topic_chars": 1405,
+    "bytes": 75818,
+    "topic_chars": 1439,
     "worked_case_chars": 654,
     "source_urls": [
       "https://kafka.apache.org/43/streams/developer-guide/testing/",
@@ -381,9 +381,9 @@
   },
   {
     "lesson": 35,
-    "bytes": 74987,
-    "topic_chars": 1532,
-    "worked_case_chars": 653,
+    "bytes": 75965,
+    "topic_chars": 1542,
+    "worked_case_chars": 674,
     "source_urls": [
       "https://kafka.apache.org/43/streams/developer-guide/running-app/",
       "https://kafka.apache.org/43/streams/developer-guide/security/",
