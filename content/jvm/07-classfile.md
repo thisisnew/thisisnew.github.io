@@ -13,7 +13,7 @@
 
 ## 1. class 파일은 명령어만 모은 파일이 아니다
 
-조립 지시서에는 작업 순서뿐 아니라 부품 번호, 부품 규격, 연결 대상도 필요합니다. class 파일에도 클래스 이름, 상위 타입, 필드, 메서드, 상수 풀, 여러 속성이 함께 들어 있습니다. JVM은 바이트코드만 읽는 것이 아니라 이 구조 전체를 해석합니다.
+조립 지시서에는 작업 순서뿐 아니라 부품 번호, 부품 규격, 연결 대상도 필요합니다. class 파일에는 클래스 이름과 상위 타입이 들어갑니다. 필드와 메서드, 상수 풀, 여러 속성도 함께 담겨 있습니다. JVM은 바이트코드만 읽는 것이 아니라 이 구조 전체를 해석합니다.
 
 class 형식의 여러 바이트 데이터는 big-endian으로 저장됩니다. 시작의 magic 값은 `0xCAFEBABE`이고, minor·major version이 뒤따릅니다. 이 정보는 해당 JVM이 파일 형식을 지원하는지 판단하는 출발점입니다. 단순히 확장자가 `.class`라는 이유로 유효한 클래스가 되는 것은 아닙니다.
 
@@ -66,7 +66,7 @@ descriptor는 JVM 수준의 타입 표현입니다. `I`는 int, `J`는 long, `Lj
 
 ## 5. 상수 풀은 문자열 저장소가 아니다
 
-상수 풀에는 문자열뿐 아니라 숫자, 클래스, 필드·메서드 심벌, 메서드 핸들, 동적 상수 등의 여러 종류가 있습니다. Utf8 항목은 이름과 descriptor 등 문자열 데이터를 표현하는 데 쓰이며 모든 Utf8 항목이 Java의 String 객체 하나라는 뜻은 아닙니다. `CONSTANT_String` 항목과 그것이 참조하는 Utf8 항목도 구분합니다.
+상수 풀에는 문자열과 숫자가 들어갑니다. 클래스와 필드·메서드를 가리키는 심벌, 메서드 핸들, 동적 상수 등도 있어 항목의 종류를 구분해서 봐야 합니다. Utf8 항목은 이름과 descriptor 등 문자열 데이터를 표현하는 데 쓰이며 모든 Utf8 항목이 Java의 String 객체 하나라는 뜻은 아닙니다. `CONSTANT_String` 항목과 그것이 참조하는 Utf8 항목도 구분합니다.
 
 **class 파일 상수 풀**은 디스크·전송 바이트의 표이고, **런타임 상수 풀**은 클래스가 만들어질 때 JVM이 구성하는 런타임 표현입니다. **String intern pool**은 같은 내용의 문자열에 대한 정규화와 관련됩니다. 숫자·심벌 해석까지 다루는 런타임 상수 풀 전체가 intern pool이라고 생각하면 잘못입니다.
 
@@ -74,9 +74,9 @@ descriptor는 JVM 수준의 타입 표현입니다. `I`는 int, `J`는 long, `Lj
 
 ## 6. Code 속성이 담는 것
 
-일반적인 구체 메서드의 Code에는 `max_stack`, `max_locals`, 바이트코드, 예외 처리 표와 추가 속성들이 들어 있습니다. abstract·native 메서드에는 일반 Java 바이트코드 본문을 위한 Code가 없습니다. “모든 method_info에는 실행할 바이트코드가 있다”는 설명은 정확하지 않습니다.
+일반적인 구체 메서드의 Code에는 `max_stack`과 `max_locals`가 들어갑니다. 바이트코드와 예외 처리 표, 추가 속성들도 포함됩니다. abstract·native 메서드에는 일반 Java 바이트코드 본문을 위한 Code가 없습니다. “모든 method_info에는 실행할 바이트코드가 있다”는 설명은 정확하지 않습니다.
 
-StackMapTable은 특정 바이트코드 위치의 지역변수·피연산자 스택에 대해 검증에 필요한 타입 상태를 표현합니다. 런타임에 매번 실제 스택 내용을 복제해 둔 스냅샷이 아닙니다. LineNumberTable·LocalVariableTable은 디버깅 연결을 돕고, JVM의 프로그램 의미를 결정하는 명령 자체와는 구별됩니다.
+StackMapTable은 특정 바이트코드 위치의 지역변수·피연산자 스택에 대해 검증에 필요한 타입 상태를 표현합니다. 런타임에 매번 실제 스택 내용을 복제해 둔 스냅샷이 아닙니다. LineNumberTable·LocalVariableTable은 실행 코드를 소스의 줄이나 지역변수 정보와 연결해 디버깅을 돕습니다. 프로그램이 어떻게 동작할지 정하는 JVM 명령 자체와는 다릅니다.
 
 ## 7. 장애 사례: ClassFormatError·VerifyError·버전 오류
 
@@ -96,7 +96,7 @@ class 파일 내부에서 일반적인 클래스 이름은 `java/lang/String`처
 
 ## 차근차근 이해하기: class 파일을 도서관의 책 한 권처럼 읽기
 
-책은 본문뿐 아니라 제목, 목차, 색인, 주석도 갖습니다. class 파일도 실행 명령 외에 클래스 이름, 상속 관계, 필드, 메서드, 여러 속성을 함께 담습니다. 상수 풀은 그 안에서 자주 참조하는 이름과 값 등의 항목을 번호로 연결하는 구조입니다. 단, 각 항목이 전부 같은 종류인 것은 아닙니다. 태그를 보고 문자열인지, 클래스 이름을 가리키는 항목인지, 메서드 참조인지 구분해야 합니다.
+책은 본문뿐 아니라 제목, 목차, 색인, 주석도 갖습니다. class 파일은 실행 명령에 더해 클래스 이름과 상속 관계도 담습니다. 필드와 메서드, 여러 속성도 파일의 일부입니다. 상수 풀은 그 안에서 자주 참조하는 이름과 값 등의 항목을 번호로 연결하는 구조입니다. 단, 각 항목이 전부 같은 종류인 것은 아닙니다. 태그를 보고 문자열인지, 클래스 이름을 가리키는 항목인지, 메서드 참조인지 구분해야 합니다.
 
 ### 메서드 호출 하나를 세 갈래 정보로 풀기
 
@@ -208,10 +208,10 @@ Signature 속성은 제네릭 선언 정보를 보존하는 데 쓰이지만 JVM
 
 <details class="question"><summary>Q1. 상수 풀의 상수는 수정 불가능한 값만 뜻하나요?</summary><div class="answer"><p>일반적인 상수 변수의 의미보다 넓습니다. class 형식의 constant_pool에는 런타임에 해석할 클래스·필드·메서드의 심벌 참조도 들어갑니다. static final 필드만 보관하는 장소가 아닙니다.</p><p><strong>구체적으로:</strong> Methodref는 숫자 상수라기보다 실행 시 연결할 메서드에 관한 심벌 정보입니다. Class나 NameAndType처럼 서로 다른 태그의 항목이 연결됩니다.</p><p><strong>꼬리질문까지:</strong> 상수 풀이라는 이름만 보고 static final 필드 값만 모여 있다고 답하지 않습니다.</p></div></details>
 <details class="question"><summary>Q2. 런타임 상수 풀과 String pool은 왜 다른가요?</summary><div class="answer"><p>런타임 상수 풀은 클래스별 상수 표의 실행 표현으로 심벌 참조 등도 담습니다. String pool은 문자열 intern 규칙과 관련됩니다. 문자열 객체는 Heap에서 관리될 수 있고 클래스 메타데이터의 모든 내용과 동일하지 않습니다.</p><p><strong>구체적으로:</strong> 런타임 상수 풀은 클래스·인터페이스별 실행 정보와 연결되고, intern된 문자열의 공유는 String 객체에 관한 별도 의미입니다. 이름이 비슷해도 역할과 대상을 나누어야 합니다.</p><p><strong>꼬리질문까지:</strong> 상수 풀에서 String 관련 항목을 봤다는 사실만으로 모든 문자열 객체의 위치와 수명을 설명할 수는 없습니다.</p></div></details>
-<details class="question"><summary>Q3. Java 21의 major version은 얼마인가요?</summary><div class="answer"><p>일반 Java 21 class 파일은 65입니다. Java 17은 61, Java 23은 67입니다. preview 기능을 사용한 파일은 minor version과 실행 옵션 조건도 확인해야 하므로 major만 보고 모든 실행 조건을 판정하지 않습니다.</p><p><strong>구체적으로:</strong> major 65를 확인하는 것은 Java 21 대상 클래스 파일이라는 중요한 단서입니다. 하지만 외부 라이브러리 버전과 필요한 모듈까지 보장하지는 않습니다.</p><p><strong>꼬리질문까지:</strong> --release로 대상을 맞추더라도 의존 JAR의 class 버전은 별도로 확인해야 합니다.</p></div></details>
+<details class="question"><summary>Q3. Java 21의 major version은 얼마인가요?</summary><div class="answer"><p>일반 Java 21 class 파일의 값은 65입니다. Java 17은 61이고, Java 23은 67입니다. 다만 preview 기능을 사용했다면 minor version과 실행 옵션 조건도 확인해야 합니다. major 값만으로 모든 실행 조건을 판단해서는 안 됩니다.</p><p><strong>구체적으로:</strong> major 65를 확인하는 것은 Java 21 대상 클래스 파일이라는 중요한 단서입니다. 하지만 외부 라이브러리 버전과 필요한 모듈까지 보장하지는 않습니다.</p><p><strong>꼬리질문까지:</strong> --release로 대상을 맞추더라도 의존 JAR의 class 버전은 별도로 확인해야 합니다.</p></div></details>
 <details class="question"><summary>Q4. 메서드 반환 타입만 바꾸면 JVM에서 무슨 차이가 있나요?</summary><div class="answer"><p>class 파일의 메서드 descriptor에는 반환 타입이 포함됩니다. 컴파일된 호출자가 기대하는 descriptor와 실제 대상이 다르면 바이너리 호환 문제가 생길 수 있습니다. Java 소스의 오버로딩 허용 규칙과 바이너리의 식별 정보를 구분해야 합니다.</p><p><strong>구체적으로:</strong> descriptor는 인자와 반환 타입을 함께 표현하므로 기존 호출자가 참조하는 메서드와 새 선언이 다를 수 있습니다. 기존 바이너리와 새 라이브러리의 조합을 실행해 봐야 합니다.</p><p><strong>꼬리질문까지:</strong> Java 소스의 오버로딩 규칙과 JVM의 메서드 식별 정보를 서로 혼동하지 않습니다.</p></div></details>
 <details class="question"><summary>Q5. StackMapTable은 스택 트레이스인가요?</summary><div class="answer"><p>아닙니다. 바이트코드 검증용 타입 상태 정보입니다. 장애 시의 메서드 호출 목록을 나타내는 스택 트레이스와 역할이 다릅니다. 이름에 Stack이 들어간다는 이유로 같은 것으로 묶지 마세요.</p><p><strong>구체적으로:</strong> StackMapTable은 특정 지점에서의 지역변수·스택 타입 상태를 검증하는 데 쓰이는 정보입니다. 예외가 났을 때 호출 목록을 보여 주는 stack trace와 목적이 다릅니다.</p><p><strong>꼬리질문까지:</strong> 이름에 Stack이 들어가도 현재 실행값이나 호출 이력을 저장했다는 뜻은 아닙니다.</p></div></details>
-<details class="question"><summary>Q6. javap의 #번호가 바뀌면 프로그램 의미도 바뀌나요?</summary><div class="answer"><p>인덱스 자체는 파일 내부 참조 번호입니다. 컴파일러 버전이나 작은 코드 변경으로 순서가 달라져도 같은 의미일 수 있습니다. 번호 자체를 비교하기보다 참조가 가리키는 이름·타입·상수와 명령의 의미를 봐야 합니다.</p><p><strong>구체적으로:</strong> 컴파일러가 항목을 배치하는 순서가 달라지면 번호가 바뀔 수 있습니다. 중요한 것은 명령이 참조한 항목을 따라갔을 때 최종 이름과 타입·값이 무엇인지입니다.</p><p><strong>꼬리질문까지:</strong> 바이너리 차이를 검토할 때 번호 변화와 실제 의미 변화를 분리해 읽으세요.</p></div></details>
+<details class="question"><summary>Q6. javap의 #번호가 바뀌면 프로그램 의미도 바뀌나요?</summary><div class="answer"><p>인덱스는 그 파일 안에서 항목을 가리키는 번호입니다. 컴파일러 버전이나 코드가 조금 바뀌면 번호 순서도 바뀔 수 있지만, 프로그램의 동작은 같을 수 있습니다. 번호만 비교하지 말고 그 항목이 가리키는 이름·타입·상수와 명령이 하는 일을 비교하세요.</p><p><strong>구체적으로:</strong> 컴파일러가 항목을 배치하는 순서가 달라지면 번호가 바뀔 수 있습니다. 중요한 것은 명령이 참조한 항목을 따라갔을 때 최종 이름과 타입·값이 무엇인지입니다.</p><p><strong>꼬리질문까지:</strong> 바이너리 차이를 검토할 때 번호 변화와 실제 의미 변화를 분리해 읽으세요.</p></div></details>
 
 ## 9. 공식 문서와 복습
 

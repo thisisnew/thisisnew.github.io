@@ -25,7 +25,7 @@
 </tr>
 </tbody></table>
 <h2 id="section-2">1. javap는 역컴파일러와 무엇이 다른가</h2>
-<p>완성된 기계의 부품 목록과 조립 지시를 보는 것이 javap에 가깝습니다. 사람이 썼던 Java 문장을 완전히 복원하는 도구는 아닙니다. <code>javap -c</code>는 메서드의 JVM 명령을, <code>-v</code>는 상수 풀과 Code 속성 등 자세한 정보를, <code>-p</code>는 private 멤버까지 보여 줍니다. <code>-l</code>은 줄 번호·지역변수 표를 요청합니다.</p>
+<p>완성된 기계의 부품 목록과 조립 지시를 보는 것이 javap에 가깝습니다. 사람이 썼던 Java 문장을 완전히 복원하는 도구는 아닙니다. <code>javap -c</code>로는 메서드의 JVM 명령을 봅니다. <code>-v</code>를 붙이면 상수 풀과 Code 속성 등 자세한 정보를 볼 수 있습니다. <code>-p</code>는 private 멤버까지 표시합니다. <code>-l</code>은 줄 번호·지역변수 표를 요청합니다.</p>
 <p><code>javac -g</code>는 디버그 정보를 생성합니다. 변수명과 줄 번호를 더 잘 연결할 수 있지만 실행의 논리적 결과가 달라지는 것은 아닙니다. 주석이나 개발자의 원래 의도까지 class 파일에 보존하는 옵션은 아닙니다. <a href="https://docs.oracle.com/en/java/javase/21/docs/specs/man/javap.html">근거: javap</a></p>
 <h2 id="section-3">2. 한 파일에서 여러 종류를 관찰하기</h2>
 <pre><code class="language-java">// file: Lesson06.java
@@ -57,7 +57,7 @@ javap -c -v -p &#39;Lesson06$Box&#39;
 </code></pre>
 <p>출력은 <code>7</code>, <code>empty</code>입니다. 중첩 클래스가 별도 class 파일로 생성된 점을 확인하세요. 셸에서 <code>$</code>를 변수 확장으로 오해하지 않도록 작은따옴표를 붙였습니다. 외부 클래스만 열고 Box 생성자 코드가 없다고 판단하면 잘못된 파일을 보고 있는 것입니다.</p>
 <h2 id="section-4">3. new·dup·invokespecial을 함께 읽기</h2>
-<p><code>new Box(7)</code>에서는 보통 <code>new</code>, <code>dup</code>, 숫자 상수 적재, <code>invokespecial ... &lt;init&gt;</code>가 보입니다. <code>new</code>는 객체를 위한 공간을 할당하고 아직 생성자 초기화가 끝나지 않은 참조를 만듭니다. <code>dup</code>는 그 참조를 복제합니다. 생성자 호출에 참조 하나가 소비되어도 생성된 객체를 이어서 저장할 참조가 필요하기 때문입니다.</p>
+<p><code>new Box(7)</code>의 출력에는 보통 <code>new</code>와 <code>dup</code>가 나옵니다. 이어서 숫자 상수를 적재하고, <code>invokespecial ... &lt;init&gt;</code>로 생성자를 호출하는 흐름을 볼 수 있습니다. <code>new</code>는 객체를 위한 공간을 할당하고 아직 생성자 초기화가 끝나지 않은 참조를 만듭니다. <code>dup</code>는 그 참조를 복제합니다. 생성자 호출에 참조 하나가 소비되어도 생성된 객체를 이어서 저장할 참조가 필요하기 때문입니다.</p>
 <p>생성자의 이름은 class 파일에서 <code>&lt;init&gt;</code>입니다. 생성자 호출은 일반적인 가상 메서드 디스패치와 다르게 다루므로 invokespecial을 사용합니다. “new 명령 하나가 객체 할당과 Java 생성자 본문 실행 전체를 끝낸다”라고 외우지 마세요. 검증 규칙은 초기화되지 않은 참조의 사용도 제한합니다.</p>
 <h2 id="section-5">4. 호출 명령을 목적별로 구분하기</h2>
 <table>
@@ -112,8 +112,8 @@ javap -c -v -p &#39;Lesson06$Box&#39;
 <details class="question"><summary>심화 Q. 소스 한 줄에서 예외가 났다면 명령도 한 개만 조사하면 되나요?</summary><div class="answer"><p>한 줄에 객체 생성·메서드 호출·배열 접근 등이 함께 있을 수 있습니다. LineNumberTable은 명령과 소스의 대략적 연결을 제공하므로 같은 줄에 여러 실패 지점이 있을 수 있습니다.</p><p>긴 표현식을 나누어 재현하거나 예외 메시지·호출 스택·바이트코드 범위를 함께 확인해야 합니다. 줄 번호 하나를 실제 CPU 명령 하나로 해석하지 않습니다.</p></div></details>
 
 <h2 id="section-10">차근차근 이해하기: javap 출력에서 길을 잃지 않는 순서</h2>
-<p>javap 출력 전체를 처음부터 암기하려 하지 마세요. 먼저 <strong>메서드 이름과 descriptor</strong>, 다음 <strong>Code의 명령 목록</strong>, 그다음 <strong>명령이 참조하는 상수 풀 항목</strong>, 마지막으로 <strong>예외 표와 디버그 정보</strong>를 읽으면 됩니다. descriptor는 메서드가 어떤 타입의 인자를 받고 무엇을 돌려주는지를 JVM 형식으로 적은 문자열입니다. <code>()V</code>는 인자 없음과 void 반환, <code>(I)I</code>는 int 하나를 받아 int를 반환한다는 뜻입니다.</p>
-<p>명령 앞의 <code>0:</code>, <code>1:</code>, <code>4:</code> 같은 숫자는 Java 소스 줄 번호가 아니라 메서드 Code 내부의 바이트 오프셋입니다. 명령 길이가 모두 같지 않으므로 숫자가 한 칸씩 증가하지 않을 수 있습니다. <code>#7</code>, <code>#12</code> 같은 표기는 별도로 상수 풀의 항목 번호입니다. 오프셋과 상수 풀 번호를 같은 주소라고 해석하면 호출 대상을 잘못 찾게 됩니다.</p>
+<p>javap 출력 전체를 처음부터 암기하려 하지 마세요. 먼저 <strong>메서드 이름과 descriptor</strong>를 확인합니다. 다음으로 <strong>Code의 명령 목록</strong>을 따라가고, <strong>명령이 참조하는 상수 풀 항목</strong>을 찾아보세요. 마지막으로 <strong>예외 표와 디버그 정보</strong>를 읽으면 됩니다. descriptor는 메서드가 어떤 타입의 인자를 받고 무엇을 돌려주는지를 JVM 형식으로 적은 문자열입니다. <code>()V</code>는 인자 없음과 void 반환, <code>(I)I</code>는 int 하나를 받아 int를 반환한다는 뜻입니다.</p>
+<p>명령 앞의 <code>0:</code>, <code>1:</code>, <code>4:</code>는 Java 소스의 줄 번호가 아닙니다. 해당 메서드의 Code 안에서 명령이 놓인 바이트 위치를 뜻합니다. 명령 길이가 모두 같지 않으므로 숫자가 한 칸씩 증가하지 않을 수 있습니다. <code>#7</code>, <code>#12</code> 같은 표기는 별도로 상수 풀의 항목 번호입니다. 오프셋과 상수 풀 번호를 같은 주소라고 해석하면 호출 대상을 잘못 찾게 됩니다.</p>
 <h3>new와 dup를 손으로 따라가기</h3>
 <p><code>new Box(7)</code>의 대표적인 명령 흐름을 단순화해 보겠습니다. 실제 상수 풀 번호와 오프셋은 빌드에 따라 달라집니다.</p>
 <table>
@@ -218,17 +218,17 @@ javap -c -v -p Deep06
 <p>raw type이나 검사되지 않은 변환으로 List에 Integer를 넣었다면 소스에 명시적인 <code>(String)</code>이 없어도 first의 get 호출 줄에서 ClassCastException이 날 수 있습니다. 컴파일러가 넣은 checkcast가 그 줄에 매핑되어 있기 때문입니다. 그래서 “내 코드에는 cast가 없는데 왜 캐스팅 에러인가?”라는 질문은 javap와 LineNumberTable로 풀 수 있습니다.</p>
 <p>실제 장애를 조사할 때는 로컬에서 다시 컴파일한 class가 아니라 문제가 난 JAR에서 추출한 class를 봅니다. 생성된 프록시나 에이전트가 런타임에 변환한 코드라면 디스크의 class와 실행 중 class가 다를 수도 있습니다. javap 결과는 <strong>그 명령에 제공한 바이너리</strong>에 대한 증거이지 모든 런타임 변환까지 자동 반영하는 것은 아닙니다.</p>
 <h3>바이트코드로 성능을 단정하지 않기</h3>
-<p>명령이 다섯 개라서 CPU 명령도 다섯 개이고 다른 메서드보다 다섯 배 느리다는 식으로 읽으면 안 됩니다. HotSpot JIT는 실제 타입 정보를 이용해 호출을 인라인하고 불필요한 검사를 제거할 수 있습니다. javap는 타입과 제어 흐름을 이해하는 첫 단계이고, 성능은 JIT 결과·프로파일·실제 부하 측정으로 확인합니다.</p>
+<p>명령이 다섯 개라서 CPU 명령도 다섯 개이고 다른 메서드보다 다섯 배 느리다는 식으로 읽으면 안 됩니다. HotSpot JIT는 실제 타입 정보를 이용해 호출을 인라인하고 불필요한 검사를 제거할 수 있습니다. 먼저 javap로 타입과 제어 흐름을 이해합니다. 성능을 판단하려면 그다음 JIT 결과와 프로파일을 보고, 실제 부하에서 측정해야 합니다.</p>
 <details class="question"><summary>심화 면접. List&lt;String&gt;에서 get하는 코드에도 런타임 타입 검사가 있나요?</summary><div class="answer"><p><strong>답변:</strong> 이 예제처럼 소거된 get의 반환 Object를 String으로 사용하는 곳에는 컴파일러가 checkcast를 넣을 수 있습니다. 제네릭의 컴파일 시 검사는 큰 도움이 되지만 raw type과 unchecked 변환으로 타입 안전성을 깨면 실행 중 실패할 수 있습니다.</p><p><strong>조사:</strong> 실제 class의 descriptor, checkcast 위치, LineNumberTable을 연결하고 타입 오염이 발생한 입력 경로를 찾겠습니다. 실패 줄에서 단순히 catch하는 것은 잘못 들어간 데이터의 원인을 제거하지 못합니다.</p><p><strong>한계:</strong> checkcast 존재만으로 실제 실행 비용을 단정하지 않습니다. JIT가 증명 가능한 조건에서 검사를 최적화할 수 있기 때문입니다.</p></div></details>
 
 <p>추가 근거: <a href="https://docs.oracle.com/javase/specs/jls/se21/html/jls-4.html#jls-4.6">JLS 타입 소거</a>, <a href="https://docs.oracle.com/en/java/javase/21/docs/specs/man/javap.html">javap 도구</a>.</p>
 <h2 id="section-12">8. 상세 면접 Q&amp;A</h2>
 <details class="question"><summary>Q1. -c와 -v의 차이는 무엇인가요?</summary><div class="answer"><p>-c는 메서드 바이트코드를 해석해 보여 줍니다. -v는 상수 풀, 클래스 버전, 속성 등 더 자세한 출력을 제공합니다. 먼저 -c로 흐름을 잡고 #번호나 descriptor의 의미가 필요할 때 -v로 넓히면 읽기 쉽습니다.</p><p><strong>구체적으로:</strong> -c는 실행 명령을 중심으로 보고, -v는 descriptor·상수 풀·속성 등 문맥을 더 제공합니다. 처음에는 관심 메서드 하나를 고른 뒤 필요할 때 주변 정보를 확장하는 편이 좋습니다.</p><p><strong>꼬리질문까지:</strong> 디버그 정보가 없으면 -v를 써도 원래 변수 이름이 마법처럼 복원되지는 않습니다.</p></div></details>
 <details class="question"><summary>Q2. new 뒤에 왜 dup가 나오나요?</summary><div class="answer"><p>생성자 호출에 사용할 참조와 호출 뒤 사용할 참조를 확보하는 전형적인 패턴입니다. 생성자 호출은 반환 타입이 void이므로 생성자가 객체 참조를 결과로 돌려주는 것으로 이해하면 안 됩니다. new가 만든 참조를 유지하는 흐름을 스택으로 추적해야 합니다.</p><p><strong>구체적으로:</strong> 생성자 호출은 수신 객체 참조와 인자를 소비하고 void로 완료됩니다. 호출 뒤 참조를 저장할 수 있도록 같은 참조를 앞서 하나 남겨 두는 전형적인 패턴입니다.</p><p><strong>꼬리질문까지:</strong> 생성자가 객체를 반환한다는 설명과 구분하고 생성자가 예외로 종료되면 정상 저장 경로가 실행되지 않는 점도 확인하세요.</p></div></details>
-<details class="question"><summary>Q3. 배열 접근은 단순 메모리 읽기인가요?</summary><div class="answer"><p>Java 의미에서는 null·범위·타입 규칙을 만족해야 합니다. JVM은 최적화로 검사가 불필요하다고 증명하면 제거할 수 있지만 결과와 예외 의미는 지켜야 합니다. JIT가 검사 명령을 줄였다고 언어 규칙이 사라지는 것은 아닙니다.</p><p><strong>구체적으로:</strong> 배열 참조가 null인지, 인덱스가 범위 안인지 같은 언어 의미가 필요합니다. 명령 하나라고 해서 아무 검사도 없는 임의 주소 접근과 같은 것은 아닙니다.</p><p><strong>꼬리질문까지:</strong> 최적화가 일부 검사를 없앨 수 있어도 프로그램이 관찰하는 예외 의미를 함부로 바꿀 수는 없습니다.</p></div></details>
+<details class="question"><summary>Q3. 배열 접근은 단순 메모리 읽기인가요?</summary><div class="answer"><p>Java 코드는 null·범위·타입에 관한 규칙을 지켜야 합니다. JVM은 최적화 과정에서 불필요하다고 증명한 검사를 없앨 수 있지만, 프로그램의 결과와 예외 동작은 유지해야 합니다. 검사 명령이 줄었다고 Java 언어의 규칙까지 사라지는 것은 아닙니다.</p><p><strong>구체적으로:</strong> 배열 참조가 null인지, 인덱스가 범위 안인지 같은 언어 의미가 필요합니다. 명령 하나라고 해서 아무 검사도 없는 임의 주소 접근과 같은 것은 아닙니다.</p><p><strong>꼬리질문까지:</strong> 최적화가 일부 검사를 없앨 수 있어도 프로그램이 관찰하는 예외 의미를 함부로 바꿀 수는 없습니다.</p></div></details>
 <details class="question"><summary>Q4. javap로 원래 변수명을 항상 알 수 있나요?</summary><div class="answer"><p>지역변수 디버그 정보가 존재해야 더 많은 이름을 볼 수 있습니다. 인덱스만 남아 있는 class에서 원래 이름·주석·소스 표현을 완전히 복구하는 것은 보장되지 않습니다. -g를 사용한 학습용 결과와 배포 결과를 구분합니다.</p><p><strong>구체적으로:</strong> LocalVariableTable 같은 속성이 있어야 이름과 유효 범위에 대한 단서를 얻을 수 있습니다. 난독화나 컴파일 옵션에 따라 원래 이름을 얻기 어려울 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 디버그 이름과 실행 당시 값은 다릅니다. javap는 과거 메모리 상태를 재생하는 도구가 아닙니다.</p></div></details>
 <details class="question"><summary>Q5. invokevirtual이 보이면 실제 CPU도 매번 가상 호출하나요?</summary><div class="answer"><p>명령은 가상 호출의 의미를 표현하지만 JIT는 실제 타입 프로파일을 사용해 호출을 인라이닝하거나 직접적인 경로로 최적화할 수 있습니다. 의미와 최적화 구현이 다릅니다. 타입이 달라져 가정이 깨지면 다른 경로나 역최적화가 필요할 수 있습니다.</p><p><strong>구체적으로:</strong> 프로파일상 수신 타입이 하나라면 JIT가 인라인하거나 호출 대상을 특화할 수 있습니다. 바이트코드는 가능한 의미를, 기계 코드는 해당 실행의 구현을 보여 줍니다.</p><p><strong>꼬리질문까지:</strong> 성능 병목을 논할 때에는 javap와 프로파일링·컴파일 정보를 연결해야 합니다.</p></div></details>
-<details class="question"><summary>Q6. NoSuchMethodError를 javap로 어떻게 조사하나요?</summary><div class="answer"><p>호출하는 쪽의 상수 풀에 기록된 메서드 이름·descriptor와, 실행 시 로드되는 대상 클래스의 메서드 목록을 비교합니다. 컴파일 때 기대한 버전과 실행 때의 버전이 다르면 불일치가 드러날 수 있습니다. 실제 로드 경로를 함께 확인해야 다른 파일을 검사하는 실수를 피할 수 있습니다.</p><p><strong>구체적으로:</strong> 메서드 이름뿐 아니라 호출자 상수 풀의 소유 타입과 descriptor를 실제 라이브러리의 선언과 비교합니다. 인자가 같아 보여도 반환 타입 등 바이너리 계약이 달라졌을 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 개발 PC의 소스 대신 장애 배포 산출물을 조사하고 어떤 로더가 로드했는지도 확인하세요.</p></div></details>
+<details class="question"><summary>Q6. NoSuchMethodError를 javap로 어떻게 조사하나요?</summary><div class="answer"><p>호출하는 쪽의 상수 풀에서 메서드 이름과 descriptor를 확인합니다. 그다음 실행 중에 로드된 대상 클래스의 메서드 목록과 비교하세요. 컴파일할 때 기대한 버전과 실제 실행 버전이 다르면 서로 맞지 않을 수 있습니다. 다른 파일을 잘못 검사하지 않도록 실제로 어디에서 클래스를 로드했는지도 확인해야 합니다.</p><p><strong>구체적으로:</strong> 메서드 이름뿐 아니라 호출자 상수 풀의 소유 타입과 descriptor를 실제 라이브러리의 선언과 비교합니다. 인자가 같아 보여도 반환 타입처럼 컴파일된 코드가 기대하는 정보는 달라졌을 수 있습니다.</p><p><strong>꼬리질문까지:</strong> 개발 PC의 소스 대신 장애 배포 산출물을 조사하고 어떤 로더가 로드했는지도 확인하세요.</p></div></details>
 
 <h2 id="section-13">9. 공식 문서와 추가 실습</h2>
 <ul>
